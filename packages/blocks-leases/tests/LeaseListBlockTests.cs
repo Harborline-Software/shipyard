@@ -15,9 +15,12 @@ public class LeaseListBlockTests : BunitContext
     // Helpers
     // ---------------------------------------------------------------------------
 
+    private static readonly TenantId TestTenant = new("tenant-a");
+
     private static Lease MakeLease(string id = "lease-1") => new()
     {
         Id = new LeaseId(id),
+        TenantId = TestTenant,
         UnitId = new EntityId("unit", "test", id),
         Tenants = [new PartyId("tenant-a")],
         Landlord = new PartyId("landlord-x"),
@@ -48,6 +51,7 @@ public class LeaseListBlockTests : BunitContext
         var svc = new InMemoryLeaseService();
         var lease = await svc.CreateAsync(new CreateLeaseRequest
         {
+            TenantId = TestTenant,
             UnitId = new EntityId("unit", "test", "apt-1"),
             Tenants = [new PartyId("tenant-a")],
             Landlord = new PartyId("landlord-x"),

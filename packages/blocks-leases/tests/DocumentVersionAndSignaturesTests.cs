@@ -55,6 +55,7 @@ public sealed class DocumentVersionAndSignaturesTests
 
     private static CreateLeaseRequest MakeRequest(IReadOnlyList<PartyId>? tenants = null) => new()
     {
+        TenantId = TestTenant,
         UnitId = new EntityId("unit", "test", "u-1"),
         Tenants = tenants ?? new[] { TenantAlice },
         Landlord = new PartyId("landlord-x"),

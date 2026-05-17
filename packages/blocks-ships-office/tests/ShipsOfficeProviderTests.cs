@@ -157,6 +157,7 @@ public class ShipsOfficeProviderTests
         var lease = new Lease
         {
             Id = leaseId,
+            TenantId = TenantA,
             UnitId = new EntityId("unit", "units", "unit-1"),
             Tenants = new[] { new PartyId("party-1") },
             Landlord = new PartyId("landlord-1"),
@@ -205,6 +206,7 @@ public class ShipsOfficeProviderTests
         var lease = new Lease
         {
             Id = LeaseId.NewId(),
+            TenantId = TenantA,
             UnitId = new EntityId("unit", "units", "unit-1"),
             Tenants = new[] { new PartyId("party-1") },
             Landlord = new PartyId("landlord-1"),
@@ -240,6 +242,7 @@ public class ShipsOfficeProviderTests
         var lease = new Lease
         {
             Id = leaseId,
+            TenantId = TenantA,
             UnitId = new EntityId("unit", "units", "unit-1"),
             Tenants = new[] { new PartyId("party-1") },
             Landlord = new PartyId("landlord-1"),

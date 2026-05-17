@@ -9,6 +9,10 @@ namespace Sunfish.Blocks.Leases.Services;
 /// </summary>
 public sealed record CreateLeaseRequest
 {
+    /// <summary>Owning tenant for the new lease. Required by the
+    /// <see cref="Sunfish.Foundation.MultiTenancy.IMustHaveTenant"/> contract on <see cref="Lease"/>.</summary>
+    public required TenantId TenantId { get; init; }
+
     /// <summary>The unit to be covered by the lease.</summary>
     public required EntityId UnitId { get; init; }
 

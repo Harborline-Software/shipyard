@@ -1,4 +1,5 @@
 using Sunfish.Blocks.Leases.Models;
+using Sunfish.Foundation.Assets.Common;
 using Xunit;
 
 using PartyId = Sunfish.Blocks.People.Foundation.Models.PartyId;
@@ -7,6 +8,8 @@ namespace Sunfish.Blocks.Leases.Tests;
 
 public sealed class LeaseHolderRoleTests
 {
+    private static readonly TenantId TestTenant = new("tenant-a");
+
     [Fact]
     public void EnumValues_Cover_AllFourRoles()
     {
@@ -52,6 +55,7 @@ public sealed class LeaseHolderRoleTests
         var lease = new Lease
         {
             Id = LeaseId.NewId(),
+            TenantId = TestTenant,
             UnitId = new Sunfish.Foundation.Assets.Common.EntityId("unit", "test", "u-1"),
             Tenants = new[] { new PartyId("tenant-1") },
             Landlord = new PartyId("landlord-x"),
@@ -74,6 +78,7 @@ public sealed class LeaseHolderRoleTests
         var lease = new Lease
         {
             Id = LeaseId.NewId(),
+            TenantId = TestTenant,
             UnitId = new Sunfish.Foundation.Assets.Common.EntityId("unit", "test", "u-1"),
             Tenants = new[] { new PartyId("t-1") },
             Landlord = new PartyId("l-1"),
