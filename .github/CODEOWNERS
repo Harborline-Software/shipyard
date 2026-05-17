@@ -40,9 +40,13 @@
 /packages/blocks-scheduling/    @ctwoodwa
 /packages/blocks-assets/        @ctwoodwa
 
-# Solution accelerators
-/accelerators/                  @ctwoodwa
-
-# Apps
+# Apps in shipyard (apps/docs, apps/kitchen-sink, apps/local-node-host)
 /apps/                          @ctwoodwa
+
+# Tooling
 /tooling/                       @ctwoodwa
+
+# Note: accelerators/ moved out in the 2026-05-17 multi-repo restructure.
+# Anchor (was accelerators/anchor/) is now Harborline-Software/sunfish.
+# Bridge (was accelerators/bridge/) is now Harborline-Software/signal-bridge.
+# Each has its own per-repo CODEOWNERS.

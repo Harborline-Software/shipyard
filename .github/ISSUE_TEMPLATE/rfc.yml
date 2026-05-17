@@ -6,9 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this template for design-level proposals — anything that would normally become an ADR or a cross-cutting change. For bugs use the Bug Report template; for specific feature requests use Feature Request. For open-ended questions, start a [Discussion](https://github.com/ctwoodwa/Sunfish/discussions) first.
+        Use this template for design-level proposals — anything that would normally become an ADR or a cross-cutting change. For bugs use the Bug Report template; for specific feature requests use Feature Request. For open-ended questions, start a [Discussion](https://github.com/Harborline-Software/shipyard/discussions) first.
 
-        Please follow the **Universal Planning Framework (UPF)** shape where applicable: surface the problem, list alternatives, name success and failure criteria. See [`_shared/engineering/planning-framework.md`](../_shared/engineering/planning-framework.md) for the structure.
+        Please follow the **Universal Planning Framework (UPF)** shape where applicable: surface the problem, list alternatives, name success and failure criteria. See [`_shared/engineering/planning-framework.md`](../../_shared/engineering/planning-framework.md) for the structure.
   - type: textarea
     id: problem
     attributes:
@@ -61,7 +61,7 @@ body:
         - UI Adapters (Blazor / React / other)
         - Domain modules (blocks-*)
         - Bundles (business-case manifests)
-        - Accelerator (Bridge)
+        - Accelerator (signal-bridge — separate repo; cross-repo ADR)
         - Ingestion
         - Federation
         - Kernel

@@ -37,14 +37,13 @@ jobs:
 
       # Restore/build ONLY the three packages docfx consumes (foundation, ui-core,
       # ui-adapters-blazor — see apps/docs/docfx.json `metadata.src.files`). A
-      # solution-wide `dotnet restore Sunfish.slnx` pulls in accelerators/anchor,
-      # which conditionally targets net11.0-maccatalyst on non-Windows and triggers
-      # NETSDK1147 on Linux runners (the `macos` + `maui-tizen` workloads can't be
-      # installed off macOS). The three docfx packages are pure net11.0 and restore
-      # cleanly on ubuntu-latest. The csproj-level `<ProjectReference>`s still pull
-      # in transitive deps (foundation→none, ui-core→foundation, ui-adapters-blazor
-      # →ui-core+foundation), so docfx gets the full dependency graph it needs to
-      # resolve XML doc comment links.
+      # solution-wide `dotnet restore Shipyard.slnx` would technically work post-
+      # restructure (Anchor MAUI moved out to sunfish/), but the targeted restore is
+      # faster and keeps the docfx pipeline independent of the broader build graph.
+      # The csproj-level `<ProjectReference>`s still pull in transitive deps
+      # (foundation→none, ui-core→foundation, ui-adapters-blazor→ui-core+foundation),
+      # so docfx gets the full dependency graph it needs to resolve XML doc comment
+      # links.
       - name: Restore packages (docfx-only)
         run: |
           dotnet restore packages/foundation/Sunfish.Foundation.csproj

@@ -3,7 +3,7 @@
 #
 # Why this gate exists
 # --------------------
-# `github.com/ctwoodwa/Sunfish` is a PUBLIC repo. The `pull_request_target:`
+# `github.com/Harborline-Software/shipyard` is a PUBLIC repo. The `pull_request_target:`
 # trigger runs with the BASE branch's workflow code AND with the BASE branch's
 # secrets / write-scoped GITHUB_TOKEN, but is typically combined with a
 # `actions/checkout` of the PR HEAD (`github.event.pull_request.head.sha`).

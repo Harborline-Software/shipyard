@@ -24,4 +24,4 @@ jobs:
       - uses: wagoid/commitlint-github-action@v6
         with:
           configFile: commitlint.config.mjs
-          helpURL: https://github.com/ctwoodwa/Sunfish/blob/main/_shared/engineering/commit-conventions.md
+          helpURL: https://github.com/Harborline-Software/shipyard/blob/main/_shared/engineering/commit-conventions.md
