@@ -122,7 +122,7 @@ blocks-financial-periods       (NOT a dependency of this hand-off — tax rates 
 
 6. **Confirm ONR research output is NOT in repo.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/icm/02_architecture/regulatory-us-rental-tax-input.md 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/icm/02_architecture/regulatory-us-rental-tax-input.md 2>&1
    ```
    Expected: `No such file or directory`. **If the file exists**, the v1-provisional mapping in PR 4 still applies (don't try to rewrite the seed in-line); flag in the PR description that the ratification addendum is a follow-on hand-off, not part of this scope. If you can re-cite specific Schedule E lines from the ONR output safely in the seed comments without expanding scope, do so; otherwise leave the v1 seed unchanged.
 
