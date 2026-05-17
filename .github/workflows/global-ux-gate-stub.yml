@@ -1,0 +1,46 @@
+# Stub workflow for the `Global-UX Gate (aggregate)` required check.
+#
+# Why this exists:
+#   `global-ux-gate.yml` is path-filtered to packages/**, apps/**, tooling/**,
+#   i18n/**, and its own workflow file. Branch protection on `main` requires
+#   the `Global-UX Gate (aggregate)` check to report on every PR. PRs that
+#   touch ONLY paths the real gate doesn't audit (docs/, .wolf/, ICM markdown,
+#   dependabot github_actions bumps, sibling workflow files) never trigger the
+#   real workflow — so the required check never reports and the PR is blocked
+#   forever.
+#
+#   This stub fires with the inverse path filter and emits a passing check_run
+#   under the same `Global-UX Gate (aggregate)` context. The required-check
+#   evaluator sees a SUCCESS and unblocks the merge.
+#
+# Mixed PRs (some UX files + some non-UX files): both this stub AND the real
+# gate trigger. Both report under the same context name. Branch protection
+# treats same-named checks as a logical AND — the real gate's failure (if any)
+# still blocks the merge; the stub's pass does not override.
+#
+# Keep the paths-ignore list in sync with global-ux-gate.yml's `paths:` list.
+
+name: Global-UX Gate (stub)
+
+on:
+  pull_request:
+    paths-ignore:
+      - "packages/**"
+      - "apps/**"
+      - "tooling/**"
+      - "i18n/**"
+      - ".github/workflows/global-ux-gate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  global-ux-gate:
+    name: Global-UX Gate (aggregate)
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Stub — PR changes no paths the Global-UX gate audits. Required check satisfied vacuously."
