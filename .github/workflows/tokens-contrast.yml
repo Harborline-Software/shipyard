@@ -1,0 +1,43 @@
+name: Design Token Contrast Verification
+
+on:
+  push:
+    paths:
+      - 'packages/foundation-design-tokens/**'
+      - 'tooling/design-tokens-codegen/**'
+      - 'tooling/Sunfish.Tooling.ColorAudit/**'
+  pull_request:
+    paths:
+      - 'packages/foundation-design-tokens/**'
+      - 'tooling/design-tokens-codegen/**'
+      - 'tooling/Sunfish.Tooling.ColorAudit/**'
+
+jobs:
+  contrast-gate:
+    name: WCAG Contrast Gate
+    runs-on: ubuntu-latest
+    # TODO(W#46 follow-on): re-enable as required-blocking gate once role-band
+    # palette satisfies CvdAuditor.DefaultThreshold (ΔE2000 ≥ 11) across all 21
+    # pairs in both light and dark themes under deuteran/protan/tritan simulation.
+    # Current tokens.json carries PLACEHOLDER hues (see `$description` in
+    # packages/foundation-design-tokens/tokens.json sf.color.role-band).
+    # Beacon: coordination/inbox/xo-status-2026-05-13T13-15Z-wcag-gate-broken-on-main.md
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: |
+          dotnet restore tooling/design-tokens-codegen/DesignTokensCodegenTool.csproj
+
+      - name: Run contrast + CVD verification
+        run: |
+          dotnet run --project tooling/design-tokens-codegen/DesignTokensCodegenTool.csproj \
+            --no-launch-profile -- \
+            --tokens packages/foundation-design-tokens/tokens.json \
+            --verify-contrast --verify-cvd --ci

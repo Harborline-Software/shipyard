@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AssemblyName>Sunfish.Blocks.ShipsOffice.Tests</AssemblyName>
+    <RootNamespace>Sunfish.Blocks.ShipsOffice.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="bunit" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sunfish.Blocks.ShipsOffice.csproj" />
+    <ProjectReference Include="..\..\ui-adapters-blazor\Sunfish.UIAdapters.Blazor.csproj" />
+    <ProjectReference Include="..\..\blocks-leases\Sunfish.Blocks.Leases.csproj" />
+    <ProjectReference Include="..\..\blocks-people-foundation\Sunfish.Blocks.People.Foundation.csproj" />
+    <ProjectReference Include="..\..\blocks-maintenance\Sunfish.Blocks.Maintenance.csproj" />
+    <ProjectReference Include="..\..\foundation\Sunfish.Foundation.csproj" />
+    <ProjectReference Include="..\..\foundation-catalog\Sunfish.Foundation.Catalog.csproj" />
+    <ProjectReference Include="..\..\foundation-mission-space\Sunfish.Foundation.MissionSpace.csproj" />
+    <ProjectReference Include="..\..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
+    <ProjectReference Include="..\..\foundation-recovery\Sunfish.Foundation.Recovery.csproj" />
+    <ProjectReference Include="..\..\foundation-ship-common\Sunfish.Foundation.Ship.Common.csproj" />
+    <ProjectReference Include="..\..\foundation-ships-office\Sunfish.Foundation.ShipsOffice.csproj" />
+    <ProjectReference Include="..\..\kernel-audit\Sunfish.Kernel.Audit.csproj" />
+    <ProjectReference Include="..\..\kernel-signatures\Sunfish.Kernel.Signatures.csproj" />
+    <ProjectReference Include="..\..\ui-core\Sunfish.UICore.csproj" />
+  </ItemGroup>
+
+</Project>

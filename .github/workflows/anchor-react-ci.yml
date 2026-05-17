@@ -1,0 +1,32 @@
+name: anchor-react CI
+
+on:
+  push:
+    paths:
+      - 'apps/anchor-react/**'
+      - 'packages/ui-react/**'
+      - '.github/workflows/anchor-react-ci.yml'
+  pull_request:
+    paths:
+      - 'apps/anchor-react/**'
+      - 'packages/ui-react/**'
+      - '.github/workflows/anchor-react-ci.yml'
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/anchor-react/package-lock.json
+      - name: Build @sunfish/ui-react
+        run: npm install && npm run build
+        working-directory: packages/ui-react
+      - run: cd apps/anchor-react && npm ci
+      - run: cd apps/anchor-react && npm run lint
+      - run: cd apps/anchor-react && npm run typecheck
+      - run: cd apps/anchor-react && npm test -- --run
+      - run: cd apps/anchor-react && npm run build

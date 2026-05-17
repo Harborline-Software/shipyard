@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Foundation.DesignTokens</PackageId>
+    <RootNamespace>Sunfish.Foundation.DesignTokens</RootNamespace>
+    <Description>Foundation-tier design-token catalog per ADR 0077 §5 — W3C Design Tokens format source-of-truth (tokens.json) + handcrafted C# const records for surface / text / state / role-band colors, typography, spacing, radius, elevation, motion, and target-size. W#46 Phase 2a substrate; Phase 2b adds the codegen pipeline (C# + CSS + Markdown) + WCAG 1.4.3/1.4.11 contrast verification CI gate + CVD ΔE2000 audit.</Description>
+    <PackageTags>sunfish;foundation;design-tokens;adr-0077</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Embed the W3C tokens.json source-of-truth so consumers can
+         resolve the canonical token catalog at runtime via a reflection
+         loader (Phase 2b will add a typed accessor). -->
+    <EmbeddedResource Include="tokens.json"
+                      LogicalName="Sunfish.Foundation.DesignTokens.tokens.json" />
+    <EmbeddedResource Include="tokens.css"
+                      LogicalName="Sunfish.Foundation.DesignTokens.tokens.css" />
+    <None Include="tokens.css" Pack="true" PackagePath="content\tokens.css" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Foundation.DesignTokens.Tests" />
+  </ItemGroup>
+
+  <!-- Phase 2b: regenerate CSS + Markdown from tokens.json before every build.
+       The tool also gates on WCAG 1.4.3/1.4.11 contrast and emits CVD ΔE2000 warnings.
+       Set SUNFISH_SKIP_TOKEN_CODEGEN=1 to bypass during inner-loop editing. -->
+  <Target Name="RunDesignTokensCodegen" BeforeTargets="BeforeBuild"
+          Condition="'$(SUNFISH_SKIP_TOKEN_CODEGEN)' != '1'"
+          Inputs="$(MSBuildThisFileDirectory)tokens.json"
+          Outputs="$(MSBuildThisFileDirectory)..\ui-core\src\tokens.css;$(MSBuildThisFileDirectory)..\..\apps\docs\design-system\tokens.md;$(MSBuildThisFileDirectory)..\..\apps\docs\design-system\role-band-cvd.md">
+    <PropertyGroup>
+      <_CodegenTool>$(MSBuildThisFileDirectory)..\..\tooling\design-tokens-codegen\DesignTokensCodegenTool.csproj</_CodegenTool>
+      <_TokensJson>$(MSBuildThisFileDirectory)tokens.json</_TokensJson>
+      <_OutCss>$(MSBuildThisFileDirectory)..\ui-core\src\tokens.css</_OutCss>
+      <_OutTokensMd>$(MSBuildThisFileDirectory)..\..\apps\docs\design-system\tokens.md</_OutTokensMd>
+      <_OutCvdMd>$(MSBuildThisFileDirectory)..\..\apps\docs\design-system\role-band-cvd.md</_OutCvdMd>
+    </PropertyGroup>
+    <!-- Note: first build in a fresh checkout requires running
+         `dotnet build tooling/design-tokens-codegen/` before this package,
+         or use SUNFISH_SKIP_TOKEN_CODEGEN=1 then run the tool manually. -->
+    <Exec Command="dotnet run --project &quot;$(_CodegenTool)&quot; --no-launch-profile -- --tokens &quot;$(_TokensJson)&quot; --out-css &quot;$(_OutCss)&quot; --out-tokens-md &quot;$(_OutTokensMd)&quot; --out-cvd-md &quot;$(_OutCvdMd)&quot; --verify-contrast --ci"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" />
+  </Target>
+</Project>

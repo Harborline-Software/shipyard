@@ -1,0 +1,21 @@
+# Build artifacts
+bin/
+obj/
+target/
+dist/
+.next/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Logs
+*.log

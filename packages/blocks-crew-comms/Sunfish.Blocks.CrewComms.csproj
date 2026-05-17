@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Blocks.CrewComms</PackageId>
+    <RootNamespace>Sunfish.Blocks.CrewComms</RootNamespace>
+    <Description>Native crew communication reference implementation for Anchor (ADR 0076).</Description>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);CS1591;MsgPack017</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Microsoft.Extensions.DependencyInjection is supplied transitively
+         by the Microsoft.AspNetCore.App framework reference once we
+         switched to the Razor SDK; an explicit PackageReference would
+         trigger NU1510 (unprunable PackageReference). -->
+    <PackageReference Include="MessagePack" />
+    <PackageReference Include="NSec.Cryptography" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
+    <ProjectReference Include="..\foundation-channels\Sunfish.Foundation.Channels.csproj" />
+    <ProjectReference Include="..\foundation-transport\Sunfish.Foundation.Transport.csproj" />
+    <ProjectReference Include="..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
+    <ProjectReference Include="..\federation-common\Sunfish.Federation.Common.csproj" />
+    <ProjectReference Include="..\kernel-audit\Sunfish.Kernel.Audit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Blocks.CrewComms.Tests" />
+  </ItemGroup>
+</Project>

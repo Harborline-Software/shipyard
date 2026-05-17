@@ -1,0 +1,32 @@
+name: Ledger render check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'icm/_state/active-workstreams.md'
+      - 'icm/_state/workstreams/**'
+      - 'tools/icm/**'
+      - '.github/workflows/ledger-check.yml'
+
+# Read-only check; verifies that the committed icm/_state/active-workstreams.md
+# matches the regen output of tools/icm/render-ledger.py.  Catches direct hand
+# edits to the generated ledger (the per-workstream files under
+# icm/_state/workstreams/W*.md are the source of truth).
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Verify ledger regen matches
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Run render-ledger --check
+        run: python3 tools/icm/render-ledger.py --check
