@@ -142,7 +142,7 @@ Per the sibling ledger hand-off, Q10 remains **open** at this hand-off's cutoff.
 
 5. **Confirm `blocks-rent-collection` consumer set (for PR 5).**
    ```bash
-   grep -rln "Sunfish.Blocks.RentCollection" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ /Users/christopherwood/Projects/SunfishSoftware/Sunfish/apps/ /Users/christopherwood/Projects/SunfishSoftware/Sunfish/accelerators/
+   grep -rln "Sunfish.Blocks.RentCollection" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ /Users/christopherwood/Projects/Harborline-Software/shipyard/apps/ /Users/christopherwood/Projects/Harborline-Software/sunfish/apps/ /Users/christopherwood/Projects/Harborline-Software/sunfish/src/ /Users/christopherwood/Projects/Harborline-Software/signal-bridge/
    grep -rln "IRentCollectionService" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/
    ```
    Capture every match; the PR 5 wrapper retrofit must preserve every public-surface call against these consumers. If the consumer set is larger than 5 projects, file `cob-question-*` for a council review of the wrapper boundary.

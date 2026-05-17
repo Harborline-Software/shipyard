@@ -107,7 +107,7 @@ Per the 2026-05-16 ratification ruling:
 
 5. **Check existing consumers of `blocks-financial-ledger`.**
    ```bash
-   grep -rln "Sunfish.Blocks.FinancialLedger" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ /Users/christopherwood/Projects/SunfishSoftware/Sunfish/apps/ /Users/christopherwood/Projects/SunfishSoftware/Sunfish/accelerators/
+   grep -rln "Sunfish.Blocks.FinancialLedger" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ /Users/christopherwood/Projects/Harborline-Software/shipyard/apps/ /Users/christopherwood/Projects/Harborline-Software/sunfish/apps/ /Users/christopherwood/Projects/Harborline-Software/sunfish/src/ /Users/christopherwood/Projects/Harborline-Software/signal-bridge/
    grep -rln "blocks-financial-ledger" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/ --include="*.csproj"
    ```
    Expected: a small set of consumer projects (likely `blocks-rent-collection`,
