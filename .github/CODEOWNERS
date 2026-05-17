@@ -1,52 +1,11 @@
-# CODEOWNERS — auto-request reviews when these paths change in a PR.
-# Update the right column as contributors join.
-
-# Default: all unmatched paths
-*                               @ctwoodwa
-
-# Architecture and process
-/icm/                           @ctwoodwa
-/_shared/                       @ctwoodwa
-/CLAUDE.md                      @ctwoodwa
-/.github/                       @ctwoodwa
-
-# Foundation layer (framework-agnostic contracts)
-/packages/foundation/           @ctwoodwa
-
-# Foundation-tier split packages (per ADRs 0005, 0008, 0009, 0012, 0013)
-/packages/foundation-catalog/             @ctwoodwa
-/packages/foundation-multitenancy/        @ctwoodwa
-/packages/foundation-featuremanagement/   @ctwoodwa
-/packages/foundation-localfirst/          @ctwoodwa
-/packages/foundation-integrations/        @ctwoodwa
-
-# Governance and decision-making docs
-/GOVERNANCE.md                  @ctwoodwa
-/docs/adrs/                     @ctwoodwa
-
-# UI contracts — require extra scrutiny (breaking change surface)
-/packages/ui-core/              @ctwoodwa
-
-# Adapters
-/packages/ui-adapters-blazor/   @ctwoodwa
-/packages/ui-adapters-react/    @ctwoodwa
-
-# Compatibility shim — policy-gated
-/packages/compat-telerik/       @ctwoodwa
-
-# Domain blocks
-/packages/blocks-forms/         @ctwoodwa
-/packages/blocks-tasks/         @ctwoodwa
-/packages/blocks-scheduling/    @ctwoodwa
-/packages/blocks-assets/        @ctwoodwa
-
-# Apps in shipyard (apps/docs, apps/kitchen-sink, apps/local-node-host)
-/apps/                          @ctwoodwa
-
-# Tooling
-/tooling/                       @ctwoodwa
-
-# Note: accelerators/ moved out in the 2026-05-17 multi-repo restructure.
-# Anchor (was accelerators/anchor/) is now Harborline-Software/sunfish.
-# Bridge (was accelerators/bridge/) is now Harborline-Software/signal-bridge.
-# Each has its own per-repo CODEOWNERS.
+# CODEOWNERS — shipyard
+#
+# Intentionally minimal: the previous catchall (* @ctwoodwa) auto-requested
+# review from the maintainer on every PR, including the steady stream of
+# Dependabot PRs. With the fleet on a solo-dev posture (BDFL governance)
+# and PR auto-assign already pinning each PR to ctwoodwa via the
+# `auto-assign.yml` workflow, the catchall added notification noise
+# without value.
+#
+# Add specific path ownerships here ONLY when a real second-reviewer
+# expectation exists for that path. Today there are none.

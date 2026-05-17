@@ -1,0 +1,57 @@
+# Auto-merge Dependabot PRs that are minor or patch version bumps.
+#
+# Mechanics:
+# - Fires on Dependabot PRs (filter by github.actor)
+# - Uses dependabot/fetch-metadata@v2 to learn the update-type
+# - For semver-patch and semver-minor, enables auto-merge with squash;
+#   `gh pr merge --auto` waits for required-status-checks to pass before
+#   actually merging — so the gate is still CI, not human approval.
+# - Major version bumps are NOT auto-merged (more risk; require manual review).
+#
+# Required repo settings for this to work:
+# - Settings → General → Pull Requests → "Allow auto-merge" enabled
+# - Settings → Code security → Dependabot → "Allow GitHub Actions to create
+#   and approve pull requests" — not needed, since we don't create PRs here
+# - GITHUB_TOKEN scope: pull-requests:write + contents:write (set below)
+#
+# Compatible with our `ban-pull-request-target.yml` security gate because
+# this workflow uses the `pull_request` trigger, NOT `pull_request_target`.
+
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Enable auto-merge for minor/patch
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge for semver-patch / semver-minor
+        if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr merge --auto --squash "$PR_URL"
+
+      - name: Note skipped major bumps
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          echo "::notice::Skipping auto-merge for major version bump — manual review required."
+          gh pr comment "$PR_URL" --body "Skipping auto-merge: this is a **major version bump** (\`${{ steps.meta.outputs.update-type }}\`). Requires manual review before merge." || true
