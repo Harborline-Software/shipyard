@@ -231,4 +231,18 @@ public sealed class ReportRunnerTests
             runner.RunAsync<P, R>(ReportKind.TrialBalance, new P(), Tenant, Principal));
         Assert.Same(paramEx, thrown);
     }
+
+    // Council amendment A-A2 (W#72 PR 1 .NET architect review): verify that
+    // OperationCanceledException from a cartridge surfaces unwrapped — it MUST NOT
+    // be swallowed by the ReportCartridgeExecutionException catch block.
+    [Fact]
+    public async Task RunAsync_CartridgeThrowsOperationCanceled_SurfacesUnwrapped()
+    {
+        var (runner, registry, _, _) = Build();
+        var cancelEx = new OperationCanceledException("cartridge cancelled");
+        registry.Register<P, R>(new ThrowingCartridge { ToThrow = cancelEx });
+        var thrown = await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            runner.RunAsync<P, R>(ReportKind.TrialBalance, new P(), Tenant, Principal));
+        Assert.Same(cancelEx, thrown);
+    }
 }
