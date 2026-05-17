@@ -44,7 +44,7 @@ Stage 02 §3.17 names the entity `TaxLineMapping`; Stage 02 of **reports** §3 n
 
 ### ONR research dependency (provisional Schedule E mapping)
 
-The ONR session is producing `Sunfish/icm/02_architecture/regulatory-us-rental-tax-input.md` — a US-rental-property tax research output that will **ratify the canonical Schedule E line-mapping table** (and Pub 527 expense-category-to-account-class mapping, and 1099 threshold rules). At the time of this hand-off authoring (2026-05-16) the ONR output is **pending and not yet in repo**.
+The ONR session is producing `shipyard/icm/02_architecture/regulatory-us-rental-tax-input.md` — a US-rental-property tax research output that will **ratify the canonical Schedule E line-mapping table** (and Pub 527 expense-category-to-account-class mapping, and 1099 threshold rules). At the time of this hand-off authoring (2026-05-16) the ONR output is **pending and not yet in repo**.
 
 **Mitigation built into this hand-off:**
 
