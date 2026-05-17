@@ -1,32 +1,43 @@
+# ---------------------------------------------------------------------------
+# anchor-react CI — INERT in shipyard (preserved per CIC directive 2026-05-17:
+# "don't move/delete shipyard workflows" during the fleet restructure).
+#
+# The anchor-react app moved to sunfish/apps/web/ in the 2026-05-17 multi-repo
+# restructure; the live anchor-react / web CI workflow now lives at
+# `sunfish/.github/workflows/web-ci.yml`. This file's path triggers
+# (apps/anchor-react/**) cannot match in shipyard because that directory does
+# not exist here — the workflow stays defined as a placeholder so the file
+# isn't deleted, but it never fires.
+#
+# packages/ui-react still lives in shipyard, and the sunfish-side web-ci.yml
+# checks out sibling shipyard and prebuilds @sunfish/ui-react before testing
+# apps/web. If you want a ui-react-only build gate that runs in shipyard
+# itself, replace this workflow's content rather than deleting the file.
+# ---------------------------------------------------------------------------
+
 name: anchor-react CI
 
+# Path globs intentionally point at directories that don't exist in shipyard
+# post-restructure; the workflow therefore never triggers. See header above.
 on:
   push:
     paths:
       - 'apps/anchor-react/**'
-      - 'packages/ui-react/**'
-      - '.github/workflows/anchor-react-ci.yml'
+      - '.github/workflows/anchor-react-ci.yml.disabled'
   pull_request:
     paths:
       - 'apps/anchor-react/**'
-      - 'packages/ui-react/**'
-      - '.github/workflows/anchor-react-ci.yml'
+      - '.github/workflows/anchor-react-ci.yml.disabled'
+
+permissions:
+  contents: read
 
 jobs:
-  lint-test:
+  inert:
+    name: anchor-react CI (relocated to sunfish/)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: apps/anchor-react/package-lock.json
-      - name: Build @sunfish/ui-react
-        run: npm install && npm run build
-        working-directory: packages/ui-react
-      - run: cd apps/anchor-react && npm ci
-      - run: cd apps/anchor-react && npm run lint
-      - run: cd apps/anchor-react && npm run typecheck
-      - run: cd apps/anchor-react && npm test -- --run
-      - run: cd apps/anchor-react && npm run build
+      - run: |
+          echo "anchor-react CI lives in sunfish/.github/workflows/web-ci.yml"
+          echo "post-2026-05-17 multi-repo restructure. This shipyard-side"
+          echo "workflow is preserved as a placeholder and does not run."

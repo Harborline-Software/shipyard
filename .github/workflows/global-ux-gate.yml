@@ -7,8 +7,8 @@
 #
 # .NET-side gates (loc-comments analyzer SUNFISH_I18N_001, SmartFormat CLDR plural
 # tests, XLIFF round-trip tests, bUnit-axe bridge tests) ride on the existing
-# .github/workflows/ci.yml `dotnet test Sunfish.slnx` — every project is in the
-# slnx so its tests run there.
+# .github/workflows/ci.yml `dotnet test Shipyard.slnx` — every shipyard project
+# is in the slnx so its tests run there.
 
 name: Global-UX Gate
 
@@ -168,7 +168,6 @@ jobs:
           path: packages/ui-core/storybook-static/
 
   # Plan 5 Task 1 — analyzers gate.
-  # Runs on Windows because Sunfish.slnx contains the Anchor MAUI project.
   # We treat ONLY the SUNFISH_* analyzer diagnostics as errors (via
   # WarningsAsErrors property). Bare `-warnaserror` would escalate pre-existing
   # NETSDK1206 (musl-rid metadata), CS0162 (kitchen-sink generated code), and
@@ -176,7 +175,10 @@ jobs:
   # SUNFISH analyzer rules this gate is supposed to enforce.
   analyzers:
     name: Analyzers (-warnaserror)
-    runs-on: windows-latest
+    # Post-2026-05-17 restructure: Anchor MAUI moved out of shipyard to
+    # sunfish/, so analyzers can run on Linux. The legacy Windows runner was
+    # only required because Sunfish.slnx included the MAUI project.
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
@@ -192,37 +194,15 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', '**/Directory.Build.props', '**/Directory.Build.targets') }}
           restore-keys: nuget-${{ runner.os }}-
 
-      # Cache key v3: revert v2's `packs/` inclusion — multi-GB upload
-      # exceeded the 20-min job timeout on cache save. Runtime packs come
-      # from `dotnet restore -p:RuntimeIdentifiers=win-x64` (next step) and
-      # the NuGet packages cache above keeps that fast on warm runs.
-      - name: Cache .NET workloads
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.dotnet/workloads
-            C:/Program Files/dotnet/sdk-manifests
-            C:/Program Files/dotnet/metadata
-          key: dotnet-workloads-v3-${{ runner.os }}-${{ hashFiles('global.json', 'Sunfish.slnx') }}
-          restore-keys: dotnet-workloads-v3-${{ runner.os }}-
-
-      - name: Restore .NET workloads
-        run: dotnet workload restore Sunfish.slnx
       - name: Restore
-        # Pass RuntimeIdentifiers=win-x64 so the Anchor MAUI project pulls
-        # down Microsoft.NETCore.App.Runtime.win-x64 + AspNetCore equivalent
-        # at restore time. Without this, NETSDK1112 fires at build time
-        # because MAUI/WindowsAppSDK forces win-x64 runtime pack but the
-        # csproj has no explicit RuntimeIdentifiers element.
-        run: dotnet restore Sunfish.slnx -p:RuntimeIdentifiers=win-x64
+        run: dotnet restore Shipyard.slnx
       - name: Build (SUNFISH_* warnings as errors only)
-        # Escape semicolons as %3B so MSBuild decodes them inside the property
-        # value. Without this, both PowerShell (command-separator) and Git Bash
-        # on Windows (MSYS2 PATH-conversion layer) split the semicolon-laden
-        # arg before MSBuild sees it, causing MSB1006 "Switch: SUNFISH_I18N_002".
-        # %3B → ; happens inside MSBuild's property parser, after argv split.
-        shell: bash
-        run: dotnet build Sunfish.slnx --configuration Release --no-restore -p:WarningsAsErrors=SUNFISH_I18N_001%3BSUNFISH_I18N_002%3BSUNFISH_A11Y_001
+        # Semicolons are escaped as %3B inside the property value so MSBuild
+        # decodes them after argv split. Originally added to work around
+        # PowerShell + Git Bash MSYS2 path-conversion on the Windows runner;
+        # harmless on Linux and keeps the property syntax portable if this
+        # job ever runs on Windows again.
+        run: dotnet build Shipyard.slnx --configuration Release --no-restore -p:WarningsAsErrors=SUNFISH_I18N_001%3BSUNFISH_I18N_002%3BSUNFISH_A11Y_001
 
   # Plan 5 Task 1 — XLIFF round-trip gate.
   # Targets the LocalizationXliff MSBuild-task test suite directly so a regression
@@ -354,7 +334,7 @@ jobs:
         with:
           node-version: "24"
       - name: Scan RESX comments
-        run: node tooling/resx-xss-scanner/check.mjs packages/ accelerators/ apps/
+        run: node tooling/resx-xss-scanner/check.mjs packages/ apps/
 
   # Aggregator job for branch-protection — set as a single required check that
   # passes only when all parent jobs pass. Avoids needing N required-check entries

@@ -1,94 +1,39 @@
+# ---------------------------------------------------------------------------
+# Tauri cross-platform build — INERT in shipyard (preserved per CIC directive
+# 2026-05-17: "don't move/delete shipyard workflows" during the fleet
+# restructure).
+#
+# The Tauri shell moved to sunfish/apps/desktop/ in the 2026-05-17 multi-repo
+# restructure; the live tauri-build workflow now lives at
+# `sunfish/.github/workflows/tauri-build.yml`. This file's path triggers
+# (apps/anchor-tauri/**) cannot match in shipyard because that directory does
+# not exist here — the workflow stays defined as a placeholder but never fires.
+# ---------------------------------------------------------------------------
+
 name: Tauri cross-platform build
 
+# Path globs intentionally point at directories that don't exist in shipyard
+# post-restructure; the workflow therefore never triggers. See header above.
 on:
   push:
     paths:
       - 'apps/anchor-tauri/**'
-      - '.github/workflows/tauri-build.yml'
+      - '.github/workflows/tauri-build.yml.disabled'
   pull_request:
     paths:
       - 'apps/anchor-tauri/**'
-      - '.github/workflows/tauri-build.yml'
+      - '.github/workflows/tauri-build.yml.disabled'
 
-concurrency:
-  group: tauri-build-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            bundle: dmg
-          - os: macos-13
-            target: x86_64-apple-darwin
-            bundle: dmg
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            bundle: msi
-          - os: windows-11-arm
-            target: aarch64-pc-windows-msvc
-            bundle: msi
-          - os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            bundle: appimage
-
-    runs-on: ${{ matrix.os }}
-
+  inert:
+    name: Tauri cross-platform build (relocated to sunfish/)
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: apps/anchor-tauri/package-lock.json
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Install Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: apps/anchor-tauri/src-tauri
-
-      - name: Refresh Rust toolchain after cache restore
-        run: rustup update stable --no-self-update && rustup target add ${{ matrix.target }}
-
-      - name: Install Linux system dependencies
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Build @sunfish/ui-react
-        run: npm install && npm run build
-        working-directory: packages/ui-react
-
-      - name: Install npm dependencies
-        run: npm ci
-        working-directory: apps/anchor-tauri
-
-      - name: Build Tauri app
-        run: npm run tauri build -- --target ${{ matrix.target }}
-        working-directory: apps/anchor-tauri
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ''
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: anchor-tauri-${{ matrix.target }}
-          path: |
-            apps/anchor-tauri/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundle }}/*
-          retention-days: 14
+      - run: |
+          echo "Tauri cross-platform build lives in"
+          echo "sunfish/.github/workflows/tauri-build.yml post-2026-05-17"
+          echo "multi-repo restructure. This shipyard-side workflow is"
+          echo "preserved as a placeholder and does not run."

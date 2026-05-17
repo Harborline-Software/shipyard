@@ -3,9 +3,9 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    # Skip the heavy Windows MAUI Build & Test on docs-only PRs. Changes to this
-    # workflow file itself are NOT in the ignore list, so the workflow still
-    # re-tests itself when edited.
+    # Skip the heavy Build & Test on docs-only PRs. Changes to this workflow
+    # file itself are NOT in the ignore list, so the workflow still re-tests
+    # itself when edited.
     paths-ignore:
       - "**/*.md"
       - ".wolf/**"
@@ -20,24 +20,21 @@ on:
     branches: [main]
 
 # Public-repo hardening: pure CI (build/test) needs only read access to checkout
-# the repo and upload-artifact (which uses the actions API, not GITHUB_TOKEN
-# scopes). No write needed anywhere — defense-in-depth against compromised
-# transitive dependencies in restored NuGet packages.
+# the repo and upload-artifact. No write surface anywhere.
 permissions:
   contents: read
 
 jobs:
   build-and-test:
     name: Build & Test
-    # windows-latest is required: Anchor (accelerators/anchor) is a MAUI Blazor
-    # Hybrid project whose csproj conditionally targets net11.0-windows on Windows
-    # and net11.0-maccatalyst elsewhere. The maccatalyst workload pack
-    # (Microsoft.MacCatalyst.Sdk.net11.0) is not publishable to Linux runners — even
-    # `dotnet workload restore` errors NETSDK1178 there. On Windows, Anchor builds
-    # against its windows10.0.19041.0 target and every other project (net11.0) builds
-    # natively. Until MAUI 11 stabilizes mobile workloads cross-platform, Sunfish CI
-    # for the .NET solution must run on Windows.
-    runs-on: windows-latest
+    # Shipyard.slnx contains only the platform packages + apps/docs +
+    # apps/kitchen-sink + apps/local-node-host (all pure net11.0). The Anchor
+    # MAUI accelerator + Bridge accelerator moved out of shipyard to sunfish/
+    # and signal-bridge/ in the 2026-05-17 multi-repo restructure, so shipyard's
+    # CI can run on ubuntu-latest (was: windows-latest under the legacy slnx
+    # which carried the MAUI project). Anchor's MAUI build is now gated by
+    # sunfish/.github/workflows/ci.yml on windows-latest.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -45,33 +42,22 @@ jobs:
         with:
           global-json-file: global.json
 
-      # MAUI workloads are required for Anchor; the Windows runner ships base SDK
-      # but workloads are project-driven. `dotnet workload restore` resolves them
-      # from the slnx (idempotent — no-op if already present in the runner image).
-      - name: Restore .NET workloads
-        run: dotnet workload restore Sunfish.slnx
-
       - name: Restore
-        run: dotnet restore Sunfish.slnx
+        run: dotnet restore Shipyard.slnx
 
       - name: Build
-        run: dotnet build Sunfish.slnx --no-restore
+        run: dotnet build Shipyard.slnx --no-restore
 
-      # Integration-tier tests need infrastructure the runner image doesn't ship:
-      #   • *.Postgres.Tests              → Testcontainers + Docker + postgres:16-alpine
-      #   • *.BlobReplication.Tests       → Testcontainers + Docker + Kubo IPFS image
-      #   • *.A11y.Tests                  → Playwright browsers (`playwright install`)
-      #   • *.Bridge.Tests.Integration    → Tenant supervisor stack needs Postgres
-      #     + RabbitMQ to reach Running state within the test's 5-second timeout
-      # Until a separate integration-test workflow stands up Docker services and
-      # Playwright browsers (tracked as a follow-up), filter them out of the
-      # PR-blocking unit-test run. Their tests still build and the test
-      # discovery still happens — only execution is filtered.
+      # Integration-tier tests need infrastructure the runner image doesn't
+      # ship (Testcontainers + Docker + postgres / IPFS / RabbitMQ; Playwright
+      # browsers for a11y tests). Filter them out of the PR-blocking unit-test
+      # run. Tests still BUILD and are still discovered; only execution is
+      # filtered.
       - name: Test (unit-tier)
         run: |
-          dotnet test Sunfish.slnx --no-build `
-            --filter "FullyQualifiedName!~Postgres.Tests&FullyQualifiedName!~BlobReplication.Tests&FullyQualifiedName!~A11y.Tests&FullyQualifiedName!~Bridge.Tests.Integration" `
-            --logger "trx" `
+          dotnet test Shipyard.slnx --no-build \
+            --filter "FullyQualifiedName!~Postgres.Tests&FullyQualifiedName!~BlobReplication.Tests&FullyQualifiedName!~A11y.Tests&FullyQualifiedName!~Tests.Integration" \
+            --logger "trx" \
             --results-directory TestResults
 
       - name: Upload test results

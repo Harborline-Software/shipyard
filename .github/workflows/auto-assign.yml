@@ -1,0 +1,39 @@
+# Auto-assign newly-opened (or reopened) PRs to ctwoodwa.
+#
+# Uses the `pull_request` trigger (NOT `pull_request_target`) because this
+# repo's `ban-pull-request-target.yml` forbids that trigger. With
+# `pull_request`, fork-PR runs get a read-only GITHUB_TOKEN and assignment
+# may fail silently — that's acceptable since this is a single-maintainer
+# fleet with no external contributors yet.
+#
+# Dependabot PRs are ALSO assigned via the `assignees:` field in each
+# repo's dependabot.yml as a belt-and-suspenders measure (Dependabot's own
+# config runs at PR-creation time with Dependabot's elevated permissions,
+# which the workflow GITHUB_TOKEN may not have under default Dependabot
+# secret settings).
+
+name: Auto-assign PR
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  assign:
+    name: Assign PR to maintainer
+    runs-on: ubuntu-latest
+    # Skip if the PR already has any assignee (re-opens shouldn't clobber).
+    if: github.event.pull_request.assignees[0] == null
+    steps:
+      - name: Add ctwoodwa as assignee
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-assignee ctwoodwa || \
+            echo "::warning::Failed to add assignee (fork PR? insufficient token scope?)"
