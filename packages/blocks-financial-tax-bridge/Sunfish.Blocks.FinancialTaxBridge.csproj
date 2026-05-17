@@ -6,7 +6,10 @@
     <PackageTags>tax;bridge;adapter;sales-tax;ar;ap;blocks;sunfish</PackageTags>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <NoWarn>CS1591</NoWarn>
+    <!-- NU1510: PackageReference is direct but NuGet thinks it's also transitively
+         pruneable. The direct ref is required after preview.4 NuGet resolution
+         shift (see PR #11) — suppressed to preserve the explicit declaration. -->
+    <NoWarn>CS1591;NU1510</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />

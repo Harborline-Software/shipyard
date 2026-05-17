@@ -4,7 +4,9 @@
     <PackageId>Sunfish.Federation.Common</PackageId>
     <Description>Sunfish federation transport abstraction, signed sync-envelope, peer registry, and DI integration (spec §2.5, §10.4).</Description>
     <PackageTags>sunfish;federation;sync;peer</PackageTags>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- NU1510 suppressed: direct PackageRefs below are required after preview.4
+         NuGet resolution shift (PR #11) but flagged as transitively pruneable. -->
+    <NoWarn>$(NoWarn);CS1591;NU1510</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />

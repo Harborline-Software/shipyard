@@ -4,7 +4,9 @@
     <PackageId>Sunfish.Kernel.EventBus</PackageId>
     <Description>Sunfish kernel §3.6 Event Bus — in-process reference implementation using System.Threading.Channels with per-entity ordering, Ed25519-signed events, and idempotent delivery.</Description>
     <PackageTags>sunfish;kernel;events;event-bus;channels</PackageTags>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- NU1510 suppressed: direct PackageRefs below are required after preview.4
+         NuGet resolution shift (PR #11) but flagged as transitively pruneable. -->
+    <NoWarn>$(NoWarn);CS1591;NU1510</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
