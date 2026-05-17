@@ -9,9 +9,12 @@ namespace Sunfish.Blocks.Leases.Tests;
 
 public class InMemoryLeaseServiceTests
 {
+    private static readonly TenantId TestTenant = new("tenant-a");
+
     private static CreateLeaseRequest MakeRequest(string unitLocalPart = "unit-1") =>
         new()
         {
+            TenantId = TestTenant,
             UnitId = new EntityId("unit", "test", unitLocalPart),
             Tenants = [new PartyId("tenant-a")],
             Landlord = new PartyId("landlord-x"),

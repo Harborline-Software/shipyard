@@ -15,9 +15,18 @@ public sealed record ListLeasesQuery
     public LeasePhase? Phase { get; init; }
 
     /// <summary>
-    /// When set, only leases that include this tenant party are returned.
+    /// When set, only leases owned by this <see cref="Sunfish.Foundation.Assets.Common.TenantId"/>
+    /// are returned. Pair with <see cref="Sunfish.Foundation.Authorization.ITenantContext.TenantId"/>
+    /// to enforce tenant isolation at the query level (W#74 PR 2 A1 amendment).
     /// </summary>
-    public Sunfish.Blocks.People.Foundation.Models.PartyId? TenantId { get; init; }
+    public Sunfish.Foundation.Assets.Common.TenantId? TenantId { get; init; }
+
+    /// <summary>
+    /// When set, only leases that include this tenant party are returned.
+    /// Previously named <c>TenantId</c>; renamed to <c>TenantParty</c> on 2026-05-17 to free
+    /// the <c>TenantId</c> identifier for the multi-tenancy scoping filter above.
+    /// </summary>
+    public Sunfish.Blocks.People.Foundation.Models.PartyId? TenantParty { get; init; }
 
     /// <summary>
     /// Shared empty query that applies no filters.

@@ -1,4 +1,5 @@
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 using Sunfish.Kernel.Signatures.Models;
 
 namespace Sunfish.Blocks.Leases.Models;
@@ -7,10 +8,21 @@ namespace Sunfish.Blocks.Leases.Models;
 /// Canonical lease record. Intentionally thin for the first pass; full workflow surface
 /// (signature, execution, renewal, termination) is deferred to follow-up work.
 /// </summary>
-public sealed record Lease
+/// <remarks>
+/// Implements <see cref="IMustHaveTenant"/> per the Foundation.MultiTenancy substrate.
+/// Persistence adapters reject writes where <see cref="TenantId"/> is the default.
+/// Wired 2026-05-17 to unblock W#74 Cohort-1 PR 2 A1+A2 tenant-filter amendments
+/// (FED halt resolved by Admiral directive 2026-05-17T21-40Z; Lease previously
+/// had no tenant scoping column despite a fully-resolved <c>ITenantContext.TenantId</c>
+/// on the request side).
+/// </remarks>
+public sealed record Lease : IMustHaveTenant
 {
     /// <summary>Unique identifier for this lease.</summary>
     public required LeaseId Id { get; init; }
+
+    /// <summary>Owning tenant. Required for query-time tenant scoping.</summary>
+    public required TenantId TenantId { get; init; }
 
     /// <summary>The unit covered by this lease.</summary>
     public required EntityId UnitId { get; init; }

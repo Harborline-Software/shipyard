@@ -55,6 +55,7 @@ public class AuditEmissionTests
 
     private static CreateLeaseRequest MakeRequest() => new()
     {
+        TenantId = TestTenant,
         UnitId = new EntityId("unit", "test", "u-1"),
         Tenants = [new PartyId("tenant-a")],
         Landlord = new PartyId("landlord-x"),

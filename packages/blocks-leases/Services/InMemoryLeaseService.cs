@@ -98,6 +98,7 @@ public sealed class InMemoryLeaseService : ILeaseService
         var lease = new Lease
         {
             Id = LeaseId.NewId(),
+            TenantId = request.TenantId,
             UnitId = request.UnitId,
             Tenants = request.Tenants,
             Landlord = request.Landlord,
@@ -139,7 +140,12 @@ public sealed class InMemoryLeaseService : ILeaseService
             if (query.Phase.HasValue && lease.Phase != query.Phase.Value)
                 continue;
 
-            if (query.TenantId.HasValue && !lease.Tenants.Contains(query.TenantId.Value))
+            // Tenant-scoping filter (W#74 PR 2 A1): only the requested tenant's leases.
+            if (query.TenantId.HasValue && lease.TenantId != query.TenantId.Value)
+                continue;
+
+            // Tenant-party filter: only leases that include the given party as a tenant.
+            if (query.TenantParty.HasValue && !lease.Tenants.Contains(query.TenantParty.Value))
                 continue;
 
             yield return lease;
