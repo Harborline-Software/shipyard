@@ -1,0 +1,15 @@
+{
+  "source": "en-US",
+  "locales": [
+    {
+      "tag": "en-US",
+      "status": "complete",
+      "completenessFloor": 100
+    },
+    {
+      "tag": "ar-SA",
+      "status": "in-progress",
+      "completenessFloor": 0
+    }
+  ]
+}

@@ -2,6 +2,13 @@
 <Project>
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- NU1510: NuGet 6.12+ pruning advisory for PackageReferences that are
+         already provided transitively. The global Directory.Build.props NoWarn
+         suppresses this during MSBuild but NuGet restore-phase warnings need
+         suppression at the CPM (Central Package Management) props level too.
+         Several packages carry direct references that are also transitively
+         available; cleanup tracked separately. -->
+    <NoWarn>$(NoWarn);NU1510</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="11.0.0-preview.4.26230.115"/>
