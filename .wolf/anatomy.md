@@ -1,4 +1,4 @@
-# drydock — Anatomy
+# shipyard — Anatomy
 
 Per-repo OpenWolf anatomy. Lists files + 2-3 line descriptions + token estimates.
 

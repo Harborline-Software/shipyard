@@ -6,7 +6,7 @@ these rules. Stage 06 hand-offs reference this document by section.
 **Authority:** ADR 0088 — *Anchor as All-In-One Local-First Runtime* §4
 (Light tier: SQLite primary + Loro CRDT sync overlay).
 **Audience:** XO authoring hand-offs; cob authoring Stage 06 implementations;
-dev / dev-win reading Stage 02 design docs.
+dev / po-win reading Stage 02 design docs.
 
 ---
 

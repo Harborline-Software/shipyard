@@ -1,6 +1,6 @@
-# Claude Instructions for drydock
+# Claude Instructions for shipyard
 
-Drydock — framework-agnostic application platform; hosts all shared packages, design tokens, UI adapters, tooling, ADRs, ICM, _shared engineering + product + design.
+Shipyard — framework-agnostic application platform; hosts all shared packages, design tokens, UI adapters, tooling, ADRs, ICM, _shared engineering + product + design.
 
 ## Fleet context
 
@@ -18,8 +18,8 @@ For repo-specific architecture, conventions, and testing — see folders within 
 
 ## Cross-repo dependencies
 
-If this repo depends on drydock packages (.NET ProjectReference OR pnpm workspace), see `README.md` for sibling-folder layout requirement: `drydock/` must be cloned at sibling level for builds to resolve.
+If this repo depends on shipyard packages (.NET ProjectReference OR pnpm workspace), see `README.md` for sibling-folder layout requirement: `shipyard/` must be cloned at sibling level for builds to resolve.
 
 ## Migration history
 
-Migrated 2026-05-17 from `SunfishSoftware/` legacy layout. See parent `MIGRATION.md` for details.
+Migrated 2026-05-17 from `Harborline-Software/` legacy layout. See parent `MIGRATION.md` for details.

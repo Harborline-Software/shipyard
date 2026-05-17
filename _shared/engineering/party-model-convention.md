@@ -8,7 +8,7 @@ document by section.
 **Authority:** ADR 0088 — *Anchor as All-In-One Local-First Runtime* §1;
 `blocks-people-schema-design.md` §3.1, §6.
 **Audience:** XO authoring hand-offs; cob authoring Stage 06; dev /
-dev-win reading cluster designs.
+po-win reading cluster designs.
 
 ---
 

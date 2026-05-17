@@ -4,7 +4,7 @@
 inherit this design. Stage 06 hand-offs reference it by section.
 **Date:** 2026-05-16
 **Authority:** ADR 0088 — *Anchor as All-In-One Local-First Runtime* §4
-**Audience:** XO authoring hand-offs; cob authoring Stage 06; dev / dev-win
+**Audience:** XO authoring hand-offs; cob authoring Stage 06; dev / po-win
 reading cluster designs.
 
 ---

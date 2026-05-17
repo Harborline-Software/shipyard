@@ -9,8 +9,8 @@
 
 ## Attestation note
 
-**This file is a post-hoc attestation reconstructed on 2026-05-16 by `dev-win` per
-[xo-directive-T20-39Z](../../../../coordination/_archive/xo-directive-2026-05-16T20-39Z-dev-win-pr1-cleanup.md)
+**This file is a post-hoc attestation reconstructed on 2026-05-16 by `po-win` per
+[xo-directive-T20-39Z](../../../../coordination/_archive/xo-directive-2026-05-16T20-39Z-po-win-pr1-cleanup.md)
 Task 1.** The original `council-review-pr1-w60-p4-stronghold-2026-05-16.md` was authored during the
 PR #898 review cycle but never landed on `main` during the rebase cleanup that produced commit
 `96ccc73c`. The verdicts, blocker IDs, and resolution diffs below are reproduced from session
@@ -22,7 +22,7 @@ review's wording it is a strictly narrower record — no claims have been broade
 - All four A1.* blockers have a corresponding diff in `96ccc73c` (cited inline below)
 - The merged `lib.rs` / `Cargo.toml` / `capabilities/default.json` / `LoginPage.tsx` shapes match
   the post-A1.* state, not the pre-A1.* state — i.e. the fixes shipped, not just the verdicts
-- Subsequent live-hardware validation (`dev-win-status-2026-05-16T20-27Z-a13-pass-a11-roundtrip-validated.md`)
+- Subsequent live-hardware validation (`po-win-status-2026-05-16T20-27Z-a13-pass-a11-roundtrip-validated.md`)
   confirms the OS-keychain round-trip on real winhub DPAPI
 
 ---
@@ -54,7 +54,7 @@ level — the master key never actually round-tripped through DPAPI.
 keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
 ```
 
-**Verified post-merge:** `dev-win-status-T20-27Z` documents the A1.1 round-trip on real hardware
+**Verified post-merge:** `po-win-status-T20-27Z` documents the A1.1 round-trip on real hardware
 — `LegacyGeneric:target=stronghold-master-key.io.sunfish.anchor.stronghold` persists across
 process restart and decrypts the prior snapshot via DPAPI.
 
