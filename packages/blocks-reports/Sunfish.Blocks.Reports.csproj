@@ -19,5 +19,8 @@
     <!-- W#72 PR 2 — Trial Balance cartridge consumes ledger + periods read surfaces. -->
     <ProjectReference Include="..\blocks-financial-ledger\Sunfish.Blocks.FinancialLedger.csproj" />
     <ProjectReference Include="..\blocks-financial-periods\Sunfish.Blocks.FinancialPeriods.csproj" />
+    <!-- W#72 PR 3 — AR Aging Summary cartridge consumes AR aging + party read surfaces. -->
+    <ProjectReference Include="..\blocks-financial-ar\Sunfish.Blocks.FinancialAr.csproj" />
+    <ProjectReference Include="..\blocks-people-foundation\Sunfish.Blocks.People.Foundation.csproj" />
   </ItemGroup>
 </Project>
