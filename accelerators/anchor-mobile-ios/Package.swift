@@ -77,5 +77,11 @@ let package = Package(
             ],
             path: "Tests/SunfishFieldHomeTests"
         ),
+        // W#23.2 — Asset capture payload + view tests.
+        .testTarget(
+            name: "SunfishFieldCaptureTests",
+            dependencies: ["SunfishField"],
+            path: "Tests/SunfishFieldCaptureTests"
+        ),
     ]
 )

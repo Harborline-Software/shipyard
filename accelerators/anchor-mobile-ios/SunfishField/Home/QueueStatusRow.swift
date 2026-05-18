@@ -134,7 +134,7 @@ public final class QueueStatusViewModel: ObservableObject {
                     sql: "SELECT COUNT(*) FROM event_queue WHERE queue_status = ?",
                     arguments: [QueueStatus.failedPermanent.rawValue]) ?? 0
                 // Last acked: the most-recent captured_at among acked rows.
-                let lastAckedStr = try String?.fetchOne(
+                let lastAckedStr = try String.fetchOne(
                     db,
                     sql: "SELECT MAX(captured_at) FROM event_queue WHERE queue_status = ?",
                     arguments: [QueueStatus.acked.rawValue])
@@ -184,7 +184,11 @@ public struct QueueStatusRow: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10)
+                #if os(iOS)
                 .fill(Color(.systemBackground))
+                #else
+                .fill(Color(nsColor: .windowBackgroundColor))
+                #endif
                 .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
         )
         .overlay(
