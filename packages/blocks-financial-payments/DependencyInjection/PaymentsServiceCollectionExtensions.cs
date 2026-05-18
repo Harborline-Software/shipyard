@@ -35,6 +35,14 @@ public static class PaymentsServiceCollectionExtensions
     /// <see cref="IJournalPostingService"/>, <see cref="IAccountResolver"/>,
     /// <see cref="IInvoiceRepository"/>, and <see cref="IBillRepository"/>.
     /// </para>
+    ///
+    /// <para>
+    /// <b>PR 3 amber-amendment:</b> the host MUST also register
+    /// <see cref="Sunfish.Foundation.MultiTenancy.ITenantContext"/>.
+    /// <see cref="DefaultPaymentApplicationService"/> consumes it for
+    /// service-level tenant-isolation guards; invoking the service without a
+    /// resolved tenant throws <see cref="InvalidOperationException"/>.
+    /// </para>
     /// </summary>
     public static IServiceCollection AddSunfishFinancialPayments(
         this IServiceCollection services,

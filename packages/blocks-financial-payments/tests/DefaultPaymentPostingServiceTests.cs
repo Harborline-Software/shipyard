@@ -262,7 +262,7 @@ public class DefaultPaymentPostingServiceTests
         var invoice = NewIssuedInvoice(invoiceId, total: 500m, amountPaid: 500m, status: InvoiceStatus.Paid);
         await rig.Invoices.UpsertAsync(invoice);
 
-        var application = PaymentApplication.Create(payment.Id, AppliedTo.Invoice, invoiceId, amountApplied: 500m, appliedDate: new DateOnly(2026, 5, 18));
+        var application = PaymentApplication.Create(TestTenant, payment.Id, AppliedTo.Invoice, invoiceId, amountApplied: 500m, appliedDate: new DateOnly(2026, 5, 18));
         await rig.Applications.AddAsync(application);
 
         var result = await rig.Service.BounceAsync(payment.Id, "NSF", TestActor);
@@ -306,7 +306,7 @@ public class DefaultPaymentPostingServiceTests
         var bill = NewReceivedBill(billId, total: 200m, amountPaid: 200m, status: BillStatus.Paid);
         await rig.Bills.UpsertAsync(bill);
 
-        var application = PaymentApplication.Create(payment.Id, AppliedTo.Bill, billId, amountApplied: 200m, appliedDate: new DateOnly(2026, 5, 18));
+        var application = PaymentApplication.Create(TestTenant, payment.Id, AppliedTo.Bill, billId, amountApplied: 200m, appliedDate: new DateOnly(2026, 5, 18));
         await rig.Applications.AddAsync(application);
 
         var result = await rig.Service.BounceAsync(payment.Id, "stop payment", TestActor);

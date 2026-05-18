@@ -1,4 +1,5 @@
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.FinancialPayments.Models;
 
@@ -24,11 +25,22 @@ namespace Sunfish.Blocks.FinancialPayments.Models;
 /// application. The in-memory repository does NOT enforce this — enforcement
 /// lives in <c>DefaultPaymentApplicationService</c> (PR 3).
 /// </para>
+///
+/// <para>
+/// <b>Tenant scope (PR 3 amber-amendment):</b> implements
+/// <see cref="IMustHaveTenant"/>. <see cref="TenantId"/> is populated from
+/// the owning <see cref="Payment"/>'s <c>TenantId</c> at create-call-site so
+/// cross-tenant id-guessing against the application ledger fails closed at
+/// the service layer.
+/// </para>
 /// </summary>
-public sealed record PaymentApplication
+public sealed record PaymentApplication : IMustHaveTenant
 {
     /// <summary>Stable identifier.</summary>
     public required PaymentApplicationId Id { get; init; }
+
+    /// <summary>Tenant scope. Required — non-default per <see cref="IMustHaveTenant"/>.</summary>
+    public required TenantId TenantId { get; init; }
 
     /// <summary>The payment being applied.</summary>
     public required PaymentId PaymentId { get; init; }
@@ -59,6 +71,7 @@ public sealed record PaymentApplication
 
     /// <summary>Construct a new application record.</summary>
     public static PaymentApplication Create(
+        TenantId tenantId,
         PaymentId paymentId,
         AppliedTo appliedTo,
         string targetId,
@@ -72,6 +85,7 @@ public sealed record PaymentApplication
         return new PaymentApplication
         {
             Id = id ?? PaymentApplicationId.NewId(),
+            TenantId = tenantId,
             PaymentId = paymentId,
             AppliedTo = appliedTo,
             TargetId = targetId,

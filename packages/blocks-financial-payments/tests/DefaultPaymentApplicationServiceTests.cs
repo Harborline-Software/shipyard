@@ -39,17 +39,19 @@ public class DefaultPaymentApplicationServiceTests
         InMemoryPaymentApplicationRepository Applications,
         InMemoryInvoiceRepository Invoices,
         InMemoryBillRepository Bills,
-        RecordingDomainEventPublisher Events);
+        RecordingDomainEventPublisher Events,
+        StubTenantContext TenantContext);
 
-    private static TestRig CreateRig()
+    private static TestRig CreateRig(TenantId? tenant = null)
     {
         var payments = new InMemoryPaymentRepository();
         var applications = new InMemoryPaymentApplicationRepository();
         var invoices = new InMemoryInvoiceRepository();
         var bills = new InMemoryBillRepository();
         var events = new RecordingDomainEventPublisher();
-        var service = new DefaultPaymentApplicationService(payments, applications, invoices, bills, events);
-        return new TestRig(service, payments, applications, invoices, bills, events);
+        var ctx = new StubTenantContext(tenant ?? TestTenant);
+        var service = new DefaultPaymentApplicationService(payments, applications, invoices, bills, ctx, events);
+        return new TestRig(service, payments, applications, invoices, bills, events, ctx);
     }
 
     private static int _invoiceSeq;
@@ -478,6 +480,189 @@ public class DefaultPaymentApplicationServiceTests
         Assert.Equal(UnapplyError.UnknownApplication, result.Error);
         Assert.False(result.Success);
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    //  Tenant-isolation tests (PR 3 amber-amendment)
+    // ──────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ApplyAsync_CrossTenantPayment_ReturnsUnknownPayment()
+    {
+        // Caller resolved to TenantA. Payment + Invoice in the repo belong to
+        // TenantB. Service must reject without leaking that the id exists.
+        var tenantA = new TenantId("tenant-A");
+        var tenantB = new TenantId("tenant-B");
+
+        var rig = CreateRig(tenant: tenantA);
+
+        // Seed a TenantB payment + invoice (e.g., via a back-door repo write).
+        var foreignPayment = Payment.Create(
+            tenantId: tenantB,
+            chartId: TestChart,
+            direction: PaymentDirection.Inbound,
+            paymentNumber: $"PMT-{Guid.NewGuid():N}",
+            partyId: TestCustomer,
+            paymentDate: new DateOnly(2026, 5, 18),
+            amount: 100m,
+            method: PaymentMethod.Check,
+            bankAccountId: BankAccount)
+            with
+            {
+                Status = PaymentStatus.Unapplied,
+                JournalEntryId = JournalEntryId.NewId(),
+            };
+        await rig.Payments.AddAsync(foreignPayment);
+
+        var foreignInvoiceId = $"inv-{Guid.NewGuid():N}";
+        var seq = Interlocked.Increment(ref _invoiceSeq);
+        var foreignInvoice = Invoice.Create(
+            tenantId: tenantB,
+            chartId: TestChart,
+            invoiceNumber: $"INV-2026-05-18-T-{seq:D4}",
+            customerId: TestCustomer,
+            issueDate: new DateOnly(2026, 5, 1),
+            dueDate: new DateOnly(2026, 6, 1),
+            lines: [InvoiceLine.Create(new InvoiceId(foreignInvoiceId), 1, "Rent", 1m, 100m, IncomeAccount)],
+            arAccountId: ArControl,
+            id: new InvoiceId(foreignInvoiceId))
+            with
+            {
+                Status = InvoiceStatus.Issued,
+                Balance = 100m,
+            };
+        await rig.Invoices.UpsertAsync(foreignInvoice);
+
+        var result = await rig.Service.ApplyAsync(
+            foreignPayment.Id, AppliedTo.Invoice, foreignInvoiceId,
+            amountApplied: 100m, 0m, 0m, TestActor);
+
+        Assert.Equal(ApplyError.UnknownPayment, result.Error);
+        // Diagnostic must not reveal tenant state.
+        Assert.DoesNotContain("tenant", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+
+        // Payment + Invoice must be untouched.
+        Assert.Equal(PaymentStatus.Unapplied, (await rig.Payments.GetAsync(foreignPayment.Id))!.Status);
+        Assert.Equal(100m, (await rig.Invoices.GetAsync(new InvoiceId(foreignInvoiceId)))!.Balance);
+        Assert.Empty(rig.Events.Published);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_CrossTenantInvoice_ReturnsUnknownTarget()
+    {
+        // Direction-matches and Payment belongs to TenantA, but Invoice is
+        // TenantB. The target-tenant check must reject with UnknownTarget.
+        var tenantA = new TenantId("tenant-A");
+        var tenantB = new TenantId("tenant-B");
+        var rig = CreateRig(tenant: tenantA);
+
+        var ownPayment = Payment.Create(
+            tenantId: tenantA,
+            chartId: TestChart,
+            direction: PaymentDirection.Inbound,
+            paymentNumber: $"PMT-{Guid.NewGuid():N}",
+            partyId: TestCustomer,
+            paymentDate: new DateOnly(2026, 5, 18),
+            amount: 100m,
+            method: PaymentMethod.Check,
+            bankAccountId: BankAccount)
+            with
+            {
+                Status = PaymentStatus.Unapplied,
+                JournalEntryId = JournalEntryId.NewId(),
+            };
+        await rig.Payments.AddAsync(ownPayment);
+
+        var foreignInvoiceId = $"inv-{Guid.NewGuid():N}";
+        var seq = Interlocked.Increment(ref _invoiceSeq);
+        var foreignInvoice = Invoice.Create(
+            tenantId: tenantB,
+            chartId: TestChart,
+            invoiceNumber: $"INV-2026-05-18-T-{seq:D4}",
+            customerId: TestCustomer,
+            issueDate: new DateOnly(2026, 5, 1),
+            dueDate: new DateOnly(2026, 6, 1),
+            lines: [InvoiceLine.Create(new InvoiceId(foreignInvoiceId), 1, "Rent", 1m, 100m, IncomeAccount)],
+            arAccountId: ArControl,
+            id: new InvoiceId(foreignInvoiceId))
+            with { Status = InvoiceStatus.Issued, Balance = 100m };
+        await rig.Invoices.UpsertAsync(foreignInvoice);
+
+        var result = await rig.Service.ApplyAsync(
+            ownPayment.Id, AppliedTo.Invoice, foreignInvoiceId,
+            amountApplied: 100m, 0m, 0m, TestActor);
+
+        Assert.Equal(ApplyError.UnknownTarget, result.Error);
+        Assert.Empty(rig.Events.Published);
+        Assert.Empty(await rig.Applications.ListByPaymentAsync(ownPayment.Id));
+    }
+
+    [Fact]
+    public async Task UnapplyAsync_CrossTenantApplication_ReturnsUnknownApplication()
+    {
+        // Apply succeeds in TenantA's rig, then switch the rig's tenant to
+        // TenantB and try to unapply — service must reject.
+        var tenantA = new TenantId("tenant-A");
+        var tenantB = new TenantId("tenant-B");
+        var rig = CreateRig(tenant: tenantA);
+
+        var payment = Payment.Create(
+            tenantId: tenantA,
+            chartId: TestChart,
+            direction: PaymentDirection.Inbound,
+            paymentNumber: $"PMT-{Guid.NewGuid():N}",
+            partyId: TestCustomer,
+            paymentDate: new DateOnly(2026, 5, 18),
+            amount: 100m,
+            method: PaymentMethod.Check,
+            bankAccountId: BankAccount)
+            with
+            {
+                Status = PaymentStatus.Unapplied,
+                JournalEntryId = JournalEntryId.NewId(),
+            };
+        await rig.Payments.AddAsync(payment);
+
+        var invoiceId = $"inv-{Guid.NewGuid():N}";
+        var seq = Interlocked.Increment(ref _invoiceSeq);
+        var ownInvoice = Invoice.Create(
+            tenantId: tenantA,
+            chartId: TestChart,
+            invoiceNumber: $"INV-2026-05-18-T-{seq:D4}",
+            customerId: TestCustomer,
+            issueDate: new DateOnly(2026, 5, 1),
+            dueDate: new DateOnly(2026, 6, 1),
+            lines: [InvoiceLine.Create(new InvoiceId(invoiceId), 1, "Rent", 1m, 100m, IncomeAccount)],
+            arAccountId: ArControl,
+            id: new InvoiceId(invoiceId))
+            with { Status = InvoiceStatus.Issued, Balance = 100m };
+        await rig.Invoices.UpsertAsync(ownInvoice);
+
+        var apply = await rig.Service.ApplyAsync(
+            payment.Id, AppliedTo.Invoice, invoiceId, 100m, 0m, 0m, TestActor);
+        Assert.Equal(ApplyError.None, apply.Error);
+        var applicationId = apply.Application!.Id;
+
+        // Flip the rig's tenant context to TenantB.
+        rig.TenantContext.SetTenant(tenantB);
+
+        var result = await rig.Service.UnapplyAsync(applicationId, TestActor);
+
+        Assert.Equal(UnapplyError.UnknownApplication, result.Error);
+        Assert.False(result.Success);
+        // Application must still exist (not deleted).
+        Assert.NotNull(await rig.Applications.GetAsync(applicationId));
+    }
+
+    [Fact]
+    public async Task Service_WithUnresolvedTenantContext_ThrowsOnInvocation()
+    {
+        // Unresolved tenant is a programmer error (composition-root bug).
+        // It must throw immediately, not fail-closed silently.
+        var rig = CreateRig();
+        rig.TenantContext.SetTenant(null);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            rig.Service.ApplyAsync(PaymentId.NewId(), AppliedTo.Invoice, "any", 1m, 0m, 0m, TestActor));
+    }
 }
 
 /// <summary>
@@ -498,4 +683,29 @@ internal sealed class RecordingDomainEventPublisher : IDomainEventPublisher
     }
 
     public sealed record RecordedEvent(string EventType, string IdempotencyKey, object Payload);
+}
+
+/// <summary>
+/// Test fake <see cref="ITenantContext"/> with a settable tenant. Lets a
+/// single test mid-flow switch the active tenant — useful for cross-tenant
+/// scenarios where Apply runs as tenant A and Unapply runs as tenant B.
+/// </summary>
+internal sealed class StubTenantContext : ITenantContext
+{
+    private TenantMetadata? _tenant;
+
+    public StubTenantContext(TenantId? id = null)
+    {
+        if (id is { } value)
+            _tenant = new TenantMetadata { Id = value, Name = value.Value };
+    }
+
+    public TenantMetadata? Tenant => _tenant;
+
+    public void SetTenant(TenantId? id)
+    {
+        _tenant = id is { } value
+            ? new TenantMetadata { Id = value, Name = value.Value }
+            : null;
+    }
 }

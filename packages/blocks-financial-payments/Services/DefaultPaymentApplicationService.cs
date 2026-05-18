@@ -50,6 +50,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
     private readonly IPaymentApplicationRepository _applications;
     private readonly IInvoiceRepository _invoices;
     private readonly IBillRepository _bills;
+    private readonly ITenantContext _tenantContext;
     private readonly IDomainEventPublisher _events;
 
     public DefaultPaymentApplicationService(
@@ -57,14 +58,26 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         IPaymentApplicationRepository applications,
         IInvoiceRepository invoices,
         IBillRepository bills,
+        ITenantContext tenantContext,
         IDomainEventPublisher? events = null)
     {
         _payments = payments ?? throw new ArgumentNullException(nameof(payments));
         _applications = applications ?? throw new ArgumentNullException(nameof(applications));
         _invoices = invoices ?? throw new ArgumentNullException(nameof(invoices));
         _bills = bills ?? throw new ArgumentNullException(nameof(bills));
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _events = events ?? new NoopDomainEventPublisher();
     }
+
+    // Resolve the active tenant. Unresolved context is a programmer error
+    // (the service should never be invoked without a resolved tenant scope);
+    // tenant mismatches at load-time, by contrast, route to fail-closed
+    // Unknown* errors so an attacker probing cross-tenant ids cannot
+    // distinguish "wrong tenant" from "id does not exist."
+    private TenantId CurrentTenantId =>
+        _tenantContext.Tenant?.Id
+        ?? throw new InvalidOperationException(
+            "DefaultPaymentApplicationService invoked without a resolved tenant — composition-root bug.");
 
     // ──────────────────────────────────────────────────────────────────
     //  ApplyAsync
@@ -81,6 +94,11 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         PartyId actor,
         CancellationToken ct = default)
     {
+        // Eager-evaluate the tenant context so a composition-root bug surfaces
+        // immediately, even on request shapes that would otherwise short-circuit
+        // before touching CurrentTenantId.
+        _ = CurrentTenantId;
+
         // PR 3 deferred: discount / writeoff GL posting (see class summary).
         // Reject up-front so callers get a clear diagnostic rather than
         // a silently-incomplete persistence path.
@@ -106,7 +124,11 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         // payment, check direction match, ONLY THEN load the target.
 
         var payment = await _payments.GetAsync(paymentId, ct).ConfigureAwait(false);
-        if (payment is null)
+        // Tenant-isolation guard: a cross-tenant id-guess must return the SAME
+        // error as a non-existent id so the attacker cannot distinguish
+        // "wrong tenant" from "id does not exist." The diagnostic message
+        // intentionally does not reveal tenant state.
+        if (payment is null || !payment.TenantId.Equals(CurrentTenantId))
             return new ApplyResult(null, ApplyError.UnknownPayment, $"Payment '{paymentId.Value}' not found.");
 
         if (!DirectionMatches(payment.Direction, appliedTo))
@@ -146,7 +168,8 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
     {
         var invoiceId = new InvoiceId(targetId);
         var invoice = await _invoices.GetAsync(invoiceId, ct).ConfigureAwait(false);
-        if (invoice is null)
+        // Tenant-isolation guard mirrors the Payment-load check.
+        if (invoice is null || !invoice.TenantId.Equals(CurrentTenantId))
             return new ApplyResult(null, ApplyError.UnknownTarget, $"Invoice '{targetId}' not found.");
 
         if (invoice.Status.IsTerminal())
@@ -161,8 +184,9 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
             return new ApplyResult(null, ApplyError.TargetBalanceInsufficient,
                 $"amountApplied ({amountApplied}) exceeds Invoice.Balance ({invoice.Balance}).");
 
-        // 1. Create application record.
+        // 1. Create application record (TenantId inherits from owning Payment).
         var application = PaymentApplication.Create(
+            tenantId: payment.TenantId,
             paymentId: payment.Id,
             appliedTo: AppliedTo.Invoice,
             targetId: targetId,
@@ -211,7 +235,8 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
     {
         var billId = new BillId(targetId);
         var bill = await _bills.GetAsync(billId, ct).ConfigureAwait(false);
-        if (bill is null)
+        // Tenant-isolation guard mirrors the Payment-load check.
+        if (bill is null || !bill.TenantId.Equals(CurrentTenantId))
             return new ApplyResult(null, ApplyError.UnknownTarget, $"Bill '{targetId}' not found.");
 
         if (bill.Status.IsTerminal())
@@ -227,6 +252,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
                 $"amountApplied ({amountApplied}) exceeds Bill.Balance ({bill.Balance}).");
 
         var application = PaymentApplication.Create(
+            tenantId: payment.TenantId,
             paymentId: payment.Id,
             appliedTo: AppliedTo.Bill,
             targetId: targetId,
@@ -273,12 +299,21 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         PartyId actor,
         CancellationToken ct = default)
     {
+        // Eager-evaluate the tenant context — same rationale as ApplyAsync.
+        _ = CurrentTenantId;
+
         var application = await _applications.GetAsync(applicationId, ct).ConfigureAwait(false);
-        if (application is null)
+        // Tenant-isolation guard: cross-tenant application id fails closed with
+        // the same diagnostic as a non-existent id.
+        if (application is null || !application.TenantId.Equals(CurrentTenantId))
             return new UnapplyResult(false, UnapplyError.UnknownApplication, $"PaymentApplication '{applicationId.Value}' not found.");
 
         var payment = await _payments.GetAsync(application.PaymentId, ct).ConfigureAwait(false);
-        if (payment is null)
+        // Defensive: the application carries TenantId so this match is guaranteed,
+        // but a stale-pointer scenario (PaymentApplication's PaymentId points
+        // to a Payment that has been hard-deleted or its TenantId rotated)
+        // collapses to the same Unknown* error.
+        if (payment is null || !payment.TenantId.Equals(CurrentTenantId))
             return new UnapplyResult(false, UnapplyError.UnknownApplication,
                 $"PaymentApplication '{applicationId.Value}' references unknown Payment '{application.PaymentId.Value}'.");
 
