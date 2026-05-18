@@ -49,9 +49,17 @@ public struct HomeView: View {
                 .padding(.vertical, 16)
             }
             .navigationTitle("Sunfish Field")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: {
+                    #if os(iOS)
+                    return .topBarTrailing
+                    #else
+                    return .automatic
+                    #endif
+                }()) {
                     Button {
                         showSettings = true
                     } label: {
@@ -192,7 +200,11 @@ private struct CaptureFlowRow: View {
         .padding(.horizontal, 14)
         .background(
             RoundedRectangle(cornerRadius: 8)
+                #if os(iOS)
                 .fill(Color(.secondarySystemBackground))
+                #else
+                .fill(Color(nsColor: .controlBackgroundColor))
+                #endif
         )
         .opacity(isDisabled ? 0.5 : 1.0)
         // Phase 7+: replace with NavigationLink to the capture view.
