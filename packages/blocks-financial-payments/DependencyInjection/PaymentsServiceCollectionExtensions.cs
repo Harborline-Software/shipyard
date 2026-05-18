@@ -25,15 +25,10 @@ public static class PaymentsServiceCollectionExtensions
     /// </para>
     ///
     /// <para>
-    /// <b>Note:</b> <c>IPaymentApplicationService</c> is NOT registered here —
-    /// its implementation ships in PR 3 alongside the direction-matching
-    /// invariant. Downstream callers that need it must register it separately
-    /// once that PR lands.
-    /// </para>
-    ///
-    /// <para>
-    /// <b>PR 2:</b> <see cref="IPaymentPostingService"/> registers via
-    /// <see cref="DefaultPaymentPostingService"/>. The host must also have
+    /// <b>PR 2 / PR 3:</b> <see cref="IPaymentPostingService"/> registers via
+    /// <see cref="DefaultPaymentPostingService"/> and
+    /// <see cref="IPaymentApplicationService"/> registers via
+    /// <see cref="DefaultPaymentApplicationService"/>. The host must also have
     /// the ledger, AR, and AP substrates wired (
     /// <c>AddSunfishFinancialLedger</c>, <c>AddSunfishFinancialAr</c>,
     /// <c>AddSunfishFinancialAp</c>) — those provide
@@ -52,6 +47,7 @@ public static class PaymentsServiceCollectionExtensions
         services.TryAddSingleton<IPaymentRepository, InMemoryPaymentRepository>();
         services.TryAddSingleton<IPaymentApplicationRepository, InMemoryPaymentApplicationRepository>();
         services.TryAddScoped<IPaymentPostingService, DefaultPaymentPostingService>();
+        services.TryAddScoped<IPaymentApplicationService, DefaultPaymentApplicationService>();
 
         return services;
     }
