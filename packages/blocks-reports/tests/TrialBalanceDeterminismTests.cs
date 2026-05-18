@@ -82,13 +82,16 @@ public sealed class TrialBalanceDeterminismTests
     [Fact]
     public async Task ExecuteAsync_SameMarker_SameResult()
     {
-        // Documentation test: two contexts with the same snapshot marker
+        // Documentation test: two *distinct* contexts that share the same snapshot marker
         // MUST produce equal results (the marker is the sole upstream-state input).
         var (sut, _) = Build();
         var p = Parameters();
-        var ctx = Context();
-        var r1 = await sut.ExecuteAsync(ctx, p);
-        var r2 = await sut.ExecuteAsync(ctx, p);
+        var ctx1 = Context();
+        // ctx2 is a fresh instance but carries the same snapshot marker value.
+        var ctx2 = new ReportExecutionContext(Tenant, ctx1.SnapshotMarker,
+            new System.DateTimeOffset(2026, 5, 17, 12, 0, 0, System.TimeSpan.Zero), Principal);
+        var r1 = await sut.ExecuteAsync(ctx1, p);
+        var r2 = await sut.ExecuteAsync(ctx2, p);
         AssertResultsEqual(r1, r2);
     }
 
