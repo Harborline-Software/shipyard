@@ -45,3 +45,35 @@ Large collection of per-workstream ICM stage handoff files. Naming: `<workstream
 ## icm/_templates/
 
 - `handoff-stage06.md` — canonical Stage 06 implementation handoff template. ~200 tokens
+
+## apps/docs/bridge/audit/
+
+- `overview.md` — Bridge audit infrastructure v1 docs stub; in-memory only, restart-volatile; deferred persistent ADR ~0076 (~80 tok)
+
+## apps/docs/blocks-financial-ar/
+
+- `overview.md` — AR (accounts-receivable) block docs stub; Invoice + InvoiceLine + AR aging; W#60 P4 Phase 1 (~80 tok)
+
+## apps/docs/blocks-financial-ledger/
+
+- `overview.md` — financial ledger docs stub; chart-of-accounts + journal core; W#60 P4 Phase 1 foundational (~80 tok)
+
+## apps/docs/blocks-localfirst-sync/
+
+- `overview.md` — multi-device replica reconciliation substrate docs stub; CRDT-backed sync; Phase 3 (~80 tok)
+
+## apps/docs/cockpit/
+
+- `overview.md` — Owner Web Cockpit docs stub (W#29); portfolio analytics + financial + lease + maintenance surface (~80 tok)
+
+## apps/docs/foundation-mission-space/
+
+- `overview.md` — Foundation.MissionSpace Phase 1 substrate docs stub; app-scoped context model; ADR 0062 + A1 (~80 tok)
+
+## apps/docs/foundation-ui-syncstate/
+
+- `overview.md` — Foundation.UI.SyncState public enum docs stub; ADR 0036-A1 sync-state values for Anchor UI layers (~80 tok)
+
+## apps/docs/foundation-versioning/
+
+- `overview.md` — Foundation.Versioning Phase 1 substrate docs stub; schema-version negotiation + migration-compat; ADR 0028-A6+A7 (~80 tok)
