@@ -50,9 +50,17 @@ public struct SettingsView: View {
                 unpairSection
             }
             .navigationTitle("Settings")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: {
+                    #if os(iOS)
+                    return .topBarTrailing
+                    #else
+                    return .automatic
+                    #endif
+                }()) {
                     Button("Done") { dismiss() }
                         .fontWeight(.semibold)
                 }

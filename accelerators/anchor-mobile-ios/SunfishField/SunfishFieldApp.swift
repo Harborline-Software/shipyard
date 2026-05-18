@@ -16,7 +16,7 @@ struct SunfishFieldApp: App {
     private static let blobStore: BlobStore? = try? BlobStore(
         rootDirectory: Self.blobDirectory)
     private static var syncEngine: SyncEngine? {
-        guard let db = appDatabase, let blobs = blobStore,
+        guard let db = appDatabase, let _ = blobStore,
               let baseURL = FieldAppEnvironment.shared.pairingResult
                   .flatMap({ URL(string: $0.anchorBaseUrl) })
         else { return nil }
