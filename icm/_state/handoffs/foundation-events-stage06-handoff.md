@@ -13,7 +13,7 @@
 **Estimated effort:** ~12–16h sunfish-PM (foundation-tier package scaffold + 4 canonical interfaces + SQLite store + per-handler cursor model + DI extension + cluster migration sweep + ~50–60 tests + docs)
 **PR count:** 6 PRs (PR 1 scaffold + canonical types; PR 2 SQLite store; PR 3 default publisher; PR 4 consumer cursor model; PR 5 OPTIONAL Loro op-log bridge; PR 6 DI extension + cluster migration sweep)
 **Pre-merge council:** NOT required (substrate scope; mirrors the W#34/W#35/W#36 substrate-only pattern + sibling `blocks-financial-ledger` + `blocks-financial-periods` hand-offs). Standard COB self-audit applies on each PR.
-**Audit before build:** `ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^foundation-events"` — expect EMPTY. `grep -rn "Sunfish.Foundation.Events" packages/ --include="*.cs"` — expect EMPTY. `ls packages/ | grep -E "^kernel-event"` — expect `kernel-event-bus/` (the lower-tier event-log substrate; foundation-events is a *different layer*, see §"Relationship to kernel-event-bus" below).
+**Audit before build:** `ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^foundation-events"` — expect EMPTY. `grep -rn "Sunfish.Foundation.Events" packages/ --include="*.cs"` — expect EMPTY. `ls packages/ | grep -E "^kernel-event"` — expect `kernel-event-bus/` (the lower-tier event-log substrate; foundation-events is a *different layer*, see §"Relationship to kernel-event-bus" below).
 
 ---
 
@@ -125,8 +125,8 @@ load-bearing.
 1. **Verify the substrate is greenfield.**
 
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^foundation-events"
-   grep -rn "Sunfish.Foundation.Events" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ --include="*.cs" 2>/dev/null | grep -v bin | grep -v obj
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^foundation-events"
+   grep -rn "Sunfish.Foundation.Events" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ --include="*.cs" 2>/dev/null | grep -v bin | grep -v obj
    ```
 
    Expected: both empty. If either returns hits, **halt** + file
@@ -145,7 +145,7 @@ load-bearing.
 3. **Confirm `kernel-event-bus` is NOT being subsumed.**
 
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/kernel-event-bus/
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/kernel-event-bus/
    ```
 
    Expected: present. `foundation-events` is additive; it does NOT
@@ -155,7 +155,7 @@ load-bearing.
 4. **Verify `TenantId` canonical home.**
 
    ```bash
-   grep -rn "public readonly record struct TenantId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/foundation/ 2>/dev/null | grep -v bin | grep -v obj
+   grep -rn "public readonly record struct TenantId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/foundation/ 2>/dev/null | grep -v bin | grep -v obj
    ```
 
    Expected: `packages/foundation/Assets/Common/TenantId.cs`. **Reuse
@@ -164,7 +164,7 @@ load-bearing.
 5. **Verify `ReplicaId` canonical home.**
 
    ```bash
-   grep -rn "public.*ReplicaId\|public readonly record struct ReplicaId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ 2>/dev/null | grep -v bin | grep -v obj
+   grep -rn "public.*ReplicaId\|public readonly record struct ReplicaId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ 2>/dev/null | grep -v bin | grep -v obj
    ```
 
    **Three possible outcomes:**
@@ -215,7 +215,7 @@ load-bearing.
 6. **Verify the SQLite client convention in the repo.**
 
    ```bash
-   grep -rn "Microsoft.Data.Sqlite\|Microsoft.EntityFrameworkCore.Sqlite" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ --include="*.csproj" 2>/dev/null | head -10
+   grep -rn "Microsoft.Data.Sqlite\|Microsoft.EntityFrameworkCore.Sqlite" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ --include="*.csproj" 2>/dev/null | head -10
    ```
 
    Expected: `Microsoft.EntityFrameworkCore` is the dominant pattern
@@ -235,13 +235,13 @@ load-bearing.
    project uses Central Package Management):
 
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/Directory.Packages.props 2>/dev/null
+   ls /Users/christopherwood/Projects/Harborline-Software/Sunfish/Directory.Packages.props 2>/dev/null
    ```
 
 7. **Verify `Ulid.NewUlid()` library convention.**
 
    ```bash
-   grep -rn "Ulid.NewUlid\|using.*Ulid\|NUlid" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ --include="*.cs" 2>/dev/null | grep -v bin | grep -v obj | head -5
+   grep -rn "Ulid.NewUlid\|using.*Ulid\|NUlid" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ --include="*.cs" 2>/dev/null | grep -v bin | grep -v obj | head -5
    ```
 
    If `Ulid` is already in use (via the `Ulid` NuGet package or

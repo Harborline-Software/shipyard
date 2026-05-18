@@ -14,7 +14,7 @@
 **Pre-merge council:** NOT required (substrate scope; mirrors the W#34/W#35/W#36/W#60-P4 substrate-only pattern from the sibling `blocks-financial-ledger` hand-off). Standard COB self-audit applies. **EXCEPTION:** if PR 5 (the rent-collection wrapper) cannot preserve the existing `IRentCollectionService` surface verbatim, **halt and council-review** the breaking-change surface — file `cob-question-*` first.
 **Audit before build:**
 ```bash
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-financial-(ar|ledger|tax|periods)"
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-financial-(ar|ledger|tax|periods)"
 ```
 Expected at this hand-off's start: `blocks-financial-ledger/` exists (per the sibling ledger hand-off, all 6 PRs merged); nothing matching `blocks-financial-ar/`.
 
@@ -112,16 +112,16 @@ Per the sibling ledger hand-off, Q10 remains **open** at this hand-off's cutoff.
 
 1. **Verify sibling ledger hand-off is built.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Services/IJournalPostingService.cs 2>&1
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Migration/IErpnext*Importer.cs 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Services/IJournalPostingService.cs 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Migration/IErpnext*Importer.cs 2>&1
    ```
    Expected: all three exist. If `blocks-financial-ledger/` does not exist or doesn't carry `IJournalPostingService`, **STOP** — the sibling hand-off must land first. Drop a `cob-question-*` beacon.
 
 2. **Verify sibling `-tax` and `-periods` packages' status.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-tax/ 2>&1
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-periods/ 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-tax/ 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-periods/ 2>&1
    gh pr list --state open --search "blocks-financial-tax in:title,body"
    gh pr list --state open --search "blocks-financial-periods in:title,body"
    ```
@@ -129,21 +129,21 @@ Per the sibling ledger hand-off, Q10 remains **open** at this hand-off's cutoff.
 
 3. **Verify Party/Customer cross-cluster contract.**
    ```bash
-   grep -rln "IPartyReadModel\|PartyId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/foundation-* /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-* 2>/dev/null | head -5
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-* 2>&1
+   grep -rln "IPartyReadModel\|PartyId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/foundation-* /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-* 2>/dev/null | head -5
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-* 2>&1
    ```
    Expected: most likely **no `blocks-people-*` package on main yet** (per anatomy.md). If absent, ship a local `PartyId` strong-id type in this package (mirroring `blocks-leases/Models/PartyId.cs` which already exists) and define a minimal local `IPartyReadModel` contract within `blocks-financial-ar` that the in-memory test harness implements. When `blocks-people-*` lands, the contract relocates; this hand-off's package's reference is a single `using` directive update. **DO NOT WRITE Party rows from this hand-off** — read-only via the contract per `party-model-convention.md` §4.
 
 4. **Confirm ADR 0088 status.**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
    ```
    Expected: `status: Proposed` (CO ratified design 2026-05-16; status-flip is housekeeping). Hand-off is `ready-to-build` regardless — CO directive operative.
 
 5. **Confirm `blocks-rent-collection` consumer set (for PR 5).**
    ```bash
-   grep -rln "Sunfish.Blocks.RentCollection" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ /Users/christopherwood/Projects/SunfishSoftware/Sunfish/apps/ /Users/christopherwood/Projects/SunfishSoftware/Sunfish/accelerators/
-   grep -rln "IRentCollectionService" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/
+   grep -rln "Sunfish.Blocks.RentCollection" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ /Users/christopherwood/Projects/Harborline-Software/sunfish/apps/ /Users/christopherwood/Projects/Harborline-Software/shipyard/accelerators/
+   grep -rln "IRentCollectionService" /Users/christopherwood/Projects/Harborline-Software/Sunfish/
    ```
    Capture every match; the PR 5 wrapper retrofit must preserve every public-surface call against these consumers. If the consumer set is larger than 5 projects, file `cob-question-*` for a council review of the wrapper boundary.
 
@@ -2080,7 +2080,7 @@ This hand-off is the **second cluster implementation hand-off under ADR 0088 Pat
 If COB hits a halt-condition or has a design question:
 
 - File `cob-question-2026-05-XXTHH-MMZ-w60-p4-financial-ar-{slug}.md` in
-  `/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`.
+  `/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`.
 - Halt the workstream + add a note in the `active-workstreams.md` row for W#60.
 - `ScheduleWakeup 1800s`.
 

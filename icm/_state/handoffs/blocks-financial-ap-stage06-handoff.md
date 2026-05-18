@@ -14,7 +14,7 @@
 **Pre-merge council:** NOT required (substrate scope; mirrors the W#34/W#35/W#36/W#60-P4 substrate-only pattern from sibling packages). Standard COB self-audit applies. **EXCEPTION:** if `IBillService` interface would materially break the `blocks-financial-payments` dependency contract (e.g. removing or renaming methods that `PaymentApplicationService` calls on `IBillRepository`), **halt and council-review** the breaking change — file `cob-question-*` first.
 **Audit before build:**
 ```bash
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-financial-(ap|ar|tax|ledger)"
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-financial-(ap|ar|tax|ledger)"
 ```
 Expected at this hand-off's start: `blocks-financial-ar/`, `blocks-financial-tax/`, and `blocks-financial-ledger/` all exist (all gates cleared); nothing matching `blocks-financial-ap/`.
 
@@ -115,31 +115,31 @@ This eliminates the `ReplicaId` complexity from AR's PR 2. AP is simpler: 4 PRs,
 
 1. **Verify `blocks-financial-ar` is built.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ar/
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ar/Services/IBillPostingService.cs 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ar/
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ar/Services/IBillPostingService.cs 2>&1
    ```
    Wait — `IBillPostingService` lives in `blocks-financial-ap`, not `blocks-financial-ar`. Check instead:
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ar/Services/IInvoicePostingService.cs 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ar/Services/IInvoicePostingService.cs 2>&1
    ```
    Expected: file exists. If `blocks-financial-ar/` does not exist, **STOP**.
 
 2. **Verify `blocks-financial-tax` is built.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-tax/ 2>&1
-   grep -rn "ITaxCalculationService" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-tax/ 2>/dev/null | head -5
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-tax/ 2>&1
+   grep -rn "ITaxCalculationService" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-tax/ 2>/dev/null | head -5
    ```
    If `blocks-financial-tax/` is absent, proceed with the `NoOpTaxCalculationService` stub from AR (see Halt §3). If present, import and use its `ITaxCalculationService` directly — do not re-define the stub locally.
 
 3. **Verify `blocks-financial-ledger` is built.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Services/IJournalPostingService.cs 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Services/IJournalPostingService.cs 2>&1
    ```
    Expected: exists. `IBillPostingService` consumes `IJournalPostingService` from the ledger.
 
 4. **Confirm ADR 0088 status.**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
    ```
    Expected: `status: Proposed` (CO ratified design 2026-05-16; status-flip is housekeeping). Hand-off is `ready-to-build` regardless — CO directive operative.
 
@@ -565,7 +565,7 @@ record(billId):
 
 **`SourceKind.Bill` enum member:** if `JournalEntrySource` in `blocks-financial-ledger` does not include `Bill`, add it in this PR as an additive change to the ledger package (source-kind additions are non-breaking per the ledger hand-off's extensibility discipline). Check first:
 ```bash
-grep -n "Bill" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Models/JournalEntrySource.cs 2>/dev/null
+grep -n "Bill" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Models/JournalEntrySource.cs 2>/dev/null
 ```
 If absent, add `Bill` to the enum and include the ledger change in this PR's commit. The ledger csproj is a project-reference from AP; the enum extension is safe.
 

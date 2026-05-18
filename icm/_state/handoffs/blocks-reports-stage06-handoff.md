@@ -22,8 +22,8 @@
 - **No idempotency-bus council needed** (reports emit nothing).
 **Audit before build:**
 ```bash
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-reports"
-grep -rn "Sunfish.Blocks.Reports" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages 2>/dev/null | head
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-reports"
+grep -rn "Sunfish.Blocks.Reports" /Users/christopherwood/Projects/Harborline-Software/Sunfish/packages 2>/dev/null | head
 ```
 Expected: nothing matching `blocks-reports`. The package name is greenfield. (Note: `blocks-tax-reporting/` already exists and is a Path I cluster; per Stage 02 §11 Q8 it is **NOT** the home for this work and is NOT touched by this hand-off. ADR 0088 names `blocks-reports-*` as the canonical Phase 1 cluster; the Path I `blocks-tax-reporting/` package retires separately under a future re-home hand-off.)
 
@@ -240,14 +240,14 @@ The retirement schedule is documented in the cluster's `apps/docs/blocks/reports
 
 1. **Verify `blocks-financial-ledger` is built.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Services/IGeneralLedgerReadModel.cs 2>&1
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Models/GLAccountId.cs 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Services/IGeneralLedgerReadModel.cs 2>&1
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Models/GLAccountId.cs 2>&1
    ```
    Expected: both exist. If absent, halt + file `cob-question-*` naming the missing predecessor.
 
 2. **Verify `foundation-events` is built (or `TenantId` is in `foundation`).**
    ```bash
-   grep -rln "record struct TenantId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/foundation* 2>/dev/null
+   grep -rln "record struct TenantId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/foundation* 2>/dev/null
    ```
    Expected: at least one hit. If absent, use the cluster-local `TenantId` shim convention from the AR hand-off and file a NOTICE comment in PR 1's `ReportExecutionContext.cs`.
 
@@ -260,22 +260,22 @@ The retirement schedule is documented in the cluster's `apps/docs/blocks/reports
 
 4. **Verify no `Sunfish.Blocks.Reports` namespace exists.**
    ```bash
-   grep -rn "Sunfish.Blocks.Reports" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages 2>/dev/null | head
+   grep -rn "Sunfish.Blocks.Reports" /Users/christopherwood/Projects/Harborline-Software/Sunfish/packages 2>/dev/null | head
    ```
    Expected: zero hits. Greenfield package.
 
 5. **Verify per-PR gates.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-periods/Services/IFiscalPeriodRepository.cs 2>&1   # PR 2, PR 5
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ar/Services/IArAgingService.cs 2>&1                # PR 3
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ap/Services/IApAgingService.cs 2>&1                # PR 4
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Services/ILeaseService.cs 2>&1                        # PR 6 (already on main)
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-periods/Services/IFiscalPeriodRepository.cs 2>&1   # PR 2, PR 5
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ar/Services/IArAgingService.cs 2>&1                # PR 3
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ap/Services/IApAgingService.cs 2>&1                # PR 4
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Services/ILeaseService.cs 2>&1                        # PR 6 (already on main)
    ```
    Record which gates are unmet; the affected PRs are deferred or skipped, not blocked-from-merge.
 
 6. **Confirm ADR 0088 is accepted (or operative).**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
    ```
    Expected: `Proposed` or `Accepted`. The hand-off is `ready-to-build` regardless (CO directive operative; sibling-hand-off precedent).
 
@@ -2060,7 +2060,7 @@ If `blocks-docs` ships first, the docs page for `blocks-reports` (PR 7 of this h
 
 ## Beacon protocol
 
-Per the multi-session coordination protocol (`/Users/christopherwood/Projects/SunfishSoftware/CLAUDE.md` §Multi-Session Coordination):
+Per the multi-session coordination protocol (`/Users/christopherwood/Projects/Harborline-Software/CLAUDE.md` §Multi-Session Coordination):
 
 - **At session start** (especially after `/compact`): batch-run `git log --all`, `git status`, `gh pr list`, `but status`, and tail `.wolf/memory.md` before acting on anything in this hand-off marked "pending."
 - **Question beacons:** `coordination/inbox/cob-question-2026-05-XXTHH-MMZ-w60-p4-reports-{topic}.md` — body: 3-line YAML frontmatter (`type: question`, `workstream-or-chapter: W60-P4-reports`, `last-pr: cob/blocks-reports-{...}`) + ≤2 lines context + ≤2 lines "what would unblock me."
@@ -2078,7 +2078,7 @@ Per the multi-session coordination protocol (`/Users/christopherwood/Projects/Su
 - Event-bus vocabulary: [`icm/02_architecture/path-ii-cross-cluster-event-bus.md`](../../02_architecture/path-ii-cross-cluster-event-bus.md)
 - Sibling hand-offs (predecessors): `blocks-financial-ledger-chart-and-journal-stage06-handoff.md`, `blocks-financial-periods-stage06-handoff.md`, `blocks-financial-tax-stage06-handoff.md`, `blocks-financial-ar-stage06-handoff.md`, `blocks-financial-ap-stage06-handoff.md`, `blocks-people-foundation-stage06-handoff.md`
 - v1 Rent Roll source: `icm/_state/handoffs/w60-reporting-contracts-phase5-stage06-handoff.md` (PR 2 — Rent roll + P&L reporting)
-- Coordination README: `/Users/christopherwood/Projects/SunfishSoftware/coordination/README.md`
+- Coordination README: `/Users/christopherwood/Projects/Harborline-Software/coordination/README.md`
 
 ---
 
