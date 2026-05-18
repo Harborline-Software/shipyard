@@ -623,7 +623,7 @@ User presses Ctrl+Z (OnUndoRequested)
 
 ## Namespace Placement in `Sunfish.Core`
 
-Following the existing structure of [`src/Sunfish.Core`](https://github.com/ctwoodwa/Sunfish/tree/workInProgress/src/Sunfish.Core):
+Following the existing structure of [`src/Sunfish.Core`](https://github.com/Harborline-Software/shipyard/tree/workInProgress/src/Sunfish.Core):
 
 ```
 src/Sunfish.Core/

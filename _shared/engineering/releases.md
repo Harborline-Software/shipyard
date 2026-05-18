@@ -118,7 +118,7 @@ The transition is a documented event in the root changelog at the time it happen
 
 ### Where they live
 
-Every tag has a matching **GitHub Release** at `https://github.com/ctwoodwa/Sunfish/releases`. The release body is the **authoritative** release notes. `CHANGELOG.md` is the repository's human-readable log; the GitHub Release is what consumers subscribe to.
+Every tag has a matching **GitHub Release** at `https://github.com/Harborline-Software/shipyard/releases`. The release body is the **authoritative** release notes. `CHANGELOG.md` is the repository's human-readable log; the GitHub Release is what consumers subscribe to.
 
 ### Format
 

@@ -35,7 +35,7 @@ Each demo page uses `SunfishExamplePanel` (see the canonical proof-point at
 
 <SunfishExamplePanel Title="<Component> / Overview"
                      Breadcrumb="@_breadcrumb"
-                     GitHubUrl="https://github.com/ctwoodwa/Sunfish/blob/main/apps/kitchen-sink/Pages/Components/<Family>/<Component>/Overview/Demo.razor"
+                     GitHubUrl="https://github.com/Harborline-Software/shipyard/blob/main/apps/kitchen-sink/Pages/Components/<Family>/<Component>/Overview/Demo.razor"
                      Sources="@GeneratedSources">
 
     <Narrative>

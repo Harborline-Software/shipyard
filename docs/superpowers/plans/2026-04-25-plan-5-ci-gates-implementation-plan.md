@@ -234,13 +234,13 @@ Token: plan-5-task-2"
 - Create: `infra/github/branch-protection-main.json`
 - Create: `infra/github/apply-branch-protection.sh`
 
-- [ ] **Step 1:** Capture current branch-protection rule via `gh api repos/ctwoodwa/Sunfish/branches/main/protection`. Save to `infra/github/branch-protection-main-before.json` for reference.
+- [ ] **Step 1:** Capture current branch-protection rule via `gh api repos/Harborline-Software/shipyard/branches/main/protection`. Save to `infra/github/branch-protection-main-before.json` for reference.
 - [ ] **Step 2:** Author `infra/github/branch-protection-main.json` with required-status-checks list extended to include the gate jobs from Task 1: `analyzers`, `xliff-round-trip`, `a11y-audit (1)`, `a11y-audit (2)`, `a11y-audit (3)`, `a11y-audit (4)`, `cldr-plural`, `locale-completeness`. (Matrix jobs use `(N)` suffix per GitHub convention.)
-- [ ] **Step 3:** Author `infra/github/apply-branch-protection.sh` — bash script that runs `gh api -X PUT repos/ctwoodwa/Sunfish/branches/main/protection --input infra/github/branch-protection-main.json`. Idempotent on success.
+- [ ] **Step 3:** Author `infra/github/apply-branch-protection.sh` — bash script that runs `gh api -X PUT repos/Harborline-Software/shipyard/branches/main/protection --input infra/github/branch-protection-main.json`. Idempotent on success.
 - [ ] **Step 4:** Validate JSON: pipe through `jq .` — must parse cleanly.
 - [ ] **Step 5:** **Human-owner approval gate.** Surface to user before applying — branch protection changes are irreversible without admin override. User responds `proceed` to apply.
 - [ ] **Step 6:** Apply via `bash infra/github/apply-branch-protection.sh` (only after Step 5 approval).
-- [ ] **Step 7:** Verify required checks: `gh api repos/ctwoodwa/Sunfish/branches/main/protection -q '.required_status_checks.contexts'` matches expected list.
+- [ ] **Step 7:** Verify required checks: `gh api repos/Harborline-Software/shipyard/branches/main/protection -q '.required_status_checks.contexts'` matches expected list.
 - [ ] **Step 8:** Commit JSON + script (NOT the rule application — that's a one-time imperative); token: `plan-5-task-4`.
 
 ### Task 5: Wire required-checks into the workflow + verify

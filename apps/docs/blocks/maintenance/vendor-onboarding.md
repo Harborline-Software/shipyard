@@ -146,4 +146,4 @@ Both are explicit halt-conditions in the original W#18 hand-off; downstream cons
 
 - [ADR 0058](../../../docs/adrs/0058-vendor-onboarding-posture.md) — Vendor onboarding posture
 - [W#18 hand-off](../../../icm/_state/handoffs/property-vendor-onboarding-stage06-handoff.md)
-- [`MIGRATION.md`](https://github.com/ctwoodwa/Sunfish/blob/main/packages/blocks-maintenance/MIGRATION.md) — v1.0 → v1.1 breaking changes
+- [`MIGRATION.md`](https://github.com/Harborline-Software/shipyard/blob/main/packages/blocks-maintenance/MIGRATION.md) — v1.0 → v1.1 breaking changes

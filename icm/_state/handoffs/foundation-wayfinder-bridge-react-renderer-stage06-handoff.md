@@ -212,7 +212,7 @@ The renderer is **multi-tenant-composition-aware** per ADR 0031: a Bridge React 
 
 (Required halt conditions per ADR 0073 §4 plus workstream-specific items. Numbering aligned with the W#47 Anchor MAUI sibling cohort where applicable; React-specific items appended.)
 
-1. **Required (per ADR 0073):** if any prerequisite listed in §1 is not yet `built` when its phase is needed → halt; write `cob-question-2026-05-XXTHH-MMZ-w56-renderer-{slug}.md` naming the unmet prerequisite. Specifically: verify on origin/main at session-start `git log --all --oneline -10` that ledger row 42 reads `built` AND that ADR 0063 + ADR 0065 + ADR 0030 + ADR 0014 + ADR 0031 + ADR 0006 + ADR 0049 + ADR 0034 all read Status: Accepted on origin/main (canonical via `gh api repos/ctwoodwa/Sunfish/contents/docs/adrs/...` `frontmatter.status` field, or via reading the `status:` line in each ADR's frontmatter directly).
+1. **Required (per ADR 0073):** if any prerequisite listed in §1 is not yet `built` when its phase is needed → halt; write `cob-question-2026-05-XXTHH-MMZ-w56-renderer-{slug}.md` naming the unmet prerequisite. Specifically: verify on origin/main at session-start `git log --all --oneline -10` that ledger row 42 reads `built` AND that ADR 0063 + ADR 0065 + ADR 0030 + ADR 0014 + ADR 0031 + ADR 0006 + ADR 0049 + ADR 0034 all read Status: Accepted on origin/main (canonical via `gh api repos/Harborline-Software/shipyard/contents/docs/adrs/...` `frontmatter.status` field, or via reading the `status:` line in each ADR's frontmatter directly).
 
 2. **Required (per ADR 0073):** if the `icm/_state/workstreams/W56-*.md` file's `status:` field does not read `ready-to-build` when COB begins → halt; write `cob-question-*` naming the discrepancy.
 
