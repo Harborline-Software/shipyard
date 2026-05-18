@@ -17,9 +17,9 @@
 **Audit before build:**
 ```bash
 # Gate check — all three must return results:
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/Sunfish.Blocks.People.Foundation.csproj
-grep -rn "struct PartyId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/
-grep -rn "IPartyReadModel" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/Sunfish.Blocks.People.Foundation.csproj
+grep -rn "struct PartyId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/
+grep -rn "IPartyReadModel" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/
 ```
 
 ---
@@ -88,10 +88,10 @@ ALL of the following must be verified on `origin/main` before opening PR 1. If a
 
 | # | Prerequisite | Verify command | Expected result |
 |---|---|---|---|
-| H1 | `blocks-people-foundation` package on `origin/main` | `ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/Sunfish.Blocks.People.Foundation.csproj` | File exists |
-| H2 | `Sunfish.Blocks.People.Foundation.PartyId` struct on `origin/main` | `grep -rn "struct PartyId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/` | At least 1 match in `blocks-people-foundation/` |
-| H3 | `IPartyReadModel` interface on `origin/main` | `grep -rn "IPartyReadModel" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/` | At least 1 match in `blocks-people-foundation/` |
-| H4 | `IPartyReadModel.GetDisplayNameAsync` exists | `grep -rn "GetDisplayNameAsync" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/` | At least 1 match |
+| H1 | `blocks-people-foundation` package on `origin/main` | `ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/Sunfish.Blocks.People.Foundation.csproj` | File exists |
+| H2 | `Sunfish.Blocks.People.Foundation.PartyId` struct on `origin/main` | `grep -rn "struct PartyId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/` | At least 1 match in `blocks-people-foundation/` |
+| H3 | `IPartyReadModel` interface on `origin/main` | `grep -rn "IPartyReadModel" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/` | At least 1 match in `blocks-people-foundation/` |
+| H4 | `IPartyReadModel.GetDisplayNameAsync` exists | `grep -rn "GetDisplayNameAsync" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/` | At least 1 match |
 | H5 | No open PRs touching `blocks-leases` | `gh pr list --state open --search "blocks-leases in:title,body"` | Zero results (or only unrelated PRs confirmed as safe) |
 | H6 | Working branch is from `main` (not GitButler HEAD) | `git log --oneline -1 main` vs `git merge-base HEAD main` | Worktree was created with `main` as the third arg per `feedback_worktree_base_main_not_gitbutler` |
 
@@ -102,33 +102,33 @@ ALL of the following must be verified on `origin/main` before opening PR 1. If a
 ```bash
 # 1. Confirm the three legacy types that WILL be deprecated:
 grep -n "class Party\|record Party\|enum PartyKind\|struct PartyId\|record struct PartyId" \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/Party.cs \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/PartyKind.cs \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/PartyId.cs
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/Party.cs \
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/PartyKind.cs \
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/PartyId.cs
 
 # 2. Confirm the type that MUST NOT change:
 grep -n "enum LeaseHolderRole" \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/LeaseHolderRole.cs
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/LeaseHolderRole.cs
 
 # 3. Confirm the join table's Party field (will get type-swapped):
 grep -n "PartyId Party" \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/LeasePartyRole.cs
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/LeasePartyRole.cs
 
 # 4. Confirm Lease's tenant/landlord PartyId references (will get type-swapped):
 grep -n "PartyId" \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/Lease.cs
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/Lease.cs
 
 # 5. Confirm current csproj references (no blocks-people-foundation yet):
 grep -n "ProjectReference" \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Sunfish.Blocks.Leases.csproj
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Sunfish.Blocks.Leases.csproj
 
 # 6. Confirm the canonical PartyId's factory method (must be ULID, not Guid):
 grep -n "NewId\|Ulid\|NewUlid" \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/Models/PartyId.cs 2>/dev/null
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/Models/PartyId.cs 2>/dev/null
 
 # 7. Count existing test cases for PartyId to know what to update:
 grep -rn "PartyId\|NewId()" \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/tests/ | wc -l
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/tests/ | wc -l
 ```
 
 If step 6 shows anything OTHER than `Ulid.NewUlid()` (e.g., `Guid.NewGuid()`), STOP and file `cob-question-*` — the predecessor hand-off may have shipped a non-ULID canonical PartyId, which is a prerequisite deviation that needs XO resolution before proceeding.
@@ -298,7 +298,7 @@ public interface ILeaseService
 Check `Models/LeasePartySignature.cs`:
 
 ```bash
-grep -n "PartyId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/LeasePartySignature.cs 2>/dev/null
+grep -n "PartyId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/LeasePartySignature.cs 2>/dev/null
 ```
 
 If the `Party` field on `LeasePartySignature` is typed as `Sunfish.Blocks.Leases.Models.PartyId`, apply the same alias-and-swap pattern used in steps 5–7. If it is already typed differently, note the finding and do not touch it.
@@ -379,7 +379,7 @@ public static IServiceCollection AddInMemoryLeases(this IServiceCollection servi
 **Note:** `InMemoryPartyRepository` is the in-memory implementation shipped by `blocks-people-foundation` PR 3. Verify the exact class name:
 
 ```bash
-grep -rn "class InMemoryParty" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/ 2>/dev/null
+grep -rn "class InMemoryParty" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/ 2>/dev/null
 ```
 
 If the class is named differently (e.g., `InMemoryPartyReadModel`), use the actual name. If no in-memory implementation exists, use `TryAddSingleton<IPartyReadModel>(_ => NullPartyReadModel.Instance)` where `NullPartyReadModel` is a local private class that returns `null` / empty for all methods — do NOT fail at startup for missing people-cluster registration. File a `cob-question-*` if this case arises; XO will rule on the fallback pattern.
@@ -392,7 +392,7 @@ Tests in `packages/blocks-leases/tests/` currently create `PartyId` using `Party
 
 ```bash
 grep -rn "PartyId.NewId\(\)\|new PartyId\|Blocks\.Leases\.Models\.PartyId" \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/tests/
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/tests/
 ```
 
 **Replacement pattern** — use the canonical factory:
@@ -534,7 +534,7 @@ Option (1) is preferred if the W#27 Phase 4 code that created `LeasePartyRole` r
 
 ```bash
 grep -n "GetDisplayNameAsync\|DisplayName" \
-  /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/Services/IPartyReadModel.cs 2>/dev/null
+  /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/Services/IPartyReadModel.cs 2>/dev/null
 ```
 
 If the method name differs (e.g., `GetDisplayName` without `Async`, or it returns a different type), use the actual name. Do NOT assume — this is a new interface; the implementation may differ from the convention document's TypeScript sketch.

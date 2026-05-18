@@ -1,6 +1,6 @@
 # Sunfish-PM session startup prompt
 
-**Where to use:** paste as the FIRST message in a fresh Claude Code session opened in `/Users/christopherwood/Projects/SunfishSoftware/Sunfish/`.
+**Where to use:** paste as the FIRST message in a fresh Claude Code session opened in `/Users/christopherwood/Projects/Harborline-Software/shipyard/`.
 **Prerequisite:** the `chore(icm):` PR with `MASTER-PLAN.md` + handoffs/ + active-workstreams ledger updates must be merged into `origin/main` first; otherwise the references below won't exist yet.
 
 ---
