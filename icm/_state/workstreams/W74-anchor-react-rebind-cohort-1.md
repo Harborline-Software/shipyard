@@ -3,8 +3,8 @@ sort_order: 82
 number: 74
 slug: anchor-react-rebind-cohort-1
 title: "W#74 — Anchor React Rebind Cohort 1 (Properties + Leases + Maintenance)"
-status: "ready-to-build"
-status_cell: "`ready-to-build` — all gate deps on main (blocks-properties, blocks-leases, blocks-work-orders, Bridge cockpit pattern, Tauri pivot ratified 2026-05-17); hand-off at `icm/_state/handoffs/anchor-react-rebind-cohort-1-stage06-handoff.md`; 4 PRs; ~5-7h; security-engineering spot-check MANDATORY on PR 1; pre-auth PENDING CO ratification (requested)"
+status: "built"
+status_cell: "`built` — 4 PRs merged 2026-05-18; sunfish (initial migration/PR 1), sunfish #7 + signal-bridge #7 (PR 2), sunfish #11 + signal-bridge #11 + shipyard #28 (PR 3), sunfish #12 + shipyard #32 (PR 4 close-out)"
 owner: "sunfish-PM"
 owner_cell: "sunfish-PM"
 reference_cell: "`icm/_state/handoffs/anchor-react-rebind-cohort-1-stage06-handoff.md`; `icm/02_architecture/anchor-react-bridge-rebind-roadmap.md` §2 + §4 Cohort 1 table; ADR 0088 §1+§3; ADR 0031"
