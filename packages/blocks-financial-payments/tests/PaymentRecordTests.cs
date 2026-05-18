@@ -72,6 +72,7 @@ public class PaymentRecordTests
         // Simulate what the application service does when recording a partial application.
         var pmt = NewDraftInbound(1000m);
         var app = PaymentApplication.Create(
+            tenantId: pmt.TenantId,
             paymentId: pmt.Id,
             appliedTo: AppliedTo.Invoice,
             targetId: "invoice-abc",
@@ -97,6 +98,7 @@ public class PaymentRecordTests
     {
         var pmt = NewDraftInbound(500m);
         var app = PaymentApplication.Create(
+            tenantId: pmt.TenantId,
             paymentId: pmt.Id,
             appliedTo: AppliedTo.Invoice,
             targetId: "invoice-xyz",

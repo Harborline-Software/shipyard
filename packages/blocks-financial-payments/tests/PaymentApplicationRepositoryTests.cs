@@ -19,6 +19,7 @@ public class PaymentApplicationRepositoryTests
         AppliedTo appliedTo = AppliedTo.Invoice,
         decimal amountApplied = 100m) =>
         PaymentApplication.Create(
+            tenantId: new Sunfish.Foundation.Assets.Common.TenantId("tenant-test"),
             paymentId: paymentId ?? PaymentId.NewId(),
             appliedTo: appliedTo,
             targetId: targetId ?? "invoice-" + Guid.NewGuid(),
