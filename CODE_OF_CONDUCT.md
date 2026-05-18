@@ -26,7 +26,7 @@ Discussions, and any other official project channels.
 ## Enforcement
 
 Violations may be reported via
-[GitHub's private vulnerability reporting](https://github.com/ctwoodwa/Sunfish/security/advisories/new)
+[GitHub's private vulnerability reporting](https://github.com/Harborline-Software/shipyard/security/advisories/new)
 or by contacting the maintainer directly through GitHub.
 
 The maintainer will review reports promptly and take appropriate action, up to

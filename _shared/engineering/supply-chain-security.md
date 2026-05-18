@@ -130,7 +130,7 @@ Verification snippet we expect downstream adopters to use:
 
 ```bash
 cosign verify-blob \
-  --certificate-identity-regexp 'https://github.com/ctwoodwa/Sunfish/.*' \
+  --certificate-identity-regexp 'https://github.com/Harborline-Software/shipyard/.*' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
   --signature sunfish-sbom.cdx.json.sig \
   sunfish-sbom.cdx.json

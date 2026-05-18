@@ -2,7 +2,7 @@
 
 `Sunfish.Blocks.Maintenance` v1.0 ships the full Work Order domain model per [ADR 0053](../../../docs/adrs/0053-work-order-domain-model.md). This page is the consumer-facing reference for the 13-state lifecycle, audit emission, child entities, and cross-package wiring.
 
-> **MAJOR version bump (v0.x → v1.0).** See [`MIGRATION.md`](https://github.com/ctwoodwa/Sunfish/blob/main/packages/blocks-maintenance/MIGRATION.md) for the breaking changes (positional → init-only `WorkOrder`, dropped `RequestId`, `decimal` → `Money?` migration).
+> **MAJOR version bump (v0.x → v1.0).** See [`MIGRATION.md`](https://github.com/Harborline-Software/shipyard/blob/main/packages/blocks-maintenance/MIGRATION.md) for the breaking changes (positional → init-only `WorkOrder`, dropped `RequestId`, `decimal` → `Money?` migration).
 
 ## Lifecycle
 
@@ -113,7 +113,7 @@ await service.CaptureCompletionAttestationAsync(new WorkOrderCompletionAttestati
 ## See also
 
 - [ADR 0053](../../../docs/adrs/0053-work-order-domain-model.md) — Work Order Domain Model + amendments A1–A9
-- [`MIGRATION.md`](https://github.com/ctwoodwa/Sunfish/blob/main/packages/blocks-maintenance/MIGRATION.md) — v0.x → v1.0 breaking changes
+- [`MIGRATION.md`](https://github.com/Harborline-Software/shipyard/blob/main/packages/blocks-maintenance/MIGRATION.md) — v0.x → v1.0 breaking changes
 - [W#19 hand-off](../../../icm/_state/handoffs/property-work-orders-stage06-handoff.md) — full 8-phase decomposition
 - [W#19 Phase 3 prereq addendum](../../../icm/_state/handoffs/property-work-orders-stage06-addendum.md) — Money / ThreadId stub introduction
 - [W#19 Phase 5 UX addendum](../../../icm/_state/handoffs/property-work-orders-stage06-phase5-addendum.md) — `WorkOrderListBlock` Phase 5.1 pattern

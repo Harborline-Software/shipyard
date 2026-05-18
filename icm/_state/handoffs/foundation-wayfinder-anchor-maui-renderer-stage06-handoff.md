@@ -194,7 +194,7 @@ The renderer is composition-aware per ADR 0032: the active team's `MissionEnvelo
 
 (Required halt conditions per ADR 0073 §4 plus workstream-specific items.)
 
-1. **Required (per ADR 0073):** if any prerequisite listed in §1 is not yet `built` when its phase is needed → halt; write `cob-question-2026-05-XXTHH-MMZ-w42-renderer-{slug}.md` naming the unmet prerequisite. Specifically: verify on origin/main at session-start `but status` / `git log --all --oneline -10` that ledger row 42 reads `built` AND that ADR 0063 + ADR 0065 + ADR 0048 + ADR 0032 + ADR 0034 + ADR 0049 all read Status: Accepted on origin/main (canonical via `gh api repos/ctwoodwa/Sunfish/contents/docs/adrs/0063-mission-space-requirements.md` `frontmatter.status` field).
+1. **Required (per ADR 0073):** if any prerequisite listed in §1 is not yet `built` when its phase is needed → halt; write `cob-question-2026-05-XXTHH-MMZ-w42-renderer-{slug}.md` naming the unmet prerequisite. Specifically: verify on origin/main at session-start `but status` / `git log --all --oneline -10` that ledger row 42 reads `built` AND that ADR 0063 + ADR 0065 + ADR 0048 + ADR 0032 + ADR 0034 + ADR 0049 all read Status: Accepted on origin/main (canonical via `gh api repos/Harborline-Software/shipyard/contents/docs/adrs/0063-mission-space-requirements.md` `frontmatter.status` field).
 
 2. **Required (per ADR 0073):** if the active-workstreams.md row for this workstream does not read `ready-to-build` when COB begins → halt; write `cob-question-*` naming the discrepancy.
 

@@ -17,7 +17,7 @@ You are the sunfish-PM Claude Code session for the Sunfish project. Your role is
 3. Read icm/_state/active-workstreams.md and identify rows marked `ready-to-build`.
 4. For each `ready-to-build` row, read the corresponding hand-off file at icm/_state/handoffs/<name>.md — that file describes file-by-file what to build with acceptance criteria.
 5. Verify state with these commands:
-   - `gh pr list --repo ctwoodwa/Sunfish --state open --json number,title,author --jq '.[] | select(.author.is_bot|not)'` — human-pending PRs only (ignore dependabot)
+   - `gh pr list --repo Harborline-Software/shipyard --state open --json number,title,author --jq '.[] | select(.author.is_bot|not)'` — human-pending PRs only (ignore dependabot)
    - `but status` — virtual-branch state in GitButler
    - `tail -30 .wolf/memory.md` — recent edits
 6. **Check the research-inbox for prior beacons**: `ls icm/_state/research-inbox/*.md 2>/dev/null`. If a prior `cob-idle-*.md` or `cob-question-*.md` you wrote is still active and the situation has resolved (e.g., you can resume work because XO landed a hand-off), `git mv` it to `_archive/` in your first PR of the session. If a `cob-question-*.md` is still unresolved, do NOT pick up a related workstream — the design question still gates work.

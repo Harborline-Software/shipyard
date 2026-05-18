@@ -15,7 +15,7 @@ This runbook is tactical. Read it top-to-bottom on a fresh clone; cherry-pick on
 - **macOS Sequoia 15+.** Older versions may work but are not the target.
 - **Apple Silicon (M1/M2/M3/M4).** Intel Macs work but Docker / `act` runner images are slower under x86_64 emulation; if Intel, prefer native ARM-incompatible workflows on hosted CI rather than `act` locally.
 - **Homebrew installed** (https://brew.sh). All install steps below assume `brew` is on PATH.
-- **GitHub account with repo access** (`ctwoodwa/Sunfish`) and `gh` configured (covered below).
+- **GitHub account with repo access** (`Harborline-Software/shipyard`) and `gh` configured (covered below).
 
 ---
 
@@ -171,7 +171,7 @@ Steps a Claude session should run on a fresh clone, in order:
 
 ```bash
 # 1. Clone (skip if the maintainer already cloned)
-git clone https://github.com/ctwoodwa/Sunfish.git
+git clone https://github.com/Harborline-Software/shipyard.git
 cd Sunfish
 
 # 2. Verify Docker is running (act + future runner work depends on this)

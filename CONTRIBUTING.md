@@ -14,7 +14,7 @@ contributions, ideas, and API feedback are very welcome at this stage.
 **Prerequisites:** .NET 10 SDK, Git, a C# IDE (Visual Studio, Rider, or VS Code + C# Dev Kit)
 
 ```bash
-git clone https://github.com/ctwoodwa/Sunfish.git
+git clone https://github.com/Harborline-Software/shipyard.git
 cd Sunfish
 dotnet build packages/foundation/Sunfish.Foundation.csproj
 dotnet test packages/foundation/tests/tests.csproj

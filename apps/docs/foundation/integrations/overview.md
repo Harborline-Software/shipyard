@@ -86,6 +86,6 @@ services.AddSunfishIntegrations();
 - [Credentials](credentials.md)
 - [Webhooks](webhooks.md)
 - [Catalog — Bundle Manifests](../catalog/bundle-manifests.md)
-- [ADR 0013 — Foundation.Integrations](https://github.com/ctwoodwa/Sunfish/blob/main/docs/adrs/0013-foundation-integrations.md)
+- [ADR 0013 — Foundation.Integrations](https://github.com/Harborline-Software/shipyard/blob/main/docs/adrs/0013-foundation-integrations.md)
 </content>
 </invoke>

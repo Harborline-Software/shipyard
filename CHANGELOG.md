@@ -124,4 +124,4 @@ into a tagged release once the next version is cut.
   are intentional dual-namespace components (not duplicates) (PRs #117,
   #135).
 
-[Unreleased]: https://github.com/ctwoodwa/Sunfish/compare/main...HEAD
+[Unreleased]: https://github.com/Harborline-Software/shipyard/compare/main...HEAD

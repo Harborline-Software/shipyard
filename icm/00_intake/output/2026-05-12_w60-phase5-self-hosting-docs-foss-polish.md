@@ -105,7 +105,7 @@ This is the phase that converts "CO uses Sunfish" into "anyone can use Sunfish."
 
 1. **A new user can:**
    ```bash
-   git clone https://github.com/ctwoodwa/Sunfish
+   git clone https://github.com/Harborline-Software/shipyard
    cd Sunfish/_shared/operations/self-hosting
    ./bin/sunfish-up.sh
    open http://localhost:8080
