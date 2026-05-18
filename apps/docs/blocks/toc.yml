@@ -8,20 +8,42 @@
   href: cockpit/
 - name: Crew Comms
   href: crew-comms/
+- name: Docs — Core
+  href: docs-core/
+- name: Docs — DAM
+  href: docs-dam/
+- name: Docs — Retention
+  href: docs-retention/
+- name: Docs — Signing
+  href: docs-signing/
+- name: Docs — Templates
+  href: docs-templates/
+- name: Docs — Wiki
+  href: docs-wiki/
 - name: ERPNext Stack
   href: erpnext-stack/
+- name: Financial — AP
+  href: financial-ap/
+- name: Financial — Payments
+  href: financial-payments/
 - name: Forms
   href: forms/
+- name: Foundation — Feature Management
+  href: foundation-featuremanagement/
+- name: Foundation — Wayfinder
+  href: foundation-wayfinder/
 - name: Inspections
   href: inspections/
 - name: Integration Config
-  href: integrations/
+  href: integration-config/
 - name: Leases
   href: leases/
 - name: Maintenance
   href: maintenance/
 - name: Messaging
   href: messaging/
+- name: Presence
+  href: blocks-presence/
 - name: Properties
   href: properties/
 - name: Property-Equipment
@@ -30,10 +52,16 @@
   href: property-leasing-pipeline/
 - name: Public Listings
   href: public-listings/
+- name: Receipts
+  href: receipts/
 - name: Rent Collection
   href: rent-collection/
+- name: Reports
+  href: reports/
 - name: Scheduling
   href: scheduling/
+- name: Ships Office
+  href: ships-office/
 - name: Subscriptions
   href: subscriptions/
 - name: Tactical
