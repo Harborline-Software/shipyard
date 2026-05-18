@@ -1,5 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Sunfish.Blocks.FinancialAp.Services;
+using Sunfish.Blocks.FinancialAr.Services;
+using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Blocks.FinancialPayments.Models;
 using Sunfish.Blocks.FinancialPayments.Services;
 
@@ -22,11 +25,20 @@ public static class PaymentsServiceCollectionExtensions
     /// </para>
     ///
     /// <para>
-    /// <b>Note:</b> <c>IPaymentPostingService</c> and
-    /// <c>IPaymentApplicationService</c> are NOT registered here — their
-    /// implementations ship in PRs 2 and 3 respectively. Downstream callers
-    /// that need those services must register them separately once those PRs
-    /// land.
+    /// <b>Note:</b> <c>IPaymentApplicationService</c> is NOT registered here —
+    /// its implementation ships in PR 3 alongside the direction-matching
+    /// invariant. Downstream callers that need it must register it separately
+    /// once that PR lands.
+    /// </para>
+    ///
+    /// <para>
+    /// <b>PR 2:</b> <see cref="IPaymentPostingService"/> registers via
+    /// <see cref="DefaultPaymentPostingService"/>. The host must also have
+    /// the ledger, AR, and AP substrates wired (
+    /// <c>AddSunfishFinancialLedger</c>, <c>AddSunfishFinancialAr</c>,
+    /// <c>AddSunfishFinancialAp</c>) — those provide
+    /// <see cref="IJournalPostingService"/>, <see cref="IAccountResolver"/>,
+    /// <see cref="IInvoiceRepository"/>, and <see cref="IBillRepository"/>.
     /// </para>
     /// </summary>
     public static IServiceCollection AddSunfishFinancialPayments(
@@ -39,6 +51,7 @@ public static class PaymentsServiceCollectionExtensions
         services.TryAddSingleton(options);
         services.TryAddSingleton<IPaymentRepository, InMemoryPaymentRepository>();
         services.TryAddSingleton<IPaymentApplicationRepository, InMemoryPaymentApplicationRepository>();
+        services.TryAddScoped<IPaymentPostingService, DefaultPaymentPostingService>();
 
         return services;
     }
