@@ -12,7 +12,7 @@
 **Estimated effort:** ~10–14h sunfish-PM (rename + schema extensions + posting algorithm + chart seed + importer entry-point + ~40–55 tests + docs)
 **PR count:** 6 PRs (one mechanical rename + five additive feature PRs)
 **Pre-merge council:** NOT required (substrate scope; mirrors the W#34/W#35/W#36 substrate-only pattern). Standard COB self-audit applies.
-**Audit before build:** `ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-(financial|accounting)"` — confirms `blocks-financial-ledger/` exists (target of rename) and `blocks-financial-ledger/` does not yet exist.
+**Audit before build:** `ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-(financial|accounting)"` — confirms `blocks-financial-ledger/` exists (target of rename) and `blocks-financial-ledger/` does not yet exist.
 
 ---
 
@@ -79,8 +79,8 @@ Per the 2026-05-16 ratification ruling:
 
 1. **Verify rename clean state.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep blocks-financial
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep blocks-financial
    ```
    Expected: `blocks-financial-ledger/` exists; nothing matching `blocks-financial-*`.
 
@@ -91,7 +91,7 @@ Per the 2026-05-16 ratification ruling:
 
 3. **Confirm ADR 0088 status.**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
    ```
    Expected: `status: Proposed` (CO ratified design 2026-05-16; status flip is
    a separate housekeeping PR). The hand-off is `ready-to-build` even with
@@ -107,8 +107,8 @@ Per the 2026-05-16 ratification ruling:
 
 5. **Check existing consumers of `blocks-financial-ledger`.**
    ```bash
-   grep -rln "Sunfish.Blocks.FinancialLedger" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ /Users/christopherwood/Projects/SunfishSoftware/Sunfish/apps/ /Users/christopherwood/Projects/SunfishSoftware/Sunfish/accelerators/
-   grep -rln "blocks-financial-ledger" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/ --include="*.csproj"
+   grep -rln "Sunfish.Blocks.FinancialLedger" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ /Users/christopherwood/Projects/Harborline-Software/sunfish/apps/ /Users/christopherwood/Projects/Harborline-Software/shipyard/accelerators/
+   grep -rln "blocks-financial-ledger" /Users/christopherwood/Projects/Harborline-Software/Sunfish/ --include="*.csproj"
    ```
    Expected: a small set of consumer projects (likely `blocks-rent-collection`,
    `accelerators/anchor/`, `apps/docs/`). PR 1 must update every match.
@@ -1494,7 +1494,7 @@ applies here verbatim:
 If COB hits a halt-condition or has a design question:
 
 - File `cob-question-2026-05-XXTHH-MMZ-w60-p4-financial-ledger-{slug}.md` in
-  `/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`.
+  `/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`.
 - Halt the workstream + add a note in `active-workstreams.md` row for W#60.
 - `ScheduleWakeup 1800s`.
 

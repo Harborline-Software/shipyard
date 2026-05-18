@@ -13,7 +13,7 @@
 **Estimated effort:** ~6–8h sunfish-PM (new package scaffold + 2 entities + close service + retained-earnings rollover + importer hooks + ~25–30 tests + docs)
 **PR count:** 4 PRs (PR 1 scaffold + entities; PR 2 soft-close service + period-gating; PR 3 hard-close + year-end rollover; PR 4 ERPNext importer hooks)
 **Pre-merge council:** NOT required (substrate scope; mirrors the W#34/W#35/W#36 substrate-only pattern + sibling ledger hand-off). Standard COB self-audit applies.
-**Audit before build:** `ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-financial-(periods|ledger)"` — expect `blocks-financial-ledger/` present (after sibling PR 1) and `blocks-financial-periods/` absent.
+**Audit before build:** `ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-financial-(periods|ledger)"` — expect `blocks-financial-ledger/` present (after sibling PR 1) and `blocks-financial-periods/` absent.
 
 ---
 
@@ -107,7 +107,7 @@ service stub). When this hand-off's PR 2–4 land, the sibling ledger's
 
 1. **Verify sibling `-ledger` PRs 1–2 merged.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ \
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ \
        | grep -E "^blocks-financial-(ledger|periods)"
    ```
    Expected: `blocks-financial-ledger/` present; `blocks-financial-periods/`
@@ -117,15 +117,15 @@ service stub). When this hand-off's PR 2–4 land, the sibling ledger's
 2. **Verify `ChartOfAccountsId` + `FiscalPeriodId` types exist in
    `blocks-financial-ledger`.**
    ```bash
-   grep -l "ChartOfAccountsId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Models/
-   grep -l "FiscalPeriodId"   /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Models/
+   grep -l "ChartOfAccountsId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Models/
+   grep -l "FiscalPeriodId"   /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Models/
    ```
    Expected: both present after sibling PRs 2 + 3 merge. If not, halt + file
    `cob-question-*-w60-p4-periods-blocked-on-ledger-ids.md`.
 
 3. **Confirm ADR 0088 status.**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
    ```
    Expected: `status: Proposed`. The hand-off is `ready-to-build` even with
    `status: Proposed` because the CO directive in the inbox is operative
@@ -1928,7 +1928,7 @@ rollback via the wrapping transaction).
 ## Halt conditions (cob-question-* beacons)
 
 If COB hits any of these, halt the workstream + drop a `cob-question-*`
-beacon to `/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`:
+beacon to `/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`:
 
 ### 1. Sibling ledger PR not yet merged (any PR)
 
@@ -1971,7 +1971,7 @@ duplicate.
 
 ```bash
 grep -r "IBalanceComputer\|IAccountBalanceService\|ComputeAsOf" \
-    /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-*/
+    /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-*/
 ```
 
 If multiple candidates exist, file `cob-question-2026-05-XXTHH-MMZ-w60-p4-periods-balance-computer-choice.md`.
@@ -2200,7 +2200,7 @@ here verbatim:
 If COB hits a halt-condition or has a design question:
 
 - File `cob-question-2026-05-XXTHH-MMZ-w60-p4-periods-{slug}.md` in
-  `/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`.
+  `/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`.
 - Halt the workstream + add a note in `active-workstreams.md` row for W#60.
 - `ScheduleWakeup 1800s`.
 

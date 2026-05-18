@@ -53,7 +53,7 @@ What's missing for a live demo: (1) Anchor doesn't register transport; (2) `ICre
 6. P4.5 hand-off addendum (`crew-comms-p45-stage06-addendum.md`) has been started by another COB session — Phase 3 (`CrewCommsListenerHostedService`) and Phase 4 (`SunfishChat`) MUST NOT depend on TYPING/DELIVERED message types; only `0x05 TEXT` is in scope. If P4.5 has already shipped, that's fine — UI can optionally surface TYPING/DELIVERED but MVP demo does not require it.
 7. `BlazorWebView` host configuration in `accelerators/anchor/MainPage.xaml` has changed — verify `RootComponent Selector="#app"` still maps to `Components/Routes.razor` before adding `/chat` route in Phase 5.
 
-Any halt-condition tripped → STOP, write `cob-question-*.md` to `/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`, halt the workstream.
+Any halt-condition tripped → STOP, write `cob-question-*.md` to `/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`, halt the workstream.
 
 ---
 

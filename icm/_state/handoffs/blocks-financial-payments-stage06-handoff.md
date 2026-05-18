@@ -21,7 +21,7 @@
 This hand-off is gated on two predecessors. Verify both before opening PR 1:
 
 ```bash
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-financial-(ar|ap)"
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-financial-(ar|ap)"
 # Expected: blocks-financial-ar/ AND blocks-financial-ap/ both exist (all PRs merged)
 ```
 
