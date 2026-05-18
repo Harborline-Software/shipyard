@@ -1,20 +1,24 @@
-# Master Plan — Sunfish + The Inverted Stack
+# Master Plan — Harborline Fleet (Sunfish ERP + Inverted Stack)
 
-**Last updated:** 2026-05-16 (W#60 ERPNext pivot impact on G-1; velocity baseline refresh)
-**Maintained by:** research session (cross-project PM)
-**Cadence:** updated when goal definition, milestone, or velocity baseline materially changes; not on every PR. The dynamic state lives in `active-workstreams.md`; this file is the stable "where we're going."
+**Last updated:** 2026-05-17 (post-restructure refresh; Phase 2 fleet ratification + W#72 reports cluster shipped + W#74 cohort-1 in flight + Harborline rebrand pass started)
+**Maintained by:** Admiral (cross-fleet PM; formerly XO)
+**Cadence:** updated when goal definition, milestone, or velocity baseline materially changes; not on every PR. The dynamic state lives in `active-workstreams.md` (shipyard repo); this file is the stable "where we're going."
+
+> **Restructure note (2026-05-17):** The legacy `SunfishSoftware/` monorepo was superseded by the **Harborline Software fleet** — seven sibling repos under the `Harborline-Software` GitHub org with the platform substrate at `shipyard/`. Phase 2 of the restructure ratified by CIC the same day; see `/Users/christopherwood/Projects/Harborline-Software/RATIFICATION-2026-05-17.md`. All references in this file use the new repo names.
 
 ---
 
 ## The three goals
 
-This effort has **three concurrent goals**, ranked by user priority:
+This effort has **three concurrent goals**, ranked by CIC priority:
 
-| # | Goal | Repo | Definition of done | Strategic role |
+| # | Goal | Primary repo(s) | Definition of done | Strategic role |
 |---|---|---|---|---|
-| **G-1** | **Business MVP** | Sunfish | BDFL's property management business runs on Sunfish + ERPNext (composition model per W#60 UPF plan approved 2026-05-11). ERPNext (self-hosted, GPLv3) is the accounting + property engine; Sunfish is the local-first sync + offline + React UI + tenant comms layer. 6 tenants (4 LLCs + holding co + mgmt co), spouse co-ownership active, full monthly cycle (rent → invoice → bank reconciliation → statements → vendor payments) running in production. Accountant peer node (Headscale) and CPA read-only access via Bridge. | **Primary.** Proves the local-first paradigm with a real commercial workload. |
-| **G-2** | **Component library** | Sunfish | Dual-namespace components (Rich vs MVP per ADR 0041) shipped with parity tests passing; style audit synthesis findings (248 findings, 10 themes — `project_style_audit_synthesis_2026_04`) remediated; compat-package expansion (Telerik / Syncfusion / DevExpress / Infragistics — `project_compat_expansion_workstream`) wave landed. | Secondary. Funds + de-risks future commercial customers; book Part IV implementation playbooks pull from this. |
-| **G-3** | **Book — *The Inverted Stack*** | the-inverted-stack | All 20 chapters + preface + epilogue + 4 appendices through `icm/approved` → `icm/assembled`; audiobook pipeline through ACX submission target; published. | Secondary but parallel. Drives architectural rigor (the book commits Sunfish to specific package contracts via `inverted-stack-package-roadmap.md`); commercial-positioning of Sunfish per `project_sunfish_reference_implementation`. |
+| **G-1** | **Business MVP** | `sunfish` (app) + `shipyard` (substrate) + `signal-bridge` (relay) | CIC's property management business runs on the Sunfish ERP app (the Anchor, hosted in `sunfish/`) + ERPNext composition model per W#60 UPF plan approved 2026-05-11. ERPNext (self-hosted, GPLv3) is the accounting + property engine; Sunfish provides the local-first sync + offline + React UI + tenant comms layer on top. 6 tenants (4 LLCs + holding co + mgmt co), spouse co-ownership active, full monthly cycle (rent → invoice → bank reconciliation → statements → vendor payments) running in production. Accountant peer node (Headscale) and CPA read-only access via `signal-bridge`. | **Primary.** Proves the local-first paradigm with a real commercial workload. |
+| **G-2** | **Component library** | `shipyard` | Dual-namespace components (Rich vs MVP per ADR 0041) shipped with parity tests passing; style audit synthesis findings (248 findings, 10 themes — `project_style_audit_synthesis_2026_04`) remediated; compat-package expansion (Telerik / Syncfusion / DevExpress / Infragistics — `project_compat_expansion_workstream`) wave landed. | Secondary. Funds + de-risks future commercial customers; book Part IV implementation playbooks pull from this. |
+| **G-3** | **Book — *The Inverted Stack*** | `the-inverted-stack` | All 20 chapters + preface + epilogue + 4 appendices through `icm/approved` → `icm/assembled`; audiobook pipeline through ACX submission target; published. Vol-1/Vol-2 Harborline rebrand sweep completed in parallel. | Secondary but parallel. Drives architectural rigor (the book commits Sunfish to specific package contracts via `inverted-stack-package-roadmap.md`); commercial positioning of Sunfish per `project_sunfish_reference_implementation`. |
+
+> **Naming clarification:** "Sunfish" is now the ERP product name (the former Anchor app, lives in `sunfish/`). The fleet platform substrate previously called Sunfish is now `shipyard/`. The relay previously called Bridge is now `signal-bridge/`. The media-studio previously called Galley is now `flight-deck/`.
 
 ---
 
@@ -24,67 +28,90 @@ This effort has **three concurrent goals**, ranked by user priority:
 
 Per `project_business_mvp_phase_1_progress` memory, G1-G6 substrate is **all merged**. Remaining:
 
-- **G6 host integration** — wire `RecoveryCompleted → SqlCipher rekey + persist to kernel-audit` in Anchor. Stage 06. Not yet started. Buildable on Win + Mac (per ADR 0044 amendment 2026-04-28 + ADR 0048 multi-backend MAUI; user's Mac is now updated to latest OS + Xcode).
+- **G6 host integration** — wire `RecoveryCompleted → SqlCipher rekey + persist to kernel-audit` in the Sunfish ERP app. Stage 06. Not yet started. Buildable on Win + Mac (per ADR 0044 amendment 2026-04-28 + ADR 0048 multi-backend MAUI; CIC's Mac is now updated to latest OS + Xcode).
 - **G6 Razor UI** — `TrusteeSetup / InitiateRecovery / ApproveRecoveryRequest / PaperKey` pages. Stage 06. Not yet started. Same multi-platform build envelope.
 - **G7 conformance baseline scan** — unblocked on substrate; gated on G6 host integration.
 
-**Phase 1 completion estimate:** ~3-5 PRs remaining; ~1 week of focused sunfish-PM work.
+**Phase 1 completion estimate:** ~3-5 PRs remaining; ~1 week of focused Engineer (po-mac / po-win) work.
 
-### Phase 2 (commercial scope) — ~15% done
+### Phase 2 (commercial scope) — ~25% done
 
 **⚠ W#60 pivot (2026-05-11) materially changes workstreams A–G.** ERPNext now owns accounting, invoicing, bank reconciliation, and statements. Sunfish wraps it. Original workstream scopes below have been annotated with pivot impact.
 
 | WS | Title | Status | Pivot impact | Estimated PRs |
 |---|---|---|---|---|
-| **A** | Anchor team-context binding for 6 entities | Not started; ERPNext manages multi-entity natively; Sunfish needs team-switch UX wiring to ERPNext entity IDs (ADR 0032) | **Scope reduced** — ERPNext carries the data model; Sunfish adds the UI + team-context selection | 2-3 |
-| **B** | Wave Accounting migration | **SUPERSEDED** — W#60 Phase 1 PASS (CO entered data directly into ERPNext 2026-05-12); no Wave import tool needed | — | 0 |
-| **C** | Bank ingest + reconciliation | **LIKELY SUPERSEDED at Sunfish layer** — ERPNext bank reconciliation + Plaid integration operate at the ERPNext layer (via Frappe connectors). Sunfish React UI displays reconciled data from ERPNext API. Remaining Sunfish scope: offline cache of reconciled statement data in the Tauri SQLite store (W#60 P3). | **Decision needed:** Does CO want a dedicated Sunfish Plaid integration, or use ERPNext's native bank feed? XO recommends deferring until W#60 P3 ships and CO sees the offline experience. | 0-2 |
-| **D** | Payments (Stripe + ADR 0051) | **LIKELY SUPERSEDED at Sunfish layer** — ERPNext has native Stripe integration (Frappe Payment Gateway). Stripe webhooks go to ERPNext directly; Sunfish React UI reads payment status from ERPNext API. No separate Sunfish Bridge Stripe integration needed. | **Decision needed:** ADR 0051 "outbound-payment event forwarding" may be a no-op given ERPNext native handling. XO recommends treating WS-D as done via ERPNext unless CO identifies a gap. | 0-1 |
-| **E** | Outbound messaging (SendGrid + ADR 0052) | Not started; **blocks on ADR 0052 drafting**; scope unchanged (ERPNext has no chat/messaging) | **Unchanged** — `blocks-crew-comms` is Sunfish's primary differentiator over ERPNext | 4-6 |
+| **A** | Sunfish team-context binding for 6 entities | Not started; ERPNext manages multi-entity natively; Sunfish needs team-switch UX wiring to ERPNext entity IDs (ADR 0032) | **Scope reduced** — ERPNext carries the data model; Sunfish adds the UI + team-context selection | 2-3 |
+| **B** | Wave Accounting migration | **SUPERSEDED** — W#60 Phase 1 PASS (CIC entered data directly into ERPNext 2026-05-12); no Wave import tool needed | — | 0 |
+| **C** | Bank ingest + reconciliation | **LIKELY SUPERSEDED at Sunfish layer** — ERPNext bank reconciliation + Plaid integration operate at the ERPNext layer (via Frappe connectors). Sunfish React UI displays reconciled data from ERPNext API. Remaining Sunfish scope: offline cache of reconciled statement data in the Tauri SQLite store (W#60 P3). | **CIC decision needed:** Does CIC want a dedicated Sunfish Plaid integration, or use ERPNext's native bank feed? Admiral recommends deferring until W#60 P3 ships and CIC sees the offline experience. | 0-2 |
+| **D** | Payments (Stripe + ADR 0051) | **LIKELY SUPERSEDED at Sunfish layer** — ERPNext has native Stripe integration (Frappe Payment Gateway). Stripe webhooks go to ERPNext directly; Sunfish React UI reads payment status from ERPNext API. No separate signal-bridge Stripe integration needed. | **CIC decision needed:** ADR 0051 "outbound-payment event forwarding" may be a no-op given ERPNext native handling. Admiral recommends treating WS-D as done via ERPNext unless CIC identifies a gap. | 0-1 |
+| **E** | Outbound messaging (SendGrid + ADR 0052) | Not started; **W#20 phases 4-9 ARE WS-E**; ONR re-authoring the hand-off (admiral directive 2026-05-17T23-15Z) | **Unchanged** — `blocks-crew-comms` is Sunfish's primary differentiator over ERPNext | 4-6 |
 | **F** | Audit trail (kernel-audit + Tier 1 retrofit) | **scaffold merged 2026-04-28**; Tier 1 retrofit ready-to-build | Unchanged | 1-2 |
 | **G** | Statement template + monthly job | **SUPERSEDED** — ERPNext generates invoices/statements natively; Sunfish role is React UI display + offline cache | — | 0 |
-| **H** | Spouse co-ownership + recovery (ADR 0046 primitives) | Not started; gated on `Foundation.Recovery` scaffolding | **Unchanged** — cryptographic recovery is Sunfish-layer, not ERPNext | 4-6 |
+| **H** | Spouse co-ownership + recovery (ADR 0046 primitives) | Not started; gated on `Foundation.Recovery` scaffolding | **Unchanged** — cryptographic recovery is Sunfish-layer (`shipyard` substrate), not ERPNext | 4-6 |
 
 **W#60 phase workstreams (new, 2026-05-11+):**
 
 | WS | Title | Status | Estimated PRs |
 |---|---|---|---|
-| **W#60 P2** | React UI skin (6 screens + @sunfish/ui-react) | **BUILT 2026-05-13** (PRs #731+#732+#751+#752+#757+#758) | done |
-| **W#60 P3** | Tauri v2 offline shell (Surface Pro) | **Ready-to-build** — gated on ADR 0086 Accepted (PR #737 Proposed) | 3-4 |
-| **W#60 P4** | Collaboration (accountant peer + CPA + tenant portal + bank CSV) | **Hand-off authored 2026-05-16** — gated on P3 PASS (CO Surface Pro acceptance) | 5-6 |
-| **W#60 P5** | @sunfish/contracts + rent roll + P&L + Schedule-E | **Hand-off authored 2026-05-16** — PR 1 (@sunfish/contracts) immediately buildable; PR 2+ gated on P2 React UI (done) | 4-5 |
+| **W#60 P2** | React UI skin (6 screens + `@sunfish/ui-react`) | **BUILT 2026-05-13** (PRs #731+#732+#751+#752+#757+#758) | done |
+| **W#60 P3** | Tauri v2 offline shell (Surface Pro) | **Ready-to-build** — ADR 0086 PR #737 MERGED 2026-05-17; CO status flip Proposed→Accepted is the only remaining gate | 3-4 |
+| **W#60 P4** | Collaboration (accountant peer + CPA + tenant portal + bank CSV) | **Hand-off authored 2026-05-16** — gated on P3 PASS (CIC Surface Pro acceptance) | 5-6 |
+| **W#60 P5** | `@sunfish/contracts` + rent roll + P&L + Schedule-E | **PR 1 (`@sunfish/contracts`) shipped 2026-05-16** (#847+#848 Bridge endpoint); PR 2+ (richer reporting) **now subsumed by W#72** (see below) | done at thin-slice; v2 via W#72 |
 
-**Phase 2 completion estimate (revised):** ~15-30 PRs remaining (if WS-C and WS-D are confirmed superseded by ERPNext native integrations, down from 27-41). CO decision on C+D needed after W#60 P3 ships.
+**W#72 — blocks-reports cluster (NEW, shipped 2026-05-17):**
 
-### G-1 done conditions (concrete, revised 2026-05-16)
+`blocks-reports` is the read-side report-cartridge cluster. **All 7 PRs landed today (2026-05-17):** `IReportCartridge<,>` substrate + 5 Phase 1 MVP cartridges (Trial Balance, AR Aging, AP Aging, P&L by Property, Rent Roll v2 — supersedes the W#60 P5 thin slice). v1 Rent Roll deprecation path documented; no breaking change. This effectively closes the reporting half of W#60 P5 and replaces it with a richer surface.
+
+**W#74 — Anchor React Rebind Cohort 1 (NEW, in flight 2026-05-17):**
+
+Cross-stack workstream rebinding Sunfish React app pages from direct-ERPNext calls onto the Bridge cockpit pattern. 4 PRs scoped (Properties / Leases / Maintenance / close-out + ledger flip).
+- PR 1 (Properties) — **MERGED**
+- PR 2 (Leases) — **MERGED**
+- PR 3 (Maintenance) — **In flight** (DRAFT; FED working through council verdict)
+- PR 4 (close-out + ledger flip + docs) — pending after PR 3 lands
+
+Cohort 2 (broader page coverage) directive issued 2026-05-17T23-15Z — preparation begins after PR 4.
+
+**Phase 2 completion estimate (revised 2026-05-17):** ~12-25 PRs remaining (W#72 closed today; W#74 closing imminently; WS-C and WS-D likely 0-3 PRs combined if ERPNext native handles them). CIC decision on C+D needed after W#60 P3 ships.
+
+### G-1 done conditions (concrete, revised 2026-05-17)
 
 **Phase 1:**
 - [x] `Foundation.Recovery` package split built (W#15 + W#32 both `built`)
-- [ ] G6 host integration + Razor UI shipped (W#63 hand-off authored 2026-05-16 — immediately buildable)
-- [ ] G7 conformance baseline scan committed under `icm/01_discovery/output/`
+- [ ] G6 host integration + Razor UI shipped (W#63 hand-off authored 2026-05-16 — immediately buildable; assigned po-mac / po-win)
+- [ ] G7 conformance baseline scan committed under `shipyard/icm/01_discovery/output/`
 
-**ERPNext layer (W#60):**
-- [x] W#60 P1 PASS — ERPNext self-hosted on CO machine; lease + rent payment + ledger confirmed (2026-05-12)
-- [x] W#60 P2 BUILT — React UI (6 screens + @sunfish/ui-react) on main (2026-05-13)
-- [ ] W#60 P3 PASS — CO works offline on Surface Pro 30 min; reconnects; changes appear in ERPNext (gates P4)
+**ERPNext composition layer (W#60):**
+- [x] W#60 P1 PASS — ERPNext self-hosted on CIC machine; lease + rent payment + ledger confirmed (2026-05-12)
+- [x] W#60 P2 BUILT — React UI (6 screens + `@sunfish/ui-react`) on main (2026-05-13)
+- [x] W#60 P5 PR 1 BUILT — `@sunfish/contracts` published; Bridge thin-slice rent roll shipped (2026-05-16)
+- [ ] W#60 P3 PASS — CIC works offline on Surface Pro 30 min; reconnects; changes appear in ERPNext (gates P4); ADR 0086 PR merged 2026-05-17, status flip pending
 - [ ] W#60 P4 PASS — Accountant peer node syncing; CPA can view year-end data; tenant portal works via magic-link
-- [ ] W#60 P5 PASS — @sunfish/contracts published; rent roll + P&L + Schedule-E accessible
+
+**Reporting (NEW, supersedes W#60 P5 v2):**
+- [x] W#72 blocks-reports cluster BUILT 2026-05-17 — Trial Balance, AR Aging, AP Aging, P&L by Property, Rent Roll v2 substrate + 5 cartridges + render pipeline
+
+**Anchor React rebind:**
+- [x] W#74 PR 1 (Properties) merged 2026-05-17
+- [x] W#74 PR 2 (Leases) merged 2026-05-17
+- [ ] W#74 PR 3 (Maintenance) — in flight
+- [ ] W#74 PR 4 (close-out + ledger flip)
 
 **Phase 2 Sunfish-layer workstreams:**
 - [x] ADR 0051 (Payments) Accepted 2026-04-28
 - [x] ADR 0052 (Outbound messaging) Accepted 2026-04-28
-- [ ] WS-E built (**W#20 phases 4-9 ARE WS-E** — providers-postmark adapter + inbound webhook + audit + docs; hand-off at `icm/_state/handoffs/property-messaging-substrate-stage06-handoff.md`; COB to continue from Phase 4)
-- [ ] WS-D: **CO decision needed** — ERPNext native Stripe may make this a no-op; defer until W#60 P3 ships
-- [ ] WS-A built (Anchor team-context bound to ERPNext entities for 6-entity setup)
-- [ ] WS-C: **CO decision needed** — ERPNext native bank feed vs. dedicated Plaid integration; defer until W#60 P3
+- [ ] WS-E built (W#20 phases 4-9 — providers-postmark adapter + inbound webhook + audit + docs; ONR re-authoring hand-off per admiral directive 2026-05-17T23-15Z)
+- [ ] WS-D: **CIC decision needed** — ERPNext native Stripe may make this a no-op; defer until W#60 P3 ships
+- [ ] WS-A built (Sunfish team-context bound to ERPNext entities for 6-entity setup)
+- [ ] WS-C: **CIC decision needed** — ERPNext native bank feed vs. dedicated Plaid integration; defer until W#60 P3
 - [ ] WS-H built (spouse co-ownership + recovery)
 
 **Business validation:**
-- [ ] BDFL processes first rent collection cycle end-to-end (React UI → ERPNext → bank statement)
-- [ ] BDFL sends first tenant communication through blocks-crew-comms
-- [ ] Accountant performs bank reconciliation from their own Anchor node
-- [ ] CPA accesses year-end Schedule-E data via Bridge read-only session
-- [ ] Spouse logs into her own Anchor install with co-owner capabilities
+- [ ] CIC processes first rent collection cycle end-to-end (React UI → ERPNext → bank statement)
+- [ ] CIC sends first tenant communication through blocks-crew-comms
+- [ ] Accountant performs bank reconciliation from their own Sunfish node
+- [ ] CPA accesses year-end Schedule-E data via signal-bridge read-only session
+- [ ] Spouse logs into her own Sunfish install with co-owner capabilities
 - [ ] Recovery flow exercised end-to-end (real trustees, real grace period)
 - [ ] Annual cycle dry-run: tax-prep export matches accountant's records
 
@@ -94,12 +121,12 @@ Per `project_business_mvp_phase_1_progress` memory, G1-G6 substrate is **all mer
 
 ### Active workstreams (from existing memory)
 
-- **Style audit remediation** — 248 findings, 10 systemic themes; 3-phase remediation in flight per `project_style_audit_synthesis_2026_04`. Synthesis at `icm/07_review/output/style-audits/SYNTHESIS.md`.
+- **Style audit remediation** — 248 findings, 10 systemic themes; 3-phase remediation in flight per `project_style_audit_synthesis_2026_04`. Synthesis at `shipyard/icm/07_review/output/style-audits/SYNTHESIS.md`.
 - **Compat package expansion** — Telerik (existing) + Syncfusion + DevExpress + Infragistics. 4 intake decisions pending per `project_compat_expansion_workstream`. Queued behind current style-parity work.
 - **Dual-namespace components** — Rich vs MVP per ADR 0041. SunfishGantt / Scheduler / Spreadsheet / PdfViewer. Both folders intentional per memory.
 - **Adapter parity** — Blazor ↔ React per ADR 0014. Parity matrix maintained; CI gate planned for P6 (per ADR 0014 audit, this is partially honor-system today).
 
-### G-2 done conditions (synthesized; needs user confirmation)
+### G-2 done conditions (synthesized; needs CIC confirmation)
 
 - [ ] Style audit remediation Phase 3 closed
 - [ ] Compat-package expansion: 4 vendors complete (Telerik already shipped; Syncfusion / DevExpress / Infragistics to add)
@@ -120,8 +147,8 @@ Per `project_business_mvp_phase_1_progress` memory, G1-G6 substrate is **all mer
 | Front matter | preface | (preface dir) | Drafting / late |
 | Part I — Thesis & Pain | Ch01-04 | 4/4 .md files | All 4 issues at `icm/outline` per gh issue list |
 | Part II — Council Reads the Paper | Ch05-09 | 5/5 .md files | Files present; ICM stages not surfaced via open issues — likely past outline |
-| Part II — Council Reads the Paper | Ch05-10 | 5/6 .md files; **Ch10 (Synthesis) scheduled-pending per user 2026-04-28** | Synthesis closer; depends on Ch05-09 maturity |
-| Part III — Reference Architecture | Ch11-16 | 5/6 .md files; **Ch16 (Persistence Beyond the Node) scheduled-pending per user 2026-04-28** | Ch15 most active (recent #46/#47 iterations); Ch16 consolidated from original Storage/Backup + Relay/Federation |
+| Part II — Council Reads the Paper | Ch05-10 | 5/6 .md files; **Ch10 (Synthesis) scheduled-pending per CIC 2026-04-28** | Synthesis closer; depends on Ch05-09 maturity |
+| Part III — Reference Architecture | Ch11-16 | 5/6 .md files; **Ch16 (Persistence Beyond the Node) scheduled-pending per CIC 2026-04-28** | Ch15 most active (recent #46/#47 iterations); Ch16 consolidated from original Storage/Backup + Relay/Federation |
 | Part IV — Implementation Playbooks | Ch17-20 | 4/4 .md files | Files present |
 | Part V — Operational Concerns | Ch21+ | Ch21 only | Earliest part by file presence |
 | Appendices | A-D | (appendices dir) | Unknown |
@@ -130,33 +157,41 @@ Per `project_business_mvp_phase_1_progress` memory, G1-G6 substrate is **all mer
 
 **Total chapters in scope: 22** (Ch01-21 + the renumbered Part II Ch10).
 
-### G-3 open questions for user
+### G-3 sub-track: Vol-1 / Vol-2 Harborline rebrand (NEW, 2026-05-17)
+
+Parallel rebrand sweep authored by Admiral directive 2026-05-17T23-15Z (PAO direction + Yeoman execution). Scope: update Vol-1 and Vol-2 references to the new fleet naming (Sunfish ERP, shipyard, signal-bridge, flight-deck) where the legacy "Sunfish" platform usage no longer matches the post-restructure reality. **Track A held pending CIC ruling on anchor-name mapping** (PAO open question `pao-question-2026-05-18T01-38Z`); Track B pending. Coordinated parallel to the chapter pipeline; not on the critical path.
+
+### G-3 open questions for CIC
 
 - **Part V scope** — only Ch21 file present; is the rest of Part V planned?
 - **Audiobook publishing target** — ACX submission counts as "published" for MVP, or wait for paperback?
-- **Final-pass word-count trimming policy** (per user 2026-04-28): include all content first; final pre-publish pass strips word-count if needed.
+- **Final-pass word-count trimming policy** (per CIC 2026-04-28): include all content first; final pre-publish pass strips word-count if needed.
+- **Vol-1/Vol-2 rebrand anchor-name mapping** — PAO open question 2026-05-18T01-38Z; resolves the Track A held state.
 
 ### G-3 done conditions (synthesized)
 
 - [ ] All chapters at `icm/approved` per book CLAUDE.md ICM pipeline
 - [ ] All chapters at `icm/assembled` (added to `ASSEMBLY.md`)
+- [ ] Vol-1/Vol-2 Harborline rebrand sweep complete (Tracks A + B)
 - [ ] Foreword written + secured
 - [ ] Final manuscript pandoc-assembled
 - [ ] Audiobook ACX submission accepted
 
-**G-3 completion estimate:** ~3-4 months at current velocity (see velocity baseline below).
+**G-3 completion estimate:** ~3-4 months at current velocity (see velocity baseline below). Rebrand sweep adds ~1 week parallel to chapter pipeline.
 
 ---
 
-## Velocity baseline (updated 2026-05-16)
+## Velocity baseline (updated 2026-05-17)
 
-### Sunfish PR throughput
+### Fleet PR throughput
 
-**2026-04-28 baseline:** ~17 PRs/day (3-day average; bursty).
+**2026-04-28 baseline:** ~17 PRs/day in Sunfish (3-day average; bursty).
 
-**2026-05-16 refresh:** W#23 + W#29 + W#44–W#62 cluster shipped across 2026-05-04–2026-05-16. Approximate total: 60–80 PRs merged in 18 days → **~4-5 substantive PRs/day sustained**. This is lower than the April burst but more consistent — property-ops cluster (19 workstreams × 3-7 PRs each) plus iOS substrate drove the bulk of the volume.
+**2026-05-16 refresh:** W#23 + W#29 + W#44–W#62 cluster shipped across 2026-05-04–2026-05-16. Approximate total: 60–80 PRs merged in 18 days → **~4-5 substantive PRs/day sustained** in the legacy Sunfish monorepo.
 
-Velocity is **bursty** — active research+build days hit 8-12 PRs; quiet days hit 0-2. Sustainable pace: **4-6 substantive PRs/day** when actively working.
+**2026-05-17 burst (post-restructure, today):** ~30 PRs merged in a single day spread across the new fleet — `shipyard` (W#72 blocks-reports 7 PRs + W#37 PR 3b.2 + various substrate + CI fixes), `sunfish` (W#74 PR 1 + PR 2 anchor-react rebinds, restructure rewires), `signal-bridge` (cockpit endpoints), `flight-deck` (restructure rewires), `the-inverted-stack` (Vol-1/Vol-2 rebrand prep). This is a CI/infra-heavy day driven by the Phase 2 restructure ratification, not pure MVP feature work — the burst inflates the daily rate without proportionally moving the MVP timeline forward.
+
+Velocity remains **bursty** — active build days hit 15-30 PRs (today's mark is the high-water for a single day); quiet days hit 0-2. Sustainable substantive-feature pace: **4-8 PRs/day** when actively working, with periodic infra bursts on top.
 
 ### Book throughput
 
@@ -164,55 +199,63 @@ Velocity is **bursty** — active research+build days hit 8-12 PRs; quiet days h
 
 ### Token-budget reality check
 
-User on Pro Max ($200/mo). Recent overnight automation run consumed ~830K tokens total across 13 subagents + orchestration. That's a **roughly half-day burn at full intensity**. Repeating that pattern daily would consume the budget faster than necessary; **~2-3 such bursts per week** is sustainable while leaving headroom for normal work.
+CIC on Pro Max ($200/mo). Recent overnight automation run consumed ~830K tokens total across 13 subagents + orchestration. That's a **roughly half-day burn at full intensity**. Repeating that pattern daily would consume the budget faster than necessary; **~2-3 such bursts per week** is sustainable while leaving headroom for normal work. Today's 30-PR burst, with multiple agents in flight (Engineer + FED + PAO + Yeoman + ONR + QM + po-mac + po-win), pushes the upper end of that envelope.
 
 ---
 
 ## Estimated MVP date — user-business-MVP (G-1)
 
-**Revised 2026-05-16** (post-W#60 pivot):
+**Revised 2026-05-17** (post-restructure; W#72 reports closed; W#74 cohort 1 closing):
 
 | Track | Remaining work | Time estimate |
 |---|---|---|
-| Phase 1 G6 (Recovery host integration + UI) | **W#63 hand-off authored 2026-05-16; immediately buildable**; 3 PRs | 1-2 weeks |
-| W#60 P3 (Tauri offline shell) | gated on ADR 0086 Accepted (CO action) | 1-2 weeks after CO flips |
+| Phase 1 G6 (Recovery host integration + UI) | W#63 hand-off authored 2026-05-16; immediately buildable; 3 PRs (po-mac / po-win) | 1-2 weeks |
+| W#60 P3 (Tauri offline shell) | gated on CO status flip on ADR 0086 (PR merged 2026-05-17) | 1-2 weeks after CIC flips |
 | W#60 P4 (Collaboration — accountant peer + CPA + tenant) | gated on P3 PASS | 2-3 weeks after P3 |
-| W#60 P5 (@sunfish/contracts + reporting) | PR 1 buildable now; PR 2+ gated on P2 (done) | 1-2 weeks |
-| Phase 2 Sunfish-layer (WS-A, C, D, E, H) | ~18-28 PRs; WS-E = W#20 phases 4-9 (hand-off exists); WS-H gated on W#63 + W#A | 3-5 weeks |
-| ~~ADR 0051 + 0052 drafting~~ | ~~XO research~~ | ✅ Both Accepted 2026-04-28 |
-| Business validation cycle | BDFL-time-bound; first real rent-collection cycle | 2-4 weeks real-world |
+| ~~W#60 P5 (reporting)~~ | ~~superseded by W#72; thin-slice contracts shipped~~ | ✅ Done at thin-slice; v2 via W#72 |
+| W#74 Anchor React Rebind Cohort 1 close-out | 2 PRs (PR 3 in flight; PR 4 close-out) | 1-2 days |
+| Phase 2 Sunfish-layer (WS-A, C, D, E, H) | ~12-22 PRs; WS-E = W#20 phases 4-9 (ONR re-authoring); WS-H gated on W#63 + W#A | 3-5 weeks |
+| ~~ADR 0051 + 0052 drafting~~ | ~~research~~ | ✅ Both Accepted 2026-04-28 |
+| Business validation cycle | CIC-time-bound; first real rent-collection cycle | 2-4 weeks real-world |
 
-**Estimated G-1 MVP-ready: 8-14 weeks from now** (mid-July to late-August 2026), assuming:
-- ADR 0086 accepted + CO confirms Surface Pro P3 test within 1-2 weeks
-- ADR 0052 drafted within the next XO cycle
-- sunfish-PM session runs ~3-5 days/week
+**Estimated G-1 MVP-ready: 8-13 weeks from now** (mid-July to mid-August 2026), assuming:
+- CIC flips ADR 0086 to Accepted + confirms Surface Pro P3 test within 1-2 weeks
+- WS-E hand-off re-authored by ONR + picked up by Engineer
+- Engineer + po-mac + po-win + FED run ~3-5 days/week
 - No major blocking surprises in Tauri/Headscale peer connectivity
 
-**The ERPNext pivot accelerated the accounting/invoicing/reconciliation track** (B + G superseded; C + D scopes halved), but adds 3-5 weeks for the W#60 P3/P4 collaboration layer that didn't exist in the original Phase 2 scope. Net effect: roughly timeline-neutral but with a much lower implementation risk profile.
+Today's 30-PR burst was predominantly CI/restructure rewiring + the W#72 reports cluster + W#74 anchor-react rebinds — **infrastructure and reporting wins, not MVP-blocker unlocks**, so the timeline shifts only marginally inward (the prior estimate was 8-14 weeks; this is 8-13 weeks). The bigger Phase 2 critical path (W#60 P3 → P4) remains gated on CIC actions.
+
+**The ERPNext pivot accelerated the accounting/invoicing/reconciliation track** (B + G superseded; C + D scopes halved), and W#72 closes the reporting track. Net effect from the restructure + today's burst: ~1 week pulled in, with a much lower implementation risk profile on reporting.
 
 ---
 
 ## Update protocol
 
 This file is updated when:
-- A goal's done conditions change (user decision)
+- A goal's done conditions change (CIC decision)
 - A major workstream is added or removed
-- Velocity baseline materially shifts (e.g., new automation tier, BDFL availability changes)
+- Velocity baseline materially shifts (e.g., new automation tier, CIC availability changes, fleet restructure)
 - Estimated MVP date changes by more than 1 week
 
-**Day-to-day status lives in `active-workstreams.md`. This file does not duplicate that.**
+**The Harborline restructure ratified 2026-05-17.** All future updates use Harborline fleet repo names (`shipyard`, `sunfish`, `signal-bridge`, `flight-deck`, `tender`, `coordination`, `the-inverted-stack`) and the canonical org chart (Admiral / Engineer / FED / PAO / Yeoman / ONR / QM / po-mac / po-win) — see `coordination/ORG-CHART.md`. Retired ranks (XO, COB, sunfish-PM, dev) should not appear in new content here.
 
-The user receives an **executive summary** on demand, synthesized from this file + active-workstreams + recent gh data — see the "Status format" section in `CLAUDE.md` § Multi-Session Coordination.
+**Day-to-day status lives in `shipyard/icm/_state/active-workstreams.md`. This file does not duplicate that.**
+
+CIC receives an **executive summary** on demand, synthesized from this file + active-workstreams + recent gh data — see the "Status format" section in the parent `CLAUDE.md` § Multi-Session Coordination.
 
 ---
 
 ## Reference docs
 
-- `icm/_state/active-workstreams.md` — dynamic workstream ledger
-- `icm/_state/handoffs/` — research-to-sunfish-PM hand-off specs
-- `icm/00_intake/output/phase-2-commercial-mvp-intake-2026-04-27.md` — Phase 2 scope
-- `icm/05_implementation-plan/output/business-mvp-phase-1-plan-2026-04-26.md` — Phase 1 plan
-- `icm/07_review/output/adr-audits/CONSOLIDATED-HUMAN-REVIEW.md` — pending ADR amendment decisions
-- `docs/specifications/inverted-stack-package-roadmap.md` — Sunfish-side roadmap (mirror of book-side authoritative)
-- `/Users/christopherwood/Projects/the-inverted-stack/inverted-stack-book-plan.md` — book writing plan
-- `/Users/christopherwood/Projects/the-inverted-stack/book-structure.md` — chapter targets
+- `shipyard/icm/_state/active-workstreams.md` — dynamic workstream ledger
+- `shipyard/icm/_state/handoffs/` — Admiral → Engineer hand-off specs
+- `shipyard/icm/00_intake/output/phase-2-commercial-mvp-intake-2026-04-27.md` — Phase 2 scope
+- `shipyard/icm/05_implementation-plan/output/business-mvp-phase-1-plan-2026-04-26.md` — Phase 1 plan
+- `shipyard/icm/07_review/output/adr-audits/CONSOLIDATED-HUMAN-REVIEW.md` — pending ADR amendment decisions
+- `shipyard/docs/specifications/inverted-stack-package-roadmap.md` — Sunfish-side roadmap (mirror of book-side authoritative)
+- `the-inverted-stack/inverted-stack-book-plan.md` — book writing plan
+- `the-inverted-stack/book-structure.md` — chapter targets
+- `/Users/christopherwood/Projects/Harborline-Software/RATIFICATION-2026-05-17.md` — Phase 2 restructure ratification record
+- `/Users/christopherwood/Projects/Harborline-Software/coordination/ORG-CHART.md` — canonical fleet org chart
+- `/Users/christopherwood/Projects/Harborline-Software/coordination/README.md` — coordination protocol
