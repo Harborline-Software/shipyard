@@ -1,2 +1,4 @@
+- name: Audit
+  href: audit/
 - name: Subscription Events
   href: subscription-events/
