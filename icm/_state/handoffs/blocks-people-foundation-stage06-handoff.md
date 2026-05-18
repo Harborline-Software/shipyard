@@ -15,9 +15,9 @@
 **Pre-merge council:** NOT required (substrate scope; mirrors the W#34/W#35/W#36/W#60-P4 substrate-only pattern from the ledger + AR hand-offs). Standard COB self-audit applies.
 **Audit before build:**
 ```bash
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-people"
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/Party.cs
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ar/ 2>&1
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-people"
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/Party.cs
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ar/ 2>&1
 ```
 Expected: nothing matching `blocks-people-*`; `blocks-leases/Models/Party.cs` exists (pre-convention deviation — DO NOT TOUCH in this hand-off); `blocks-financial-ar/` may or may not exist yet (sibling hand-off may have already shipped its local `IPartyReadModel` stub).
 
@@ -118,37 +118,37 @@ Per `party-model-convention.md` §10 Q1: Vendor role record can live in `blocks-
 
 1. **Verify no parallel-session work on `blocks-people-*`.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-people"
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-people"
    gh pr list --state open --search "blocks-people in:title,body"
    ```
    Expected: zero matches in both. If anything is open or any `blocks-people-*` package exists, **STOP** — file a `cob-question-*` beacon before opening PR 1.
 
 2. **Verify pre-convention deviations are present but untouched.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/Party.cs
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/PartyKind.cs
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-leases/Models/PartyId.cs
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/Party.cs
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/PartyKind.cs
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-leases/Models/PartyId.cs
    ```
    Expected: all three exist. **DO NOT MODIFY** these files in any PR of this hand-off. They are the pre-convention deviation per `blocks-property-party-alignment-review.md` §2.11 and will be retrofitted in the next hand-off.
 
 3. **Verify ADR 0088 status.**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
    ```
    Expected: `status: Proposed` (CO ratified design 2026-05-16; status-flip is housekeeping). Hand-off is `ready-to-build` regardless — CO directive operative.
 
 4. **Verify Party convention is in place.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/_shared/engineering/party-model-convention.md
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/_shared/engineering/crdt-friendly-schema-conventions.md
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/_shared/engineering/cross-cluster-event-bus-design.md
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/_shared/engineering/party-model-convention.md
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/_shared/engineering/crdt-friendly-schema-conventions.md
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/_shared/engineering/cross-cluster-event-bus-design.md
    ```
    Expected: all three exist. PRs cite these documents by section in commit messages + the `apps/docs/blocks-people-foundation/overview.md` page.
 
 5. **Check whether `blocks-financial-ar` already shipped a local `IPartyReadModel` stub.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ar/ 2>&1
-   grep -rln "IPartyReadModel" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ 2>/dev/null
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ar/ 2>&1
+   grep -rln "IPartyReadModel" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ 2>/dev/null
    ```
    Two cases:
    - **Case A — `blocks-financial-ar/` does NOT exist yet.** Proceed normally. The future AR hand-off will reference *this* foundation's `IPartyReadModel`; no relocation work needed.
@@ -156,14 +156,14 @@ Per `party-model-convention.md` §10 Q1: Vendor role record can live in `blocks-
 
 6. **Verify foundation-multitenancy is available** (for `TenantId` reference type).
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/foundation-multitenancy/
-   grep -rln "TenantId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/foundation-multitenancy/ 2>/dev/null | head -3
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/foundation-multitenancy/
+   grep -rln "TenantId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/foundation-multitenancy/ 2>/dev/null | head -3
    ```
    Expected: package exists; `TenantId` type available. This hand-off's `Party.TenantId` is `Sunfish.Foundation.Multitenancy.TenantId` (not a local placeholder). If the type does NOT exist under that namespace, grep for alternative locations (`grep -rln "public.*record.*TenantId\|public.*struct.*TenantId" packages/foundation-* | head`) and file `cob-question-*` to confirm placement.
 
 7. **Verify W#37 / ADR 0068 status (for PII encryption posture).**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0068*.md 2>/dev/null
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0068*.md 2>/dev/null
    ```
    Expected: `status: Proposed`. This hand-off ships PII fields UNENCRYPTED with TODO comments per §Halt-conditions H4. When ADR 0068 advances to Accepted AND the W#60 P4 PR1 Stronghold/DPAPI substrate is wired, a follow-on workstream applies encryption-at-rest atomically. Do NOT attempt to encrypt in this hand-off.
 
@@ -1583,7 +1583,7 @@ This hand-off is the **third cluster implementation hand-off under ADR 0088 Path
 
 If COB hits a halt-condition (H1–H8) or has a design question:
 
-- File `cob-question-2026-05-XXTHH-MMZ-w60-p4-people-foundation-{slug}.md` in `/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`.
+- File `cob-question-2026-05-XXTHH-MMZ-w60-p4-people-foundation-{slug}.md` in `/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`.
 - Halt the workstream + add a note in the `active-workstreams.md` row for `blocks-people-foundation` (via the source W*.md file).
 - `ScheduleWakeup 1800s`.
 

@@ -23,11 +23,11 @@
 **Audit before build:**
 
 ```bash
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-work-"
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-work-orders/
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-people-foundation"
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^foundation-events"
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-financial-periods"
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-work-"
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-work-orders/
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-people-foundation"
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^foundation-events"
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-financial-periods"
 ```
 
 Expected:
@@ -182,20 +182,20 @@ the sibling `blocks-work-orders/NOTICE.md` from the prior hand-off.
 
 1. **Verify greenfield state.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-work-projects"
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-work-projects"
    ```
    Expected: empty (greenfield). If anything exists, file `cob-question-*`.
 
 2. **Verify sibling work-orders cluster shipped + on main.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-work-orders/Models/WorkOrderId.cs
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-work-orders/Models/MaintenanceTaskId.cs
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-work-orders/Models/WorkOrderId.cs
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-work-orders/Models/MaintenanceTaskId.cs
    ```
    Expected: both exist (cross-cluster references depend on them).
 
 3. **Confirm ADR 0088 status.**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
    ```
    Expected: `status: Accepted` (per W#60 P4 ratification trail).
 
@@ -210,7 +210,7 @@ the sibling `blocks-work-orders/NOTICE.md` from the prior hand-off.
 
 5. **Check `blocks-people-foundation` arrival.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-people-foundation/Services/IPartyReadModel.cs 2>/dev/null
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-people-foundation/Services/IPartyReadModel.cs 2>/dev/null
    ```
    - **If present** → import the canonical `IPartyReadModel` in PR 3.
    - **If absent** → mirror the sibling work-orders local stub (one-method
@@ -219,7 +219,7 @@ the sibling `blocks-work-orders/NOTICE.md` from the prior hand-off.
 
 6. **Check `foundation-events` arrival.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/foundation-events/IDomainEventPublisher.cs 2>/dev/null
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/foundation-events/IDomainEventPublisher.cs 2>/dev/null
    ```
    - **If present** → import the canonical `IDomainEventPublisher`.
    - **If absent** → declare locally with the 10-field envelope shape;
@@ -228,7 +228,7 @@ the sibling `blocks-work-orders/NOTICE.md` from the prior hand-off.
 
 7. **Check `blocks-financial-periods` arrival.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-periods/Services/IPeriodResolver.cs 2>/dev/null
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-periods/Services/IPeriodResolver.cs 2>/dev/null
    ```
    - **If present** → import + use for `TimeEntry` period-gating in PR 3.
    - **If absent** → ship a local stub (`InMemoryPeriodResolver` always
@@ -1728,7 +1728,7 @@ dependencies). PR 6 sequences last.
 
 If COB hits any of these, halt the workstream + drop a `cob-question-*`
 beacon to
-`/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`.
+`/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`.
 
 ### H1. `blocks-people-foundation` arrival (PR 3 + PR 6)
 
@@ -2275,7 +2275,7 @@ here verbatim:
 If COB hits a halt-condition or has a design question:
 
 - File `cob-question-2026-05-XXTHH-MMZ-w60-p4-work-projects-{slug}.md` in
-  `/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`.
+  `/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`.
 - Halt the workstream + add a note in the `active-workstreams.md` row
   for W#60.
 - `ScheduleWakeup 1800s`.

@@ -16,8 +16,8 @@
 **Pre-merge council:** NOT required (substrate scope; mirrors the W#60 P4 ledger/people foundation pattern). Standard COB self-audit applies.
 **Audit before build:**
 ```bash
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-work-"
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-workflow/
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-work-"
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-workflow/
 ```
 Expected: `blocks-workflow/` exists (state-machine engine, DIFFERENT package — do NOT confuse); nothing matching `blocks-work-orders/`.
 

@@ -12,7 +12,7 @@
 **Estimated effort:** ~6–8h sunfish-PM (schema extension + EF migration + Bridge endpoint filter + React switcher rewire + ~25–30 tests)
 **PR count:** 4 PRs (PRs 1–3 mandatory; PR 4 optional — see §PR sequence)
 **Pre-merge council:** NOT required (additive schema extension; no API-break; mirrors the substrate-only pattern). Standard COB self-audit applies.
-**Audit before build:** `ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-prop"` — confirms `blocks-properties/` is the canonical home for `Property` (siblings `blocks-property-equipment/` + `blocks-property-leasing-pipeline/` are derivative).
+**Audit before build:** `ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-prop"` — confirms `blocks-properties/` is the canonical home for `Property` (siblings `blocks-property-equipment/` + `blocks-property-leasing-pipeline/` are derivative).
 
 ---
 
@@ -108,8 +108,8 @@ once W#64 ships.
 
 1. **Verify Property entity location + audit shape.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-prop"
-   cat /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-properties/Models/Property.cs
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-prop"
+   cat /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-properties/Models/Property.cs
    ```
    Expected: `blocks-properties/` exists; `Property` is a sealed record
    with `Id`, `TenantId`, `DisplayName`, `Address`, `Kind`, `CreatedAt`,
@@ -142,8 +142,8 @@ once W#64 ships.
 
 4. **Confirm ADR 0032 substrate is on main.**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0032-multi-team-anchor-workspace-switching.md
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/kernel-runtime/Teams/ 2>/dev/null
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0032-multi-team-anchor-workspace-switching.md
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/kernel-runtime/Teams/ 2>/dev/null
    ```
    Expected: status `Accepted` (2026-04-23); `kernel-runtime/Teams/`
    contains `TeamContext`, `ITeamContextFactory`, `IActiveTeamAccessor`,
@@ -1067,7 +1067,7 @@ PR 4 can land in parallel with PR 2 + PR 3 if the importer exists.
 ## Halt conditions
 
 If COB hits any of these, **halt + file `cob-question-2026-05-XXTHH-MMZ-w64-{slug}.md`** in
-`/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`.
+`/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`.
 Add a note in `active-workstreams.md` W#64 row. `ScheduleWakeup 1800s`.
 
 ### 1. `Property` entity's existing schema makes `EntityTag` placement ambiguous
@@ -1312,7 +1312,7 @@ COB self-audit pattern (per ADR 0028-A10):
 If COB hits a halt-condition or has a design question:
 
 - File `cob-question-2026-05-XXTHH-MMZ-w64-{slug}.md` in
-  `/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`.
+  `/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`.
 - Halt the workstream + add a note in `active-workstreams.md` W#64 row.
 - `ScheduleWakeup 1800s`.
 

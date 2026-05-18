@@ -13,7 +13,7 @@
 **Estimated effort:** ~8–10h sunfish-PM (4 new entities + tax calculation engine + Schedule E seed + ledger wiring + ~30–35 tests + docs)
 **PR count:** 5 PRs
 **Pre-merge council:** NOT required (substrate scope; mirrors the `-ledger` hand-off pattern). Standard COB self-audit applies. **Security-engineering spot-check recommended on PR 3** (the tax-calculation engine has a banker's-rounding correctness path that has historically been a source of fiscal bugs in adjacent systems).
-**Audit before build:** `ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-financial-"` — confirms `blocks-financial-ledger/` exists (renamed from `blocks-accounting/` in the ledger hand-off PR 1) and `blocks-financial-tax/` does NOT yet exist.
+**Audit before build:** `ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-financial-"` — confirms `blocks-financial-ledger/` exists (renamed from `blocks-accounting/` in the ledger hand-off PR 1) and `blocks-financial-tax/` does NOT yet exist.
 
 ---
 
@@ -88,28 +88,28 @@ blocks-financial-periods       (NOT a dependency of this hand-off — tax rates 
 
 1. **Verify ledger hand-off state.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/
-   grep -l "GLAccountId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Models/*.cs
-   grep -l "ChartOfAccountsId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/Models/*.cs
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/
+   grep -l "GLAccountId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Models/*.cs
+   grep -l "ChartOfAccountsId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/Models/*.cs
    ```
    Expected: directory exists; `GLAccountId.cs` exists (pre-ledger-rename); `ChartOfAccountsId.cs` exists (ledger PR 2). If either is missing, the ledger hand-off PR 2 has not yet merged — file `cob-question-2026-05-XXTHH-MMZ-w60-p4-tax-blocked-on-ledger-pr2.md` and halt.
 
 2. **Verify `LegalEntityId` resolution path.**
    This hand-off needs `LegalEntityId` for `TaxJurisdiction` tenant scoping (jurisdictions are conceptually shared across charts within a legal entity, but isolated across legal entities). Apply the same resolution rule the ledger hand-off applied in its PR 2 (use `Sunfish.Foundation.Identity.LegalEntityId` if it exists; else `Sunfish.Blocks.FinancialLedger.LegalEntityId` placeholder with TODO comment).
    ```bash
-   grep -r "LegalEntityId" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/foundation-* /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/blocks-financial-ledger/ 2>/dev/null | head -10
+   grep -r "LegalEntityId" /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/foundation-* /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/blocks-financial-ledger/ 2>/dev/null | head -10
    ```
    If multiple definitions surface, USE the foundation-identity one; do NOT introduce a third.
 
 3. **Confirm package name availability.**
    ```bash
-   ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/packages/ | grep -E "^blocks-financial-tax$|^blocks-tax-"
+   ls /Users/christopherwood/Projects/Harborline-Software/shipyard/packages/ | grep -E "^blocks-financial-tax$|^blocks-tax-"
    ```
    Expected: empty. (`blocks-tax-reporting/` may exist — that's a *separate* package handled by the Decision-2 rename hand-off; **do not modify it in this hand-off**.)
 
 4. **Confirm ADR 0088 status.**
    ```bash
-   grep "^status:" /Users/christopherwood/Projects/SunfishSoftware/Sunfish/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
+   grep "^status:" /Users/christopherwood/Projects/Harborline-Software/shipyard/docs/adrs/0088-anchor-all-in-one-local-first-runtime.md
    ```
    Expected: `status: Proposed` (CO ratified design 2026-05-16; status flip is a separate housekeeping PR). Hand-off is `ready-to-build` regardless, per the same logic as the ledger hand-off.
 
@@ -1955,7 +1955,7 @@ This hand-off is the **second Stage 06 hand-off under ADR 0088 Path II** (after 
 
 If COB hits a halt-condition or has a design question:
 
-- File `cob-question-2026-05-XXTHH-MMZ-w60-p4-financial-tax-{slug}.md` in `/Users/christopherwood/Projects/SunfishSoftware/coordination/inbox/`.
+- File `cob-question-2026-05-XXTHH-MMZ-w60-p4-financial-tax-{slug}.md` in `/Users/christopherwood/Projects/Harborline-Software/coordination/inbox/`.
 - Halt the workstream + add a note in `active-workstreams.md` row for W#60 P4 (via the source `W#60.md` file).
 - `ScheduleWakeup 1800s`.
 

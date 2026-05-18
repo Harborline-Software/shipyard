@@ -31,7 +31,7 @@ This is not a request to port Sunfish to Node. It is a request to **decompose Su
 - **The Inverted Stack** (book) — argues for the architecture, not for any stack. Multi-stack support closes the credibility gap between claim and implementation.
 - **ADR 0014 — Adapter Parity Policy** — establishes the principle for the UI layer; this intake extends the principle to the runtime layer.
 - **`Sunfish.Kernel.Sync.Protocol.WireProtocol`** — the sync-daemon wire protocol is already specified at the byte level (Appendix A of the book). It's the *cleanest* existing example of a portable spec — implementations in any language can interop. We need to do for the rest of Sunfish what the daemon-protocol already did for sync.
-- **Galley** at `/Users/christopherwood/Projects/SunfishSoftware/galley` — a working Zone-A app in React + Node, currently consuming the book repo's chunked alignment data + remote GPU TTS/STT/Image/Music API. Borrows Sunfish patterns conceptually; would adopt Sunfish-Node references as they ship.
+- **Galley** at `/Users/christopherwood/Projects/Harborline-Software/flight-deck` — a working Zone-A app in React + Node, currently consuming the book repo's chunked alignment data + remote GPU TTS/STT/Image/Music API. Borrows Sunfish patterns conceptually; would adopt Sunfish-Node references as they ship.
 
 ## Industry prior-art
 
@@ -118,7 +118,7 @@ Spec-extracted (no code change):
 
 Affected outside this repo:
 - `sunfish-node/` — new repo (or `services/sunfish-node-reference/` if monorepo decision)
-- Galley (`/Users/christopherwood/Projects/SunfishSoftware/galley/`) — adopts packages as they ship
+- Galley (`/Users/christopherwood/Projects/Harborline-Software/flight-deck/`) — adopts packages as they ship
 - The book repo (`the-inverted-stack`) — gains sidebar pointing at the multi-stack story
 
 ## Dependencies and Constraints
