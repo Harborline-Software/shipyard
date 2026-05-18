@@ -544,7 +544,7 @@ If the method name differs (e.g., `GetDisplayName` without `Async`, or it return
 Locate the existing docs page:
 
 ```bash
-ls /Users/christopherwood/Projects/SunfishSoftware/Sunfish/apps/docs/blocks/leases/ 2>/dev/null
+ls /Users/christopherwood/Projects/Harborline-Software/shipyard/apps/docs/blocks/leases/ 2>/dev/null
 ```
 
 If it does not exist yet, create it as a stub. The content to add (either as a new section or an update to an existing "Party Identity" section):
