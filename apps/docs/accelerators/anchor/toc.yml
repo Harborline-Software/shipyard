@@ -8,3 +8,5 @@
   href: getting-started.md
 - name: Demo-Readiness Snapshot
   href: demo-readiness.md
+- name: Bridge Rebind Status (Cohorts)
+  href: anchor-react-rebind.md
