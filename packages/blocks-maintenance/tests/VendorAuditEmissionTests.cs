@@ -163,6 +163,7 @@ public sealed class VendorAuditEmissionTests
     private static Vendor MakeVendor() => new()
     {
         Id = TestVendor,
+        TenantId = new TenantId("tenant-test"),
         DisplayName = "Acme Plumbing",
         Status = VendorStatus.Active,
         OnboardingState = VendorOnboardingState.Pending,

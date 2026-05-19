@@ -290,6 +290,7 @@ public class ShipsOfficeProviderTests
         var vendor = new Vendor
         {
             Id = new VendorId(Guid.NewGuid().ToString()),
+            TenantId = new TenantId("tenant-test"),
             DisplayName = "Acme Contractors",
             Status = VendorStatus.Active,
             OnboardingState = VendorOnboardingState.Active,
@@ -331,6 +332,7 @@ public class ShipsOfficeProviderTests
         var vendor = new Vendor
         {
             Id = new VendorId(Guid.NewGuid().ToString()),
+            TenantId = new TenantId("tenant-test"),
             DisplayName = "No W9 Vendor",
             Status = VendorStatus.Active,
             OnboardingState = VendorOnboardingState.Pending,
@@ -355,6 +357,7 @@ public class ShipsOfficeProviderTests
         var vendor = new Vendor
         {
             Id = new VendorId(Guid.NewGuid().ToString()),
+            TenantId = new TenantId("tenant-test"),
             DisplayName = "Verified Vendor",
             Status = VendorStatus.Active,
             OnboardingState = VendorOnboardingState.Active,

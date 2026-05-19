@@ -5,6 +5,7 @@ using Sunfish.Blocks.Maintenance.Audit;
 using Sunfish.Blocks.Maintenance.Models;
 using Sunfish.Foundation.Assets.Common;
 using Sunfish.Foundation.Crypto;
+using Sunfish.Foundation.MultiTenancy;
 using Sunfish.Kernel.Audit;
 
 namespace Sunfish.Blocks.Maintenance.Services;
@@ -53,9 +54,37 @@ public sealed class InMemoryMaintenanceService : IMaintenanceService
     private readonly Sunfish.Foundation.Integrations.Payments.IPaymentGateway? _paymentGateway;
     private readonly Sunfish.Foundation.Integrations.Signatures.ISignatureCapture? _signatureCapture;
 
-    /// <summary>Creates the service with audit emission + cross-package wiring disabled.</summary>
+    // ── PR 0 Option D tenant-isolation retrofit (ADR 0091 + ADR 0092) ──
+    //
+    // _tenantContext is null only in legacy parameterless / audit-only ctor
+    // paths kept for test-rig back-compat. In production (sunfish MauiProgram
+    // DI), the new ctor below wires a real ITenantContext and guards apply
+    // strictly. When _tenantContext is null OR its Tenant is unresolved, the
+    // guards are SKIPPED (permissive test-mode); when both are present and
+    // resolved, the guards return uniform null on Get* tenant mismatch and
+    // filter List* by the current tenant.
+    private readonly ITenantContext? _tenantContext;
+
+    /// <summary>
+    /// Creates the service in test-mode (no tenant filtering, no audit
+    /// emission, no cross-package wiring). Production callers should use the
+    /// <see cref="InMemoryMaintenanceService(ITenantContext)"/> overload or
+    /// one of the audit-emission variants below.
+    /// </summary>
     public InMemoryMaintenanceService()
     {
+    }
+
+    /// <summary>
+    /// PR 0 Option D — creates the service with tenant-isolation guards
+    /// active. <paramref name="tenantContext"/> is consulted on every
+    /// <c>Get*</c> / <c>List*</c> call; cross-tenant ids return null + emit
+    /// a <see cref="AuditEventType.TenantBoundaryViolation"/> audit event
+    /// (when audit emission is wired). Use this ctor in production.
+    /// </summary>
+    public InMemoryMaintenanceService(ITenantContext tenantContext)
+    {
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
     }
 
     /// <summary>Creates the service with audit emission wired through <paramref name="auditTrail"/> + <paramref name="signer"/>; <paramref name="tenantId"/> is the tenant attribution applied to every emitted record.</summary>
@@ -70,6 +99,53 @@ public sealed class InMemoryMaintenanceService : IMaintenanceService
         _auditTrail = auditTrail;
         _signer = signer;
         _auditTenant = tenantId;
+    }
+
+    /// <summary>
+    /// PR 0 Option D — creates the service with both tenant-isolation guards
+    /// (via <paramref name="tenantContext"/>) AND audit emission (via
+    /// <paramref name="auditTrail"/> + <paramref name="signer"/>). The audit
+    /// attribution tenant defaults to <paramref name="tenantContext"/>'s
+    /// resolved tenant; if not resolved at ctor-time, use the explicit-
+    /// audit-tenant overload <see cref="InMemoryMaintenanceService(ITenantContext, IAuditTrail, IOperationSigner, TenantId)"/>.
+    /// </summary>
+    public InMemoryMaintenanceService(
+        ITenantContext tenantContext,
+        IAuditTrail auditTrail,
+        IOperationSigner signer)
+    {
+        ArgumentNullException.ThrowIfNull(tenantContext);
+        ArgumentNullException.ThrowIfNull(auditTrail);
+        ArgumentNullException.ThrowIfNull(signer);
+        _tenantContext = tenantContext;
+        _auditTrail = auditTrail;
+        _signer = signer;
+        _auditTenant = tenantContext.Tenant?.Id ?? default;
+    }
+
+    /// <summary>
+    /// PR 0 Option D — combined ctor with explicit audit-tenant attribution
+    /// (used when the audit-emission tenant differs from the request-scope
+    /// tenant, e.g., system-tenant audit emission for tenant-boundary
+    /// violations).
+    /// </summary>
+    public InMemoryMaintenanceService(
+        ITenantContext tenantContext,
+        IAuditTrail auditTrail,
+        IOperationSigner signer,
+        TenantId auditTenant)
+    {
+        ArgumentNullException.ThrowIfNull(tenantContext);
+        ArgumentNullException.ThrowIfNull(auditTrail);
+        ArgumentNullException.ThrowIfNull(signer);
+        if (auditTenant == default)
+        {
+            throw new ArgumentException("TenantId is required for audit emission.", nameof(auditTenant));
+        }
+        _tenantContext = tenantContext;
+        _auditTrail = auditTrail;
+        _signer = signer;
+        _auditTenant = auditTenant;
     }
 
     /// <summary>
@@ -120,6 +196,29 @@ public sealed class InMemoryMaintenanceService : IMaintenanceService
             Payload: signed,
             AttestingSignatures: ImmutableArray<AttestingSignature>.Empty);
         await _auditTrail.AppendAsync(record, ct).ConfigureAwait(false);
+    }
+
+    // ── PR 0 Option D — tenant-isolation guard helpers ──
+    //
+    // CurrentTenantId returns the resolved tenant, or null when running in
+    // legacy permissive mode. Guards skip filtering when CurrentTenantId is
+    // null (test-mode). When non-null, Get* returns null on mismatch (uniform
+    // 404 per ADR 0092 §A3) and emits TenantBoundaryViolation; List* filters
+    // the underlying collection.
+    private TenantId? CurrentTenantId => _tenantContext?.Tenant?.Id;
+
+    private async ValueTask EmitTenantBoundaryViolationAsync(string entityType, string entityId, CancellationToken ct)
+    {
+        if (_auditTrail is null || _signer is null) return;
+
+        var observed = CurrentTenantId;
+        var payload = new AuditPayload(new Dictionary<string, object?>
+        {
+            ["entity_type"]      = entityType,
+            ["entity_id"]        = entityId,
+            ["observed_tenant"]  = observed?.Value ?? "(unresolved)",
+        });
+        await EmitAsync(AuditEventType.TenantBoundaryViolation, payload, ct).ConfigureAwait(false);
     }
 
     // ── Stores ────────────────────────────────────────────────────────────────
@@ -187,9 +286,13 @@ public sealed class InMemoryMaintenanceService : IMaintenanceService
         ArgumentNullException.ThrowIfNull(request);
         ct.ThrowIfCancellationRequested();
 
+        // Stamp TenantId from the resolved tenant context. In permissive
+        // test-mode (no tenantContext), fall back to default(TenantId) so
+        // bare `new InMemoryMaintenanceService()` test rigs keep working.
         var vendor = new Vendor
         {
             Id = VendorId.NewId(),
+            TenantId = CurrentTenantId ?? default,
             DisplayName = request.DisplayName,
             ContactName = request.ContactName,
             ContactEmail = request.ContactEmail,
@@ -204,11 +307,19 @@ public sealed class InMemoryMaintenanceService : IMaintenanceService
     }
 
     /// <inheritdoc />
-    public ValueTask<Vendor?> GetVendorAsync(VendorId id, CancellationToken ct = default)
+    public async ValueTask<Vendor?> GetVendorAsync(VendorId id, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         _vendors.TryGetValue(id, out var vendor);
-        return ValueTask.FromResult(vendor);
+
+        // PR 0 Option D tenant guard — uniform null on cross-tenant mismatch.
+        if (vendor is not null && CurrentTenantId is { } tenant && !vendor.TenantId.Equals(tenant))
+        {
+            await EmitTenantBoundaryViolationAsync("Vendor", id.Value, ct).ConfigureAwait(false);
+            return null;
+        }
+
+        return vendor;
     }
 
     /// <inheritdoc />
@@ -218,9 +329,16 @@ public sealed class InMemoryMaintenanceService : IMaintenanceService
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        var currentTenant = CurrentTenantId;
+
         foreach (var vendor in _vendors.Values)
         {
             ct.ThrowIfCancellationRequested();
+
+            // PR 0 Option D tenant filter — applied BEFORE other query
+            // predicates so cross-tenant rows are invisible to the caller.
+            if (currentTenant is { } tenant && !vendor.TenantId.Equals(tenant))
+                continue;
 
             if (query.SpecialtyCode is not null && !vendor.Specialties.Any(c => c.Code == query.SpecialtyCode))
                 continue;
@@ -574,11 +692,19 @@ public sealed class InMemoryMaintenanceService : IMaintenanceService
     }
 
     /// <inheritdoc />
-    public ValueTask<WorkOrder?> GetWorkOrderAsync(WorkOrderId id, CancellationToken ct = default)
+    public async ValueTask<WorkOrder?> GetWorkOrderAsync(WorkOrderId id, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         _workOrders.TryGetValue(id, out var workOrder);
-        return ValueTask.FromResult(workOrder);
+
+        // PR 0 Option D tenant guard — uniform null on cross-tenant mismatch.
+        if (workOrder is not null && CurrentTenantId is { } tenant && !workOrder.Tenant.Equals(tenant))
+        {
+            await EmitTenantBoundaryViolationAsync("WorkOrder", id.Value, ct).ConfigureAwait(false);
+            return null;
+        }
+
+        return workOrder;
     }
 
     /// <inheritdoc />
@@ -588,9 +714,16 @@ public sealed class InMemoryMaintenanceService : IMaintenanceService
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        var currentTenant = CurrentTenantId;
+
         foreach (var wo in _workOrders.Values)
         {
             ct.ThrowIfCancellationRequested();
+
+            // PR 0 Option D tenant filter — applied BEFORE other query
+            // predicates so cross-tenant rows are invisible to the caller.
+            if (currentTenant is { } tenant && !wo.Tenant.Equals(tenant))
+                continue;
 
             // RequestId filter dropped per W#19 Phase 5; W#19 Phase 5.1 will
             // re-introduce source-based filtering via an audit-query API.
