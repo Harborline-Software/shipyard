@@ -4,21 +4,21 @@
     <TargetFramework>net11.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AssemblyName>Sunfish.Foundation.Authorization.Tests</AssemblyName>
+    <RootNamespace>Sunfish.Foundation.Authorization.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="NSubstitute" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Sunfish.Foundation.csproj" />
-    <ProjectReference Include="..\..\foundation-authorization\Sunfish.Foundation.Authorization.csproj" />
+    <ProjectReference Include="..\Sunfish.Foundation.Authorization.csproj" />
   </ItemGroup>
 
 </Project>
