@@ -274,11 +274,54 @@ Each entry below has:
 
 ---
 
+---
+
+### `pattern-009` — Bridge endpoint + companion frontend binding pair
+
+**Definition:** A PR that wires a new cockpit Bridge endpoint together with the matching Anchor/Sunfish React page rebind — the backend endpoint + the frontend binding ship together or in a coordinated cohort. MANDATORY security-engineering council SPOT-CHECK on every instance.
+
+**Matches when:**
+- PR adds or extends a cockpit endpoint in `Sunfish.Bridge/Cockpit/` AND rebinds the corresponding frontend page from an ERPNext direct call to the new cockpit route
+- OR: a PR explicitly identified as one PR in a cohort where another PR in the same cohort does the pairing (must reference the cohort in PR description with `@standing-pattern: pattern-009`)
+- `@standing-pattern: pattern-009` appears in the PR description
+
+**Does NOT match if:**
+- Backend endpoint ships without a corresponding frontend rebind (or vice-versa without a cohort framing)
+- Any route under `/api/v1/cockpit/identity/**` or `/api/v1/cockpit/auth/**` (identity surface — always full pipeline)
+- Diff exceeds 1500 lines net
+
+**CSRF requirement:** ONLY if the endpoint is in the cookie-auth route family. Field route family (`/api/v1/field/*`) uses pairing-token / mTLS — CSRF does NOT apply there.
+
+**Tenant cross-check sub-step (MANDATORY for state-mutating handlers with client-supplied identifiers):** Before any service call referencing a client-supplied entity ID, the handler MUST:
+1. Fetch the entity
+2. Verify its tenant matches the envelope's tenant
+3. Return uniform 404 on either missing-or-wrong-tenant (no 403; do not leak existence)
+
+Lifted from W#23.3 P1 sec-eng amendment A2 (2026-05-19).
+
+**Shipping history (instances):**
+1. Cohort-1 PR 1 — Properties page rebind (sunfish initial migration; merged 2026-05-17)
+2. Cohort-1 PR 2 — Leases page rebind (sunfish #7 + signal-bridge #7; merged 2026-05-17)
+3. Cohort-1 PR 3 — Maintenance page + CSRF + audit emission (sunfish #11 + signal-bridge #11 + shipyard #28; sec-eng GREEN-attested; merged 2026-05-18) ← **promotion trigger**
+4. Cohort-1 PR 4 — close-out + ERPNext deprecation (sunfish #13 + shipyard #32; merged 2026-05-18)
+5. W#23.3 P1 — Inspections walkthrough (shipyard #35 + signal-bridge #13; AMBER-amended pending; sec-eng SPOT-CHECK 2026-05-19T04:15Z)
+6. Cohort-2 PR 1 + PR 2 + PR 3 — Financial cluster (LeaseDetailPage payments + AccountingPage + RentCollectionPage; ready-to-build per W#76 hand-off)
+
+**Status:** **Formal — promoted 2026-05-17** after cohort-1 PRs 1+2+3 shipped clean. Per `admiral-status-2026-05-17T23-30Z-pattern-009-promoted.md`.
+
+**Council requirement:** MANDATORY security-engineering SPOT-CHECK on EVERY instance. SLA: Admiral dispatches within 30 min of DRAFT PR opening (per `fleet-conventions.md` § SPOT-CHECK dispatch SLA added 2026-05-18).
+
+**Revoke if:**
+- Any post-merge incident on a pattern-matched PR
+- A sec-eng SPOT-CHECK finds a systematic gap across ≥2 instances — pattern must be re-ratified with amended criteria
+
+---
+
 ## Patterns proposed but not yet ratified
 
 - **`pattern-004` (Cluster aging service)** — needs 1 more shipping to reach 3-PR ratification minimum
-- **`pattern-009` (Cross-cluster event publisher wiring)** — only 2 shippings so far; needs 1 more
 - **`pattern-010` (`apps/docs/blocks/<cluster>/toc.yml` entry)** — usually bundled with `pattern-006`; not a standalone pattern yet
+- **`pattern-011` (Cross-cluster event publisher wiring)** — was `pattern-009` candidate; renumbered after pattern-009 slot taken by Bridge endpoint + companion frontend binding. Needs 3 shippings for ratification.
 
 ## What's explicitly NOT a standing pattern (always needs full pipeline)
 
