@@ -7,7 +7,7 @@ import SwiftUI
 /// Passed into `AssetCaptureView` by the home screen after fetching from Bridge
 /// via `GET /api/v1/equipment`. For v1 smoke tests a stub item is acceptable
 /// (per W#23.2 hand-off Note 1 — the equipment-list API ships as a follow-up).
-public struct EquipmentListItem: Equatable, Sendable, Hashable {
+public struct EquipmentListItem: Identifiable, Equatable, Sendable, Hashable {
     public let id: String
     public let name: String
 
