@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Foundation.Authorization</PackageId>
+    <Description>Caller-identity + policy-evaluation + transitional tenant-context-facade interfaces. Extracted from Sunfish.Foundation in ADR 0091 Step 1 (Revision 2 corrigendum 2026-05-19T11:05Z) so the facade can extend Sunfish.Foundation.MultiTenancy.ITenantContext without circular package dependencies.</Description>
+    <PackageTags>sunfish;foundation;authorization;identity;tenant-context;oidc</PackageTags>
+    <!-- NU1510 suppressed: direct PackageReferences for
+         Microsoft.Extensions.DependencyInjection.Abstractions +
+         Microsoft.Extensions.Hosting.Abstractions are required (IServiceCollection,
+         IHostedService, IServiceScopeFactory, ServiceDescriptor) but NuGet
+         preview.4 pruning flags them as unnecessary due to transitive
+         availability via foundation-multitenancy. Per fleet-conventions
+         §"NU1510 — keep the PackageRef, suppress the warning"; reference
+         template shipyard commit b4475df. -->
+    <NoWarn>CS1591;NU1510</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
+    <ProjectReference Include="..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Foundation.Authorization.Tests" />
+  </ItemGroup>
+</Project>

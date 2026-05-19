@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
+    <ProjectReference Include="..\foundation-authorization\Sunfish.Foundation.Authorization.csproj" />
     <ProjectReference Include="..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
     <ProjectReference Include="..\foundation-persistence\Sunfish.Foundation.Persistence.csproj" />
     <ProjectReference Include="..\foundation-catalog\Sunfish.Foundation.Catalog.csproj" />

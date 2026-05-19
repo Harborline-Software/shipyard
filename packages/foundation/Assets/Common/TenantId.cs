@@ -27,7 +27,7 @@ namespace Sunfish.Foundation.Assets.Common;
 /// </para>
 /// </remarks>
 [JsonConverter(typeof(TenantIdJsonConverter))]
-public readonly record struct TenantId
+public readonly partial record struct TenantId
 {
     /// <summary>The opaque string value. Never null when constructed via the public ctor.</summary>
     public string Value { get; init; }

@@ -50,6 +50,15 @@ public class TenantContextContractTests
 {
     private sealed class StubTenant : Sunfish.Foundation.Authorization.ITenantContext
     {
+        // ADR 0091 Step 1 — facade now extends Sunfish.Foundation.MultiTenancy.ITenantContext;
+        // stubs must provide Tenant: TenantMetadata?. The string `TenantId` member is
+        // default-implemented on the facade but kept here to preserve the existing
+        // "t1" sentinel that downstream tests assert against.
+        public Sunfish.Foundation.MultiTenancy.TenantMetadata? Tenant { get; } = new()
+        {
+            Id = new Sunfish.Foundation.Assets.Common.TenantId("t1"),
+            Name = "t1",
+        };
         public string TenantId => "t1";
         public string UserId => "u1";
         public IReadOnlyList<string> Roles { get; } = ["Admin"];

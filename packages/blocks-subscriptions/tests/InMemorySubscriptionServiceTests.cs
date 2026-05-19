@@ -13,8 +13,16 @@ internal sealed class TestTenantContext : ITenantContext
     {
         TenantId = tenantId;
         UserId = userId;
+        Tenant = new Sunfish.Foundation.MultiTenancy.TenantMetadata
+        {
+            Id = new Sunfish.Foundation.Assets.Common.TenantId(tenantId),
+            Name = tenantId,
+        };
     }
 
+    // ADR 0091 Step 1 — facade now extends Sunfish.Foundation.MultiTenancy.ITenantContext;
+    // stubs must provide Tenant: TenantMetadata?.
+    public Sunfish.Foundation.MultiTenancy.TenantMetadata? Tenant { get; }
     public string TenantId { get; }
     public string UserId { get; }
     public IReadOnlyList<string> Roles { get; } = Array.Empty<string>();
