@@ -3,19 +3,12 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    # Skip the heavy Build & Test on docs-only PRs. Changes to this workflow
-    # file itself are NOT in the ignore list, so the workflow still re-tests
-    # itself when edited.
-    paths-ignore:
-      - "**/*.md"
-      - ".wolf/**"
-      - "docs/**"
-      - "waves/**"
-      - "icm/**"
-      - "_shared/**"
-      - ".github/CODEOWNERS"
-      - ".gitignore"
-      - "LICENSE*"
+    # Build & Test runs on EVERY pull_request — the prior paths-ignore filter
+    # caused required-check stalls on docs-only PRs (workflow never triggered,
+    # required check never reported, PR stuck BLOCKED). Per Admiral directive
+    # 2026-05-19T06-50Z + CIC's earlier ruling on flight-deck's equivalent
+    # issue: remove the filter. Docs-only PRs pay ~3-5 min of dotnet restore +
+    # build (cheap; acceptable trade vs. the stall trap).
   push:
     branches: [main]
 
