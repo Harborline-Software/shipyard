@@ -17,4 +17,15 @@ public enum EventType: String, Codable, Sendable, CaseIterable {
     case Mileage
     /// Work-Order Response — open-from-finding + status updates.
     case WorkOrderResponse
+    // ── W#23.3 Inspection sub-events ──────────────────────────────────────
+    /// Inspection phase transitions from Scheduled to InProgress.
+    case InspectionStarted
+    /// Inspector recorded a response (pass/fail/na) on a checklist item.
+    case ChecklistResponseRecorded
+    /// Inspector recorded a deficiency on a failed checklist item.
+    case DeficiencyRecorded
+    /// Inspector recorded an equipment condition assessment.
+    case EquipmentConditionRecorded
+    /// Inspection phase transitions from InProgress to Completed.
+    case InspectionCompleted
 }

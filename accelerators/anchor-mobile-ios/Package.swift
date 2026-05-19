@@ -83,5 +83,11 @@ let package = Package(
             dependencies: ["SunfishField"],
             path: "Tests/SunfishFieldCaptureTests"
         ),
+        // W#23.3 — Inspection payload + event-type addition tests.
+        .testTarget(
+            name: "SunfishFieldInspectionTests",
+            dependencies: ["SunfishField"],
+            path: "Tests/SunfishFieldInspectionTests"
+        ),
     ]
 )
