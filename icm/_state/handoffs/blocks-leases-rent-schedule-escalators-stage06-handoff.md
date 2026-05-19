@@ -4,7 +4,7 @@
 **To:** Engineer (PRs 1+2 substrate) + FED (PR 3 UI rebind)
 **Created:** 2026-05-18
 **Status:** `ready-to-build` — no gate; independent of the financial-payments + docs cluster
-**Workstream:** W#74 — blocks-leases: rent-schedule escalators (W#72 PR 6 v2-projection closure)
+**Workstream:** W#75 — blocks-leases: rent-schedule escalators (W#72 PR 6 v2-projection closure)
 **Spec source:** [`packages/blocks-leases/Models/Lease.cs`](../../../packages/blocks-leases/Models/Lease.cs) (today: flat `MonthlyRent decimal` only) + [`coordination/inbox/admiral-status-2026-05-17T23-30Z-w72-substrate-todos-triage.md`](../../../coordination/inbox/admiral-status-2026-05-17T23-30Z-w72-substrate-todos-triage.md) §2 (justification: `ProjectedNextMonthRent` is a Lease-extension, not a cross-cluster join)
 **Pipeline:** `sunfish-feature-change` (additive entity extension; no API break; back-compat via default-empty schedule)
 **Effort:** Sonnet `medium` (mechanical Stage 06; no novel substrate; reuses existing `Lease : IMustHaveTenant` pattern)
@@ -23,7 +23,7 @@
 - W#72 blocks-reports (cartridge cluster)
 - W#73 blocks-financial-ar per-lease payment queries (the sibling RentRollV2 substrate-TODO closure)
 
-The only soft sequencing concern: W#72 PR 6 (RentRollCartridge) lands the `ProjectedNextMonthRent: current.MonthlyRent` v2-simplification at line 346 of `RentRollCartridge.cs`. PR 2 of THIS workstream replaces that line with an `IRentProjectionService` call. If W#72 PR 6 has not yet merged when you reach PR 2 of W#74, halt PR 2 (not PR 1) and file `engineer-question-*`; W#72 PR 6 is a sibling workstream's deliverable, not a dependency for the substrate work.
+The only soft sequencing concern: W#72 PR 6 (RentRollCartridge) lands the `ProjectedNextMonthRent: current.MonthlyRent` v2-simplification at line 346 of `RentRollCartridge.cs`. PR 2 of THIS workstream replaces that line with an `IRentProjectionService` call. If W#72 PR 6 has not yet merged when you reach PR 2 of W#75, halt PR 2 (not PR 1) and file `engineer-question-*`; W#72 PR 6 is a sibling workstream's deliverable, not a dependency for the substrate work.
 
 PR 1 (entity + value object) can ship today. PR 2 (service + cartridge wire-up) waits for W#72 PR 6 on main. PR 3 (FED UI) can ship in parallel with PR 2 or after.
 
@@ -58,9 +58,9 @@ The escalator schedule is a value-object collection where each entry carries:
 ### What this hand-off ships
 
 ```
-W#74 PR 1   blocks-leases   RentEscalator value object + Lease.RentSchedule additive field + ProjectedRentForMonth pure-fn
-W#74 PR 2   blocks-leases   IRentProjectionService + InMemoryRentProjectionService + DI + RentRollCartridge wire-up
-W#74 PR 3   blocks-leases   LeaseRentScheduleBlock.razor (FED) + leases-list UI rebind to surface next escalator
+W#75 PR 1   blocks-leases   RentEscalator value object + Lease.RentSchedule additive field + ProjectedRentForMonth pure-fn
+W#75 PR 2   blocks-leases   IRentProjectionService + InMemoryRentProjectionService + DI + RentRollCartridge wire-up
+W#75 PR 3   blocks-leases   LeaseRentScheduleBlock.razor (FED) + leases-list UI rebind to surface next escalator
 ```
 
 ---
@@ -106,7 +106,7 @@ Add a new field after `MonthlyRent`:
 /// <see cref="LeaseRentProjection.ProjectedRentForMonth"/> to compute the effective rate for a target month.
 /// </summary>
 /// <remarks>
-/// Additive extension 2026-05-18 (W#74). Existing Lease records without escalators continue to return
+/// Additive extension 2026-05-18 (W#75). Existing Lease records without escalators continue to return
 /// <see cref="MonthlyRent"/> from the projection function (back-compat). Each escalator inherits this
 /// Lease's <see cref="TenantId"/> transitively; no per-escalator tenant column required.
 /// </remarks>
@@ -214,7 +214,7 @@ public static class LeaseRentProjection
 - All 6+ new tests green
 - W#72 PR 6 existing RentRollCartridge tests still green (no regression)
 - The `// D4: v2 projects current rent unchanged` comment removed from line 346 (verify with `grep -n "v2 projects current rent" .../RentRollCartridge.cs` returning zero matches)
-- W#74 PRs 1+2 ledger row stays `building` (PR 3 closes the workstream)
+- W#75 PRs 1+2 ledger row stays `building` (PR 3 closes the workstream)
 
 ---
 
@@ -240,7 +240,7 @@ public static class LeaseRentProjection
 - All 4+ new component tests green
 - Visual review: a sample lease with three escalators renders cleanly at 1280×800 and 375×667 (sunfish standard breakpoints)
 - The leases-list UI rebind does not regress the existing W#27 retrofit (LeaseHolderRole display unchanged)
-- W#74 row flipped to `built` in `active-workstreams.md` (FED owns the ledger flip on PR 3 merge)
+- W#75 row flipped to `built` in `active-workstreams.md` (FED owns the ledger flip on PR 3 merge)
 
 ---
 
@@ -310,9 +310,9 @@ Stop and file `engineer-question-*` if any of these arise:
 ## PR commit message templates
 
 ```
-feat(blocks-leases): PR 1 — RentEscalator value object + Lease.RentSchedule + ProjectedRentForMonth pure fn (W#74)
-feat(blocks-leases): PR 2 — IRentProjectionService + RentRollCartridge wire-up; D4 v2-simplification closed (W#74)
-feat(blocks-leases): PR 3 — LeaseRentScheduleBlock.razor + leases-list UI rebind (W#74; FED)
+feat(blocks-leases): PR 1 — RentEscalator value object + Lease.RentSchedule + ProjectedRentForMonth pure fn (W#75)
+feat(blocks-leases): PR 2 — IRentProjectionService + RentRollCartridge wire-up; D4 v2-simplification closed (W#75)
+feat(blocks-leases): PR 3 — LeaseRentScheduleBlock.razor + leases-list UI rebind (W#75; FED)
 ```
 
 ---

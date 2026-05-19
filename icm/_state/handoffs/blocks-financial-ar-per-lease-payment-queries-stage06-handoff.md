@@ -48,7 +48,7 @@ W#69 blocks-docs-core             (Document entity layer)                    gat
 W#70 blocks-docs-wiki             (Wiki + Policy)                            gated
 W#72 blocks-reports               (cartridge substrate + 5 cartridges; PR 6 = RentRollV2)  gated
 W#73 blocks-financial-ar          ← THIS HAND-OFF  (per-lease query layer; closes PR 6 TODOs)
-W#74 blocks-leases                (rent-schedule escalators — parallel, independent of this hand-off)
+W#75 blocks-leases                (rent-schedule escalators — parallel, independent of this hand-off)
 ```
 
 W#73 sits after W#72 PR 6 lands the `RentRollCartridge` with `LastPaymentDate: null` and `PrepaidBalance: 0m` stubbed and marked `// D4: TODO(cross-cluster)` at four call-sites (vacant-unit row lines 302-303; occupied-unit row lines 347-348). Closure of those four stub sites is the entire deliverable.
