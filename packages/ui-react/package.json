@@ -1,7 +1,7 @@
 {
   "name": "@sunfish/ui-react",
-  "version": "0.1.0-alpha",
-  "description": "Sunfish application-layer React components: sync-state indicators, property cards, role gate, and offline awareness primitives.",
+  "version": "0.2.0-alpha",
+  "description": "Sunfish application-layer React components: sync-state indicators, property cards, role gate, offline awareness primitives, and currency display.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
