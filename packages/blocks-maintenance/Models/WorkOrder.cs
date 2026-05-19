@@ -3,6 +3,7 @@ using Sunfish.Blocks.PropertyEquipment.Models;
 using Sunfish.Foundation.Assets.Common;
 using Sunfish.Foundation.Integrations.Messaging;
 using Sunfish.Foundation.Integrations.Payments;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.Maintenance.Models;
 
@@ -29,10 +30,19 @@ namespace Sunfish.Blocks.Maintenance.Models;
 /// emitted <c>AuditRecord.AuditId</c> trail per ADR 0049.
 /// </para>
 /// </remarks>
-public sealed record WorkOrder
+public sealed record WorkOrder : IMustHaveTenant
 {
     /// <summary>Unique identifier for this work order.</summary>
     public required WorkOrderId Id { get; init; }
+
+    /// <summary>
+    /// <see cref="IMustHaveTenant"/> view onto the existing <see cref="Tenant"/> field.
+    /// The PR 0 Option D tenant-isolation retrofit (ADR 0091 §A2 + ADR 0092 §A6) requires
+    /// the marker interface; surfacing <see cref="Tenant"/> through the
+    /// canonical <c>TenantId</c> property keeps existing call-sites (which use
+    /// <c>workOrder.Tenant</c>) unchanged.
+    /// </summary>
+    TenantId ITenantScoped.TenantId => Tenant;
 
     /// <summary>Owning tenant (per <c>IMustHaveTenant</c>).</summary>
     public required TenantId Tenant { get; init; }

@@ -17,6 +17,21 @@ namespace Sunfish.Kernel.Audit;
 /// </remarks>
 public readonly record struct AuditEventType(string Value)
 {
+    // ===== ADR 0091 / ADR 0092 — service-layer tenant-isolation =====
+
+    /// <summary>
+    /// A read against a tenant-scoped entity was rejected at the service-layer
+    /// tenant guard because the entity's <c>TenantId</c> did not match the
+    /// resolved <see cref="Sunfish.Foundation.MultiTenancy.ITenantContext"/>.
+    /// Emitted by <c>Get*</c> rejection paths (the uniform-404 return shape per
+    /// ADR 0092 §A3 means callers cannot distinguish "id does not exist" from
+    /// "id belongs to another tenant" — this audit event makes the rejection
+    /// observable to the operator without leaking it to the caller). Per ADR
+    /// 0092 §A6, <c>List*</c> rejections are NOT emitted per-entity (too noisy);
+    /// a future aggregate-level emission may surface list-time filtering counts.
+    /// </summary>
+    public static readonly AuditEventType TenantBoundaryViolation = new("TenantBoundaryViolation");
+
     // ===== ADR 0046 sub-pattern #48f — recovery audit trail =====
 
     /// <summary>An owner initiated a multi-sig recovery request.</summary>

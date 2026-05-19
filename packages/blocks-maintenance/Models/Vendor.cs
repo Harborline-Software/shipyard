@@ -1,3 +1,5 @@
+using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 using Sunfish.Foundation.Taxonomy.Models;
 
 namespace Sunfish.Blocks.Maintenance.Models;
@@ -30,10 +32,19 @@ namespace Sunfish.Blocks.Maintenance.Models;
 /// <see cref="VendorContactId"/>).
 /// </para>
 /// </remarks>
-public sealed record Vendor
+public sealed record Vendor : IMustHaveTenant
 {
     /// <summary>Unique identifier for this vendor.</summary>
     public required VendorId Id { get; init; }
+
+    /// <summary>
+    /// Tenant scope per <see cref="IMustHaveTenant"/>. Populated from the
+    /// resolved <c>ITenantContext</c> at create-call-site inside
+    /// <c>InMemoryMaintenanceService.CreateVendorAsync</c>; downstream filtering
+    /// of <c>ListVendorsAsync</c> / <c>GetVendorAsync</c> uses this value.
+    /// Added by the PR 0 Option D tenant-isolation retrofit (ADR 0091 §A2 + ADR 0092 §A6).
+    /// </summary>
+    public required TenantId TenantId { get; init; }
 
     /// <summary>Human-readable name shown in the UI.</summary>
     public required string DisplayName { get; init; }
