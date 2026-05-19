@@ -444,7 +444,11 @@ test-results/
 /playwright/.cache/
 
 # OpenWolf runtime state — volatile, generated per-session.
-# Knowledge files (anatomy.md, cerebrum.md, buglog.json, memory.md, hooks, config) stay tracked.
+# Keep tracked: .wolf/OPENWOLF.md, .wolf/cerebrum.md, .wolf/buglog.json, .wolf/config.json
+.wolf/anatomy.md
+.wolf/_archive/
+.wolf/memory.md
+.wolf/scheduled_tasks.lock
 .wolf/token-ledger.json
 .wolf/cron-state.json
 .wolf/designqc-report.json
@@ -454,6 +458,7 @@ test-results/
 
 # Claude Code per-user state — local permission overrides, scheduler lock file
 .claude/scheduled_tasks.lock
+.claude/hooks/
 .claude/settings.local.json
 .claude/worktrees/
 
@@ -464,3 +469,4 @@ apps/docs/obj/
 
 # C# LSP cache (Roslyn project graph) — auto-generated, do not commit
 *.lscache
+.worktrees/
