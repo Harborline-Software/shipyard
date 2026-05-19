@@ -2,7 +2,7 @@
 #
 # Mechanics:
 # - Fires on Dependabot PRs (filter by github.actor)
-# - Uses dependabot/fetch-metadata@v2 to learn the update-type
+# - Uses dependabot/fetch-metadata@v3 to learn the update-type
 # - For semver-patch and semver-minor, enables auto-merge with squash;
 #   `gh pr merge --auto` waits for required-status-checks to pass before
 #   actually merging — so the gate is still CI, not human approval.
@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Fetch Dependabot metadata
         id: meta
-        uses: dependabot/fetch-metadata@v2
+        uses: dependabot/fetch-metadata@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
