@@ -93,6 +93,18 @@ public enum ChecklistResponse: String, Codable, CaseIterable, Sendable {
     }
 }
 
+// MARK: - Condition rating (W#23.3 Phase 2)
+
+/// Equipment condition rating. Raw values match `Sunfish.Blocks.Inspections.Models.ConditionRating`.
+public enum ConditionRatingLocal: String, Codable, CaseIterable, Sendable {
+    case good   = "Good"
+    case fair   = "Fair"
+    case poor   = "Poor"
+    case failed = "Failed"
+
+    public var displayName: String { rawValue }
+}
+
 // MARK: - Deficiency severity
 
 /// Deficiency severity levels. Raw values match `Sunfish.Blocks.Inspections.Models.DeficiencySeverity`.

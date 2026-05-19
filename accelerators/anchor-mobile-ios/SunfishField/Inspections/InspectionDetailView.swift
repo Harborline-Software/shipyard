@@ -53,6 +53,9 @@ public struct InspectionDetailView: View {
                         startSection
                     } else {
                         checklistSection
+                        Divider()
+                            .padding(.horizontal)
+                        equipmentSection
                         if allItemsResponded {
                             completeSection
                         }
@@ -163,6 +166,19 @@ public struct InspectionDetailView: View {
                 .padding(.horizontal)
             }
         }
+    }
+
+    private var equipmentSection: some View {
+        EquipmentConditionView(
+            inspectionId: item.id,
+            equipment: [],
+            queueService: queueService,
+            blobStore: blobStore,
+            deviceId: deviceId,
+            capturedUnderKernel: capturedUnderKernel,
+            capturedUnderSchemaEpoch: capturedUnderSchemaEpoch,
+            onEventQueued: onEventQueued
+        )
     }
 
     private var completeSection: some View {
