@@ -137,7 +137,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 500m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         var invoice = NewIssuedInvoice(invoiceId, total: 500m);
@@ -151,7 +151,7 @@ public class DefaultPaymentApplicationServiceTests
         Assert.NotNull(result.Application);
 
         // Payment fully applied.
-        var updatedPayment = await rig.Payments.GetAsync(payment.Id);
+        var updatedPayment = await rig.Payments.GetAsync(TestTenant, payment.Id);
         Assert.Equal(0m, updatedPayment!.UnappliedAmount);
         Assert.Equal(PaymentStatus.Applied, updatedPayment.Status);
 
@@ -171,7 +171,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Outbound, amount: 200m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var billId = $"bill-{Guid.NewGuid():N}";
         var bill = NewReceivedBill(billId, total: 200m);
@@ -187,7 +187,7 @@ public class DefaultPaymentApplicationServiceTests
         Assert.Equal(200m, updatedBill!.AmountPaid);
         Assert.Equal(BillStatus.Paid, updatedBill.Status);
 
-        var updatedPayment = await rig.Payments.GetAsync(payment.Id);
+        var updatedPayment = await rig.Payments.GetAsync(TestTenant, payment.Id);
         Assert.Equal(PaymentStatus.Applied, updatedPayment!.Status);
     }
 
@@ -196,7 +196,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 1000m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 1000m));
@@ -211,7 +211,7 @@ public class DefaultPaymentApplicationServiceTests
         Assert.Equal(InvoiceStatus.PartiallyPaid, updatedInvoice!.Status);
         Assert.Equal(600m, updatedInvoice.Balance);
 
-        var updatedPayment = await rig.Payments.GetAsync(payment.Id);
+        var updatedPayment = await rig.Payments.GetAsync(TestTenant, payment.Id);
         Assert.Equal(PaymentStatus.PartiallyApplied, updatedPayment!.Status);
         Assert.Equal(600m, updatedPayment.UnappliedAmount);
     }
@@ -225,7 +225,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 500m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         // Bill with the targeted id DOES exist — but the direction-match guard
         // must reject BEFORE Bill existence is probed.
@@ -238,7 +238,7 @@ public class DefaultPaymentApplicationServiceTests
 
         Assert.Equal(ApplyError.DirectionMismatch, result.Error);
         Assert.Empty(rig.Events.Published);
-        Assert.Empty(await rig.Applications.ListByPaymentAsync(payment.Id));
+        Assert.Empty(await rig.Applications.ListByPaymentAsync(TestTenant, payment.Id));
 
         // Bill must be untouched.
         var bill = await rig.Bills.GetAsync(TestTenant, new BillId(billId));
@@ -250,7 +250,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Outbound, amount: 500m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 500m));
@@ -270,7 +270,7 @@ public class DefaultPaymentApplicationServiceTests
         // targeted Invoice/Bill exists.
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 100m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         // Case 1: target Bill does NOT exist.
         var nonexistentBill = $"bill-{Guid.NewGuid():N}";
@@ -299,7 +299,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 100m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 200m));
@@ -316,7 +316,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 1000m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 200m));
@@ -333,7 +333,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 100m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 100m, status: InvoiceStatus.Voided));
@@ -350,7 +350,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 100m, currency: "EUR");
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 100m, currency: "USD"));
@@ -377,7 +377,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 100m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, "nonexistent-invoice",
@@ -391,7 +391,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 200m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 200m));
@@ -416,7 +416,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var bouncedPayment = NewClearedPayment() with { Status = PaymentStatus.Bounced };
-        await rig.Payments.AddAsync(bouncedPayment);
+        await rig.Payments.AddAsync(TestTenant, bouncedPayment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 100m));
@@ -438,7 +438,7 @@ public class DefaultPaymentApplicationServiceTests
     {
         var rig = CreateRig();
         var payment = NewClearedPayment(PaymentDirection.Inbound, amount: 500m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 500m));
@@ -454,10 +454,10 @@ public class DefaultPaymentApplicationServiceTests
         Assert.True(unapply.Success);
 
         // Application removed.
-        Assert.Null(await rig.Applications.GetAsync(applicationId));
+        Assert.Null(await rig.Applications.GetAsync(TestTenant, applicationId));
 
         // Payment restored.
-        var restoredPayment = await rig.Payments.GetAsync(payment.Id);
+        var restoredPayment = await rig.Payments.GetAsync(TestTenant, payment.Id);
         Assert.Equal(500m, restoredPayment!.UnappliedAmount);
         Assert.Equal(PaymentStatus.Unapplied, restoredPayment.Status);
 
@@ -511,7 +511,7 @@ public class DefaultPaymentApplicationServiceTests
                 Status = PaymentStatus.Unapplied,
                 JournalEntryId = JournalEntryId.NewId(),
             };
-        await rig.Payments.AddAsync(foreignPayment);
+        await rig.Payments.AddAsync(tenantB, foreignPayment);
 
         var foreignInvoiceId = $"inv-{Guid.NewGuid():N}";
         var seq = Interlocked.Increment(ref _invoiceSeq);
@@ -541,7 +541,7 @@ public class DefaultPaymentApplicationServiceTests
         Assert.DoesNotContain("tenant", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
 
         // Payment + Invoice must be untouched.
-        Assert.Equal(PaymentStatus.Unapplied, (await rig.Payments.GetAsync(foreignPayment.Id))!.Status);
+        Assert.Equal(PaymentStatus.Unapplied, (await rig.Payments.GetAsync(tenantB, foreignPayment.Id))!.Status);
         Assert.Equal(100m, (await rig.Invoices.GetAsync(foreignInvoice.TenantId, new InvoiceId(foreignInvoiceId)))!.Balance);
         Assert.Empty(rig.Events.Published);
     }
@@ -570,7 +570,7 @@ public class DefaultPaymentApplicationServiceTests
                 Status = PaymentStatus.Unapplied,
                 JournalEntryId = JournalEntryId.NewId(),
             };
-        await rig.Payments.AddAsync(ownPayment);
+        await rig.Payments.AddAsync(tenantA, ownPayment);
 
         var foreignInvoiceId = $"inv-{Guid.NewGuid():N}";
         var seq = Interlocked.Increment(ref _invoiceSeq);
@@ -593,7 +593,7 @@ public class DefaultPaymentApplicationServiceTests
 
         Assert.Equal(ApplyError.UnknownTarget, result.Error);
         Assert.Empty(rig.Events.Published);
-        Assert.Empty(await rig.Applications.ListByPaymentAsync(ownPayment.Id));
+        Assert.Empty(await rig.Applications.ListByPaymentAsync(TestTenant, ownPayment.Id));
     }
 
     [Fact]
@@ -620,7 +620,7 @@ public class DefaultPaymentApplicationServiceTests
                 Status = PaymentStatus.Unapplied,
                 JournalEntryId = JournalEntryId.NewId(),
             };
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(tenantA, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         var seq = Interlocked.Increment(ref _invoiceSeq);
@@ -650,7 +650,7 @@ public class DefaultPaymentApplicationServiceTests
         Assert.Equal(UnapplyError.UnknownApplication, result.Error);
         Assert.False(result.Success);
         // Application must still exist (not deleted).
-        Assert.NotNull(await rig.Applications.GetAsync(applicationId));
+        Assert.NotNull(await rig.Applications.GetAsync(tenantA, applicationId));
     }
 
     [Fact]
