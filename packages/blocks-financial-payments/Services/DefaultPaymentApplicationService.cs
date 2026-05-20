@@ -167,9 +167,9 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         CancellationToken ct)
     {
         var invoiceId = new InvoiceId(targetId);
-        var invoice = await _invoices.GetAsync(invoiceId, ct).ConfigureAwait(false);
-        // Tenant-isolation guard mirrors the Payment-load check.
-        if (invoice is null || !invoice.TenantId.Equals(CurrentTenantId))
+        var invoice = await _invoices.GetAsync(CurrentTenantId, invoiceId, ct).ConfigureAwait(false);
+        // Tenant-isolation guard — repository enforces uniform-404 on cross-tenant.
+        if (invoice is null)
             return new ApplyResult(null, ApplyError.UnknownTarget, $"Invoice '{targetId}' not found.");
 
         if (invoice.Status.IsTerminal())
@@ -198,7 +198,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         var newAmountPaid = invoice.AmountPaid + amountApplied;
         var newBalance = invoice.Total - newAmountPaid;
         var newStatus = newBalance <= 0m ? InvoiceStatus.Paid : InvoiceStatus.PartiallyPaid;
-        await _invoices.UpsertAsync(invoice with
+        await _invoices.UpsertAsync(CurrentTenantId, invoice with
         {
             AmountPaid = newAmountPaid,
             Balance = newBalance,
@@ -349,13 +349,13 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
 
     private async Task UnapplyFromInvoiceAsync(PaymentApplication application, PartyId actor, CancellationToken ct)
     {
-        var invoice = await _invoices.GetAsync(new InvoiceId(application.TargetId), ct).ConfigureAwait(false);
+        var invoice = await _invoices.GetAsync(CurrentTenantId, new InvoiceId(application.TargetId), ct).ConfigureAwait(false);
         if (invoice is null) return;
 
         var restoredAmountPaid = Math.Max(0m, invoice.AmountPaid - application.AmountApplied);
         var restoredBalance = invoice.Total - restoredAmountPaid;
         var restoredStatus = restoredAmountPaid == 0m ? InvoiceStatus.Issued : InvoiceStatus.PartiallyPaid;
-        await _invoices.UpsertAsync(invoice with
+        await _invoices.UpsertAsync(CurrentTenantId, invoice with
         {
             AmountPaid = restoredAmountPaid,
             Balance = restoredBalance,

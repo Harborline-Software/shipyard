@@ -68,7 +68,7 @@ public class ArAgingServiceTests
     public async Task GetAgingForChart_EmptyRepo_ReturnsEmptySummary()
     {
         var repo = new InMemoryInvoiceRepository();
-        var svc = new ArAgingService(repo);
+        var svc = new ArAgingService(new StubTenantContext(Tenant()), repo);
         var summary = await svc.GetAgingForChartAsync(ChartOfAccountsId.NewId(), new DateOnly(2026, 5, 17));
         Assert.Equal(0m, summary.Total);
         Assert.Empty(summary.Rows);
@@ -80,10 +80,10 @@ public class ArAgingServiceTests
         var repo = new InMemoryInvoiceRepository();
         var chart = ChartOfAccountsId.NewId();
         var inv = NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 100m);
-        await repo.UpsertAsync(inv);
-        await repo.SoftDeleteAsync(inv.Id, PartyId.NewId(), "test");
+        await repo.UpsertAsync(Tenant(), inv);
+        await repo.SoftDeleteAsync(Tenant(), inv.Id, PartyId.NewId(), "test");
 
-        var summary = await new ArAgingService(repo).GetAgingForChartAsync(chart, new DateOnly(2026, 6, 1));
+        var summary = await new ArAgingService(new StubTenantContext(Tenant()), repo).GetAgingForChartAsync(chart, new DateOnly(2026, 6, 1));
         Assert.Equal(0m, summary.Total);
     }
 
@@ -93,11 +93,11 @@ public class ArAgingServiceTests
         var repo = new InMemoryInvoiceRepository();
         var chart = ChartOfAccountsId.NewId();
         // asOf May 31 → exactly 30 days past May 1.
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 100m));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 100m));
         // asOf May 31 → exactly 31 days past April 30.
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 30), status: InvoiceStatus.Issued, balance: 200m));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 30), status: InvoiceStatus.Issued, balance: 200m));
 
-        var summary = await new ArAgingService(repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 31));
+        var summary = await new ArAgingService(new StubTenantContext(Tenant()), repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 31));
         Assert.Equal(100m, summary.Days0To30);
         Assert.Equal(200m, summary.Days31To60);
         Assert.Equal(300m, summary.Total);
@@ -109,13 +109,13 @@ public class ArAgingServiceTests
         var repo = new InMemoryInvoiceRepository();
         var chart = ChartOfAccountsId.NewId();
         var asOf = new DateOnly(2026, 5, 17);
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: asOf.AddDays(10),  status: InvoiceStatus.Issued, balance: 100m));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: asOf.AddDays(-15), status: InvoiceStatus.Issued, balance: 200m));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: asOf.AddDays(-45), status: InvoiceStatus.PartiallyPaid, balance: 300m));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: asOf.AddDays(-75), status: InvoiceStatus.Issued, balance: 400m));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: asOf.AddDays(-120), status: InvoiceStatus.Issued, balance: 500m));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: asOf.AddDays(10),  status: InvoiceStatus.Issued, balance: 100m));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: asOf.AddDays(-15), status: InvoiceStatus.Issued, balance: 200m));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: asOf.AddDays(-45), status: InvoiceStatus.PartiallyPaid, balance: 300m));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: asOf.AddDays(-75), status: InvoiceStatus.Issued, balance: 400m));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: asOf.AddDays(-120), status: InvoiceStatus.Issued, balance: 500m));
 
-        var summary = await new ArAgingService(repo).GetAgingForChartAsync(chart, asOf);
+        var summary = await new ArAgingService(new StubTenantContext(Tenant()), repo).GetAgingForChartAsync(chart, asOf);
         Assert.Equal(100m, summary.Current);
         Assert.Equal(200m, summary.Days0To30);
         Assert.Equal(300m, summary.Days31To60);
@@ -130,10 +130,10 @@ public class ArAgingServiceTests
     {
         var repo = new InMemoryInvoiceRepository();
         var chart = ChartOfAccountsId.NewId();
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 1), status: InvoiceStatus.Paid, balance: 0m));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 1), status: InvoiceStatus.Issued, balance: 50m));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 1), status: InvoiceStatus.Paid, balance: 0m));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 1), status: InvoiceStatus.Issued, balance: 50m));
 
-        var summary = await new ArAgingService(repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 17));
+        var summary = await new ArAgingService(new StubTenantContext(Tenant()), repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 17));
         Assert.Equal(50m, summary.Total);
         Assert.Single(summary.Rows);
     }
@@ -145,10 +145,10 @@ public class ArAgingServiceTests
         var chart = ChartOfAccountsId.NewId();
         var alice = PartyId.NewId();
         var bob = PartyId.NewId();
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 100m, customer: alice));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 200m, customer: bob));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 100m, customer: alice));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 200m, customer: bob));
 
-        var aliceSummary = await new ArAgingService(repo).GetAgingForCustomerAsync(chart, alice, new DateOnly(2026, 5, 17));
+        var aliceSummary = await new ArAgingService(new StubTenantContext(Tenant()), repo).GetAgingForCustomerAsync(chart, alice, new DateOnly(2026, 5, 17));
         Assert.Equal(100m, aliceSummary.Total);
         Assert.Single(aliceSummary.Rows);
         Assert.Equal(alice, aliceSummary.Rows[0].CustomerId);
@@ -159,11 +159,11 @@ public class ArAgingServiceTests
     {
         var repo = new InMemoryInvoiceRepository();
         var chart = ChartOfAccountsId.NewId();
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 100m, property: "100-MAIN"));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 200m, property: "200-OAK"));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 50m, property: null));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 100m, property: "100-MAIN"));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 200m, property: "200-OAK"));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 5, 1), status: InvoiceStatus.Issued, balance: 50m, property: null));
 
-        var svc = new ArAgingService(repo);
+        var svc = new ArAgingService(new StubTenantContext(Tenant()), repo);
         var mainSummary = await svc.GetAgingForPropertyAsync(chart, "100-MAIN", new DateOnly(2026, 5, 17));
         Assert.Equal(100m, mainSummary.Total);
 
@@ -184,11 +184,11 @@ public class ArAgingServiceTests
         var numB = Canonical("B");
         var numA = Canonical("A");
         var numC = Canonical("C");
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 15), status: InvoiceStatus.Issued, balance: 50m, number: numB));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 15), status: InvoiceStatus.Issued, balance: 75m, number: numA));
-        await repo.UpsertAsync(NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 1),  status: InvoiceStatus.Issued, balance: 100m, number: numC));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 15), status: InvoiceStatus.Issued, balance: 50m, number: numB));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 15), status: InvoiceStatus.Issued, balance: 75m, number: numA));
+        await repo.UpsertAsync(Tenant(), NewInvoiceInChart(chart, due: new DateOnly(2026, 4, 1),  status: InvoiceStatus.Issued, balance: 100m, number: numC));
 
-        var summary = await new ArAgingService(repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 17));
+        var summary = await new ArAgingService(new StubTenantContext(Tenant()), repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 17));
         Assert.Equal(3, summary.Rows.Count);
         Assert.Equal(numC, summary.Rows[0].InvoiceNumber); // earliest due
         Assert.Equal(numA, summary.Rows[1].InvoiceNumber); // tie on due → ordinal sort puts A first

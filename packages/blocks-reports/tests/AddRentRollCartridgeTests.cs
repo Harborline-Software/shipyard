@@ -5,6 +5,8 @@ using Sunfish.Blocks.Leases.Services;
 using Sunfish.Blocks.People.Foundation.Services;
 using Sunfish.Blocks.Reports.Cartridges.RentRoll;
 using Sunfish.Blocks.Reports.DependencyInjection;
+using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 using Xunit;
 
 namespace Sunfish.Blocks.Reports.Tests;
@@ -25,6 +27,7 @@ public sealed class AddRentRollCartridgeTests
         // AspNetCore framework reference from blocks-leases in the test host.
         services.AddSingleton<ILeaseService>(new InMemoryLeaseService());
         services.AddSingleton<IInvoiceRepository>(new InMemoryInvoiceRepository());
+        services.AddSingleton<ITenantContext>(new StubTenantContext(new TenantId("tenant-di-smoke")));
         services.AddSingleton<IArAgingService, ArAgingService>();
         services.AddSingleton<IPartyReadModel>(new InMemoryPartyRepository());
 

@@ -141,7 +141,7 @@ public class DefaultPaymentApplicationServiceTests
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         var invoice = NewIssuedInvoice(invoiceId, total: 500m);
-        await rig.Invoices.UpsertAsync(invoice);
+        await rig.Invoices.UpsertAsync(TestTenant, invoice);
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, invoiceId,
@@ -156,7 +156,7 @@ public class DefaultPaymentApplicationServiceTests
         Assert.Equal(PaymentStatus.Applied, updatedPayment.Status);
 
         // Invoice fully paid.
-        var updatedInvoice = await rig.Invoices.GetAsync(new InvoiceId(invoiceId));
+        var updatedInvoice = await rig.Invoices.GetAsync(TestTenant, new InvoiceId(invoiceId));
         Assert.Equal(500m, updatedInvoice!.AmountPaid);
         Assert.Equal(0m, updatedInvoice.Balance);
         Assert.Equal(InvoiceStatus.Paid, updatedInvoice.Status);
@@ -199,7 +199,7 @@ public class DefaultPaymentApplicationServiceTests
         await rig.Payments.AddAsync(payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
-        await rig.Invoices.UpsertAsync(NewIssuedInvoice(invoiceId, total: 1000m));
+        await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 1000m));
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, invoiceId,
@@ -207,7 +207,7 @@ public class DefaultPaymentApplicationServiceTests
 
         Assert.Equal(ApplyError.None, result.Error);
 
-        var updatedInvoice = await rig.Invoices.GetAsync(new InvoiceId(invoiceId));
+        var updatedInvoice = await rig.Invoices.GetAsync(TestTenant, new InvoiceId(invoiceId));
         Assert.Equal(InvoiceStatus.PartiallyPaid, updatedInvoice!.Status);
         Assert.Equal(600m, updatedInvoice.Balance);
 
@@ -253,7 +253,7 @@ public class DefaultPaymentApplicationServiceTests
         await rig.Payments.AddAsync(payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
-        await rig.Invoices.UpsertAsync(NewIssuedInvoice(invoiceId, total: 500m));
+        await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 500m));
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, invoiceId,
@@ -302,7 +302,7 @@ public class DefaultPaymentApplicationServiceTests
         await rig.Payments.AddAsync(payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
-        await rig.Invoices.UpsertAsync(NewIssuedInvoice(invoiceId, total: 200m));
+        await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 200m));
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, invoiceId,
@@ -319,7 +319,7 @@ public class DefaultPaymentApplicationServiceTests
         await rig.Payments.AddAsync(payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
-        await rig.Invoices.UpsertAsync(NewIssuedInvoice(invoiceId, total: 200m));
+        await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 200m));
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, invoiceId,
@@ -336,7 +336,7 @@ public class DefaultPaymentApplicationServiceTests
         await rig.Payments.AddAsync(payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
-        await rig.Invoices.UpsertAsync(NewIssuedInvoice(invoiceId, total: 100m, status: InvoiceStatus.Voided));
+        await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 100m, status: InvoiceStatus.Voided));
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, invoiceId,
@@ -353,7 +353,7 @@ public class DefaultPaymentApplicationServiceTests
         await rig.Payments.AddAsync(payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
-        await rig.Invoices.UpsertAsync(NewIssuedInvoice(invoiceId, total: 100m, currency: "USD"));
+        await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 100m, currency: "USD"));
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, invoiceId,
@@ -394,7 +394,7 @@ public class DefaultPaymentApplicationServiceTests
         await rig.Payments.AddAsync(payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
-        await rig.Invoices.UpsertAsync(NewIssuedInvoice(invoiceId, total: 200m));
+        await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 200m));
 
         // Discount path.
         var withDiscount = await rig.Service.ApplyAsync(
@@ -419,7 +419,7 @@ public class DefaultPaymentApplicationServiceTests
         await rig.Payments.AddAsync(bouncedPayment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
-        await rig.Invoices.UpsertAsync(NewIssuedInvoice(invoiceId, total: 100m));
+        await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 100m));
 
         var result = await rig.Service.ApplyAsync(
             bouncedPayment.Id, AppliedTo.Invoice, invoiceId,
@@ -441,7 +441,7 @@ public class DefaultPaymentApplicationServiceTests
         await rig.Payments.AddAsync(payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
-        await rig.Invoices.UpsertAsync(NewIssuedInvoice(invoiceId, total: 500m));
+        await rig.Invoices.UpsertAsync(TestTenant, NewIssuedInvoice(invoiceId, total: 500m));
 
         var apply = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, invoiceId, 500m, 0m, 0m, TestActor);
@@ -462,7 +462,7 @@ public class DefaultPaymentApplicationServiceTests
         Assert.Equal(PaymentStatus.Unapplied, restoredPayment.Status);
 
         // Invoice restored.
-        var restoredInvoice = await rig.Invoices.GetAsync(new InvoiceId(invoiceId));
+        var restoredInvoice = await rig.Invoices.GetAsync(TestTenant, new InvoiceId(invoiceId));
         Assert.Equal(0m, restoredInvoice!.AmountPaid);
         Assert.Equal(InvoiceStatus.Issued, restoredInvoice.Status);
 
@@ -530,7 +530,7 @@ public class DefaultPaymentApplicationServiceTests
                 Status = InvoiceStatus.Issued,
                 Balance = 100m,
             };
-        await rig.Invoices.UpsertAsync(foreignInvoice);
+        await rig.Invoices.UpsertAsync(foreignInvoice.TenantId, foreignInvoice);
 
         var result = await rig.Service.ApplyAsync(
             foreignPayment.Id, AppliedTo.Invoice, foreignInvoiceId,
@@ -542,7 +542,7 @@ public class DefaultPaymentApplicationServiceTests
 
         // Payment + Invoice must be untouched.
         Assert.Equal(PaymentStatus.Unapplied, (await rig.Payments.GetAsync(foreignPayment.Id))!.Status);
-        Assert.Equal(100m, (await rig.Invoices.GetAsync(new InvoiceId(foreignInvoiceId)))!.Balance);
+        Assert.Equal(100m, (await rig.Invoices.GetAsync(foreignInvoice.TenantId, new InvoiceId(foreignInvoiceId)))!.Balance);
         Assert.Empty(rig.Events.Published);
     }
 
@@ -585,7 +585,7 @@ public class DefaultPaymentApplicationServiceTests
             arAccountId: ArControl,
             id: new InvoiceId(foreignInvoiceId))
             with { Status = InvoiceStatus.Issued, Balance = 100m };
-        await rig.Invoices.UpsertAsync(foreignInvoice);
+        await rig.Invoices.UpsertAsync(foreignInvoice.TenantId, foreignInvoice);
 
         var result = await rig.Service.ApplyAsync(
             ownPayment.Id, AppliedTo.Invoice, foreignInvoiceId,
@@ -635,7 +635,7 @@ public class DefaultPaymentApplicationServiceTests
             arAccountId: ArControl,
             id: new InvoiceId(invoiceId))
             with { Status = InvoiceStatus.Issued, Balance = 100m };
-        await rig.Invoices.UpsertAsync(ownInvoice);
+        await rig.Invoices.UpsertAsync(ownInvoice.TenantId, ownInvoice);
 
         var apply = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Invoice, invoiceId, 100m, 0m, 0m, TestActor);

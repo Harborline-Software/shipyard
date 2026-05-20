@@ -1,6 +1,8 @@
 using Sunfish.Blocks.FinancialAr.Models;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.People.Foundation.Models;
+using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.FinancialAr.Services;
 
@@ -12,11 +14,17 @@ namespace Sunfish.Blocks.FinancialAr.Services;
 public sealed class ArAgingService : IArAgingService
 {
     private readonly IInvoiceRepository _invoices;
+    private readonly ITenantContext _tenantContext;
 
-    public ArAgingService(IInvoiceRepository invoices)
+    public ArAgingService(ITenantContext tenantContext, IInvoiceRepository invoices)
     {
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _invoices = invoices ?? throw new ArgumentNullException(nameof(invoices));
     }
+
+    private TenantId CurrentTenantId =>
+        _tenantContext.Tenant?.Id
+            ?? throw new InvalidOperationException("ArAgingService requires a resolved tenant on the ambient ITenantContext.");
 
     /// <inheritdoc />
     public async Task<AgingSummary> GetAgingForChartAsync(
@@ -24,7 +32,7 @@ public sealed class ArAgingService : IArAgingService
         DateOnly asOf,
         CancellationToken cancellationToken = default)
     {
-        var invoices = await _invoices.ListByChartAsync(chartId, cancellationToken).ConfigureAwait(false);
+        var invoices = await _invoices.ListByChartAsync(CurrentTenantId, chartId, cancellationToken).ConfigureAwait(false);
         return Summarize(invoices, asOf);
     }
 
@@ -35,7 +43,7 @@ public sealed class ArAgingService : IArAgingService
         DateOnly asOf,
         CancellationToken cancellationToken = default)
     {
-        var invoices = await _invoices.ListByCustomerAsync(chartId, customerId, cancellationToken).ConfigureAwait(false);
+        var invoices = await _invoices.ListByCustomerAsync(CurrentTenantId, chartId, customerId, cancellationToken).ConfigureAwait(false);
         return Summarize(invoices, asOf);
     }
 
@@ -47,7 +55,7 @@ public sealed class ArAgingService : IArAgingService
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(propertyId)) return AgingSummary.Empty(asOf);
-        var all = await _invoices.ListByChartAsync(chartId, cancellationToken).ConfigureAwait(false);
+        var all = await _invoices.ListByChartAsync(CurrentTenantId, chartId, cancellationToken).ConfigureAwait(false);
         var scoped = all.Where(i => string.Equals(i.PropertyId, propertyId, StringComparison.Ordinal)).ToList();
         return Summarize(scoped, asOf);
     }

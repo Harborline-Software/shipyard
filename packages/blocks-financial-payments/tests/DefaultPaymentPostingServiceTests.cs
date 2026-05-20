@@ -48,6 +48,15 @@ public class DefaultPaymentPostingServiceTests
         InMemoryAccountResolver Accounts,
         FakeJournalPostingService Journals);
 
+    private sealed class StubTenantContext : ITenantContext
+    {
+        public StubTenantContext(TenantId id)
+        {
+            Tenant = new TenantMetadata { Id = id, Name = id.Value };
+        }
+        public TenantMetadata? Tenant { get; }
+    }
+
     private static TestRig CreateRig()
     {
         var payments = new InMemoryPaymentRepository();
@@ -56,7 +65,8 @@ public class DefaultPaymentPostingServiceTests
         var bills = new InMemoryBillRepository();
         var accounts = new InMemoryAccountResolver(SeedAccounts());
         var journals = new FakeJournalPostingService();
-        var service = new DefaultPaymentPostingService(payments, applications, invoices, bills, accounts, journals);
+        var ctx = new StubTenantContext(TestTenant);
+        var service = new DefaultPaymentPostingService(ctx, payments, applications, invoices, bills, accounts, journals);
         return new TestRig(service, payments, applications, invoices, bills, accounts, journals);
     }
 
@@ -260,7 +270,7 @@ public class DefaultPaymentPostingServiceTests
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         var invoice = NewIssuedInvoice(invoiceId, total: 500m, amountPaid: 500m, status: InvoiceStatus.Paid);
-        await rig.Invoices.UpsertAsync(invoice);
+        await rig.Invoices.UpsertAsync(TestTenant, invoice);
 
         var application = PaymentApplication.Create(TestTenant, payment.Id, AppliedTo.Invoice, invoiceId, amountApplied: 500m, appliedDate: new DateOnly(2026, 5, 18));
         await rig.Applications.AddAsync(application);
@@ -283,7 +293,7 @@ public class DefaultPaymentPostingServiceTests
         Assert.Null(orphan);
 
         // Invoice balance restored.
-        var restored = await rig.Invoices.GetAsync(new InvoiceId(invoiceId));
+        var restored = await rig.Invoices.GetAsync(TestTenant, new InvoiceId(invoiceId));
         Assert.NotNull(restored);
         Assert.Equal(0m, restored!.AmountPaid);
         Assert.Equal(500m, restored.Balance);

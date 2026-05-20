@@ -5,6 +5,7 @@ using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
 using Sunfish.Foundation.Events;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.FinancialAr.Services;
 
@@ -21,20 +22,27 @@ public sealed class InvoicePostingService : IInvoicePostingService
     private readonly ITaxCalculator _tax;
     private readonly IJournalPostingService _journals;
     private readonly IDomainEventPublisher _events;
+    private readonly ITenantContext _tenantContext;
 
     public InvoicePostingService(
+        ITenantContext tenantContext,
         IInvoiceRepository invoices,
         IInvoiceNumberingService numbering,
         ITaxCalculator tax,
         IJournalPostingService journals,
         IDomainEventPublisher? events = null)
     {
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _invoices = invoices ?? throw new ArgumentNullException(nameof(invoices));
         _numbering = numbering ?? throw new ArgumentNullException(nameof(numbering));
         _tax = tax ?? throw new ArgumentNullException(nameof(tax));
         _journals = journals ?? throw new ArgumentNullException(nameof(journals));
         _events = events ?? new NoopDomainEventPublisher();
     }
+
+    private TenantId CurrentTenantId =>
+        _tenantContext.Tenant?.Id
+            ?? throw new InvalidOperationException("InvoicePostingService requires a resolved tenant on the ambient ITenantContext.");
 
     // ──────────────────────────────────────────────────────────────────
     //  IssueAsync
@@ -46,7 +54,7 @@ public sealed class InvoicePostingService : IInvoicePostingService
         PartyId actor,
         CancellationToken cancellationToken = default)
     {
-        var invoice = await _invoices.GetAsync(invoiceId, cancellationToken).ConfigureAwait(false);
+        var invoice = await _invoices.GetAsync(CurrentTenantId, invoiceId, cancellationToken).ConfigureAwait(false);
         if (invoice is null)
             return new IssueResult(null, null, IssueError.UnknownInvoice, $"Invoice '{invoiceId.Value}' does not exist or is tombstoned.");
 
@@ -132,7 +140,7 @@ public sealed class InvoicePostingService : IInvoicePostingService
             UpdatedBy = actor,
             Version = invoice.Version + 1,
         };
-        await _invoices.UpsertAsync(issued, cancellationToken).ConfigureAwait(false);
+        await _invoices.UpsertAsync(CurrentTenantId, issued, cancellationToken).ConfigureAwait(false);
 
         await PublishAsync(
             AccountsReceivableEventNames.InvoiceIssued,
@@ -155,7 +163,7 @@ public sealed class InvoicePostingService : IInvoicePostingService
         PartyId actor,
         CancellationToken cancellationToken = default)
     {
-        var invoice = await _invoices.GetAsync(invoiceId, cancellationToken).ConfigureAwait(false);
+        var invoice = await _invoices.GetAsync(CurrentTenantId, invoiceId, cancellationToken).ConfigureAwait(false);
         if (invoice is null)
             return new VoidResult(null, null, VoidError.UnknownInvoice, $"Invoice '{invoiceId.Value}' does not exist or is tombstoned.");
 
@@ -207,7 +215,7 @@ public sealed class InvoicePostingService : IInvoicePostingService
             UpdatedBy = actor,
             Version = invoice.Version + 1,
         };
-        await _invoices.UpsertAsync(voided, cancellationToken).ConfigureAwait(false);
+        await _invoices.UpsertAsync(CurrentTenantId, voided, cancellationToken).ConfigureAwait(false);
 
         await PublishAsync(
             AccountsReceivableEventNames.InvoiceVoided,
@@ -234,7 +242,7 @@ public sealed class InvoicePostingService : IInvoicePostingService
         if (string.IsNullOrWhiteSpace(badDebtAccountId.Value))
             return new WriteOffResult(null, null, WriteOffError.InvalidBadDebtAccount, "Bad-debt account id is required.");
 
-        var invoice = await _invoices.GetAsync(invoiceId, cancellationToken).ConfigureAwait(false);
+        var invoice = await _invoices.GetAsync(CurrentTenantId, invoiceId, cancellationToken).ConfigureAwait(false);
         if (invoice is null)
             return new WriteOffResult(null, null, WriteOffError.UnknownInvoice, $"Invoice '{invoiceId.Value}' does not exist or is tombstoned.");
 
@@ -270,7 +278,7 @@ public sealed class InvoicePostingService : IInvoicePostingService
             UpdatedBy = actor,
             Version = invoice.Version + 1,
         };
-        await _invoices.UpsertAsync(writtenOff, cancellationToken).ConfigureAwait(false);
+        await _invoices.UpsertAsync(CurrentTenantId, writtenOff, cancellationToken).ConfigureAwait(false);
 
         await PublishAsync(
             AccountsReceivableEventNames.InvoiceWrittenOff,

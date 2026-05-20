@@ -36,7 +36,7 @@ public sealed class RentRollDeterminismTests
     {
         var leases   = new InMemoryLeaseService();
         var invoices = new InMemoryInvoiceRepository();
-        var aging    = new ArAgingService(invoices);
+        var aging    = new ArAgingService(new StubTenantContext(Tenant), invoices);
         var parties  = new InMemoryPartyRepository();
         var cart     = new RentRollCartridge(leases, aging, parties);
         return (cart, leases, invoices, parties);
