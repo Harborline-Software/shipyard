@@ -426,6 +426,15 @@ public static class ComponentRegistry
         new("TeamSwitcher", "teamswitcher", "Local-First", "local-first",
             "Slack-style multi-team sidebar from Wave 6.6. Binds to IActiveTeamAccessor, ITeamContextFactory, and INotificationAggregator (per ADR 0032 / paper §13.1) to show per-team unread badges plus a cross-team aggregate.",
             "/api/Sunfish.UIAdapters.Blazor.Components.LocalFirst.SunfishTeamSwitcher.html", OverviewOnly),
+        new("FreshnessBadge", "freshnessbadge", "Local-First", "local-first",
+            "Per-record staleness badge (paper §13.2). Auto-derives Healthy / Stale / Offline state from LastSyncedAt + an optional StalenessThreshold. Supports a Prefix parameter for the 'As of N minutes ago' financial-balances pattern.",
+            "/api/Sunfish.UIAdapters.Blazor.Components.LocalFirst.SunfishFreshnessBadge.html", OverviewOnly),
+        new("SyncStatusIndicator", "syncstatusindicator", "Local-First", "local-first",
+            "Compact clickable pill for one of the five paper §13.2 sync states (Healthy / Stale / Offline / ConflictPending / Quarantine). Fires OnStateChanged on click. ARIA role follows ADR 0036: status for informational states, alert for actionable ones.",
+            "/api/Sunfish.UIAdapters.Blazor.Components.LocalFirst.SunfishSyncStatusIndicator.html", OverviewOnly),
+        new("NodeHealthBar", "nodehealthbar", "Local-First", "local-first",
+            "Three-axis status bar (paper §13.2) composing three SyncStatusIndicator pills for Node health, Link status, and Data freshness. Each axis binds independently to its own signal source.",
+            "/api/Sunfish.UIAdapters.Blazor.Components.LocalFirst.SunfishNodeHealthBar.html", OverviewOnly),
 
         // ── Miscellaneous ───────────────────────────────────────────────
         new("DockManager", "dockmanager", "Miscellaneous", "miscellaneous",

@@ -1,0 +1,169 @@
+@page "/components/local-first/nodehealthbar"
+@page "/components/local-first/nodehealthbar/overview"
+@layout MainLayout
+@using Sunfish.UIAdapters.Blazor.Components.LocalFirst
+@using Sunfish.UIAdapters.Blazor.Components.Showcase
+@using Sunfish.Foundation.UIAdapters.LocalFirst
+
+<PageTitle>Node Health Bar · Local-First</PageTitle>
+
+<SunfishExamplePanel Title="Node Health Bar — paper §13.2 three-axis status bar"
+                     Breadcrumb="@_breadcrumb"
+                     GitHubUrl="https://github.com/Harborline-Software/shipyard/blob/main/apps/kitchen-sink/Pages/Components/LocalFirst/NodeHealthBar/Overview/Demo.razor">
+
+    <Narrative>
+        <p>
+            <code>SunfishNodeHealthBar</code> composes three <code>SunfishSyncStatusIndicator</code>
+            pills into a single status bar covering the three node health axes from paper §13.2:
+        </p>
+        <ul>
+            <li><strong>Node</strong> — local sync worker / background process health</li>
+            <li><strong>Link</strong> — transport connectivity to upstream or peer nodes</li>
+            <li><strong>Data</strong> — aggregate data-currency across all tracked records</li>
+        </ul>
+        <p>
+            Use the controls below to simulate different infrastructure scenarios. The component
+            exposes the three axes independently so the host can wire each to its own signal
+            source (health-check endpoint, WS connection state, freshness aggregator).
+        </p>
+    </Narrative>
+
+    <Example>
+        <div class="demo-nhb">
+
+            <div class="demo-nhb__scenarios">
+                <div class="demo-nhb__section-label">Preset scenarios</div>
+                <div class="demo-nhb__scenario-row">
+                    @foreach (var s in _scenarios)
+                    {
+                        var scenario = s;
+                        <button type="button"
+                                class="demo-nhb__scenario @(_nodeHealth == scenario.Node && _linkStatus == scenario.Link && _dataFreshness == scenario.Data ? "demo-nhb__scenario--active" : "")"
+                                @onclick="() => ApplyScenario(scenario)">
+                            @scenario.Name
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="demo-nhb__stage">
+                <SunfishNodeHealthBar NodeHealth="_nodeHealth"
+                                      LinkStatus="_linkStatus"
+                                      DataFreshness="_dataFreshness" />
+            </div>
+
+            <div class="demo-nhb__axes">
+                <div class="demo-nhb__section-label">Manual axis control</div>
+                <div class="demo-nhb__axis-grid">
+                    @foreach (var (label, current, setter) in AxisControls())
+                    {
+                        <div class="demo-nhb__axis">
+                            <span class="demo-nhb__axis-label">@label</span>
+                            <div class="demo-nhb__axis-states">
+                                @foreach (var state in _allStates)
+                                {
+                                    var s = state;
+                                    <button type="button"
+                                            class="demo-nhb__state-btn @(current == s ? "demo-nhb__state-btn--active" : "")"
+                                            @onclick="() => setter(s)">
+                                        @s.ToString()
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+        </div>
+    </Example>
+
+</SunfishExamplePanel>
+
+<style>
+    .demo-nhb { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .demo-nhb__section-label {
+        font-size: .78rem; font-weight: 600; color: var(--sunfish-muted, #6b7280);
+        text-transform: uppercase; letter-spacing: .04em; margin-bottom: .5rem;
+    }
+
+    .demo-nhb__scenario-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .demo-nhb__scenario {
+        padding: .35rem .75rem; border: 1px solid var(--sunfish-border, #d1d5db);
+        background: var(--sunfish-card-bg, #fff); border-radius: 999px;
+        font-size: .82rem; cursor: pointer; transition: border-color .12s, background .12s;
+    }
+    .demo-nhb__scenario:hover { border-color: var(--sunfish-accent, #2563eb); }
+    .demo-nhb__scenario--active {
+        border-color: var(--sunfish-accent, #2563eb);
+        background: color-mix(in srgb, var(--sunfish-accent, #2563eb) 12%, transparent);
+        font-weight: 600;
+    }
+
+    .demo-nhb__stage {
+        padding: 1rem 1.25rem; border: 1px solid var(--sunfish-border, #e5e7eb);
+        border-radius: .5rem; background: var(--sunfish-card-bg, #fff);
+        display: flex; align-items: center;
+    }
+
+    .demo-nhb__axis-grid { display: flex; flex-direction: column; gap: .625rem; }
+    .demo-nhb__axis { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+    .demo-nhb__axis-label { font-size: .82rem; font-weight: 600; min-width: 3.5rem; }
+    .demo-nhb__axis-states { display: flex; flex-wrap: wrap; gap: .375rem; }
+    .demo-nhb__state-btn {
+        padding: .2rem .55rem; border: 1px solid var(--sunfish-border, #d1d5db);
+        background: var(--sunfish-card-bg, #fff); border-radius: .25rem;
+        font-size: .75rem; cursor: pointer; transition: border-color .1s, background .1s;
+    }
+    .demo-nhb__state-btn:hover { border-color: var(--sunfish-accent, #2563eb); }
+    .demo-nhb__state-btn--active {
+        border-color: var(--sunfish-accent, #2563eb);
+        background: color-mix(in srgb, var(--sunfish-accent, #2563eb) 10%, transparent);
+        font-weight: 600;
+    }
+</style>
+
+@code {
+    private static readonly string[] _breadcrumb =
+        ["Components", "Local-First", "Node Health Bar", "Overview"];
+
+    private static readonly SyncState[] _allStates =
+    [
+        SyncState.Healthy,
+        SyncState.Stale,
+        SyncState.Offline,
+        SyncState.ConflictPending,
+        SyncState.Quarantine,
+    ];
+
+    private SyncState _nodeHealth = SyncState.Healthy;
+    private SyncState _linkStatus = SyncState.Healthy;
+    private SyncState _dataFreshness = SyncState.Healthy;
+
+    private record Scenario(string Name, SyncState Node, SyncState Link, SyncState Data);
+
+    private static readonly Scenario[] _scenarios =
+    [
+        new("All healthy",   SyncState.Healthy,         SyncState.Healthy,  SyncState.Healthy),
+        new("Link down",     SyncState.Healthy,         SyncState.Offline,  SyncState.Stale),
+        new("Stale data",    SyncState.Healthy,         SyncState.Healthy,  SyncState.Stale),
+        new("Conflict",      SyncState.ConflictPending, SyncState.Healthy,  SyncState.ConflictPending),
+        new("Quarantine",    SyncState.Quarantine,      SyncState.Offline,  SyncState.Offline),
+        new("All offline",   SyncState.Offline,         SyncState.Offline,  SyncState.Offline),
+    ];
+
+    private void ApplyScenario(Scenario s)
+    {
+        _nodeHealth   = s.Node;
+        _linkStatus   = s.Link;
+        _dataFreshness = s.Data;
+    }
+
+    private IEnumerable<(string Label, SyncState Current, Action<SyncState> Setter)> AxisControls() =>
+    [
+        ("Node",  _nodeHealth,    s => _nodeHealth    = s),
+        ("Link",  _linkStatus,    s => _linkStatus    = s),
+        ("Data",  _dataFreshness, s => _dataFreshness = s),
+    ];
+}

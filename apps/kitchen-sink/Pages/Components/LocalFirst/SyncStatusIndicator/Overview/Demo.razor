@@ -1,0 +1,152 @@
+@page "/components/local-first/syncstatusindicator"
+@page "/components/local-first/syncstatusindicator/overview"
+@layout MainLayout
+@using Sunfish.UIAdapters.Blazor.Components.LocalFirst
+@using Sunfish.UIAdapters.Blazor.Components.Showcase
+@using Sunfish.Foundation.UIAdapters.LocalFirst
+
+<PageTitle>Sync Status Indicator · Local-First</PageTitle>
+
+<SunfishExamplePanel Title="Sync Status Indicator — paper §13.2 status-bar pill"
+                     Breadcrumb="@_breadcrumb"
+                     GitHubUrl="https://github.com/Harborline-Software/shipyard/blob/main/apps/kitchen-sink/Pages/Components/LocalFirst/SyncStatusIndicator/Overview/Demo.razor">
+
+    <Narrative>
+        <p>
+            <code>SunfishSyncStatusIndicator</code> is a compact clickable pill that renders a
+            colored dot + optional label for one of the five paper §13.2 sync states.
+            Fires <code>OnStateChanged</code> when clicked so the consumer can surface a detail
+            view or popover — the indicator itself renders no overlay.
+        </p>
+        <p>
+            ARIA semantics follow ADR 0036: <code>Healthy / Stale / Offline</code> get
+            <code>role="status"</code> with polite <code>aria-live</code>;
+            <code>ConflictPending / Quarantine</code> get <code>role="alert"</code> with assertive
+            live to interrupt screen-reader output immediately.
+        </p>
+    </Narrative>
+
+    <Example>
+        <div class="demo-ssi">
+
+            <div class="demo-ssi__all-states">
+                <div class="demo-ssi__all-label">All states</div>
+                <div class="demo-ssi__pill-row">
+                    @foreach (var state in _allStates)
+                    {
+                        <div class="demo-ssi__pill-cell">
+                            <SunfishSyncStatusIndicator State="state"
+                                                        Label="@state.ToString()"
+                                                        OnStateChanged="OnStateChanged" />
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="demo-ssi__interactive">
+                <div class="demo-ssi__interactive-label">Interactive — click to change state</div>
+                <div class="demo-ssi__interactive-stage">
+                    <SunfishSyncStatusIndicator State="_activeState"
+                                                Label="@_activeState.ToString()"
+                                                OnStateChanged="CycleState" />
+                    <span class="demo-ssi__interactive-hint">(click cycles through states)</span>
+                </div>
+            </div>
+
+            @if (_log.Count > 0)
+            {
+                <div class="demo-ssi__log">
+                    <div class="demo-ssi__log-header">
+                        <strong>Event stream</strong>
+                        <button type="button" class="demo-ssi__log-clear" @onclick="ClearLog">clear</button>
+                    </div>
+                    <pre class="demo-ssi__log-body">@FormatLog()</pre>
+                </div>
+            }
+
+        </div>
+    </Example>
+
+</SunfishExamplePanel>
+
+<style>
+    .demo-ssi { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .demo-ssi__all-states, .demo-ssi__interactive {
+        padding: 1rem; border: 1px solid var(--sunfish-border, #e5e7eb);
+        border-radius: .5rem; background: var(--sunfish-card-bg, #fff);
+    }
+    .demo-ssi__all-label, .demo-ssi__interactive-label {
+        font-size: .8rem; font-weight: 600; color: var(--sunfish-muted, #6b7280);
+        text-transform: uppercase; letter-spacing: .04em; margin-bottom: .625rem;
+    }
+    .demo-ssi__pill-row { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+    .demo-ssi__pill-cell { display: flex; flex-direction: column; align-items: center; gap: .25rem; }
+
+    .demo-ssi__interactive-stage { display: flex; align-items: center; gap: .875rem; }
+    .demo-ssi__interactive-hint { font-size: .78rem; color: var(--sunfish-muted, #9ca3af); }
+
+    .demo-ssi__log {
+        border: 1px solid var(--sunfish-border, #e5e7eb); border-radius: .375rem;
+        background: #0f1115; color: #e6e6e6; overflow: hidden;
+    }
+    .demo-ssi__log-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: .375rem .75rem; border-bottom: 1px solid #2a2d33; font-size: .78rem;
+    }
+    .demo-ssi__log-clear {
+        background: transparent; border: 1px solid #3a3d44; color: #c0c0c0;
+        font-size: .7rem; padding: .125rem .4rem; border-radius: .2rem; cursor: pointer;
+    }
+    .demo-ssi__log-body {
+        margin: 0; padding: .5rem .75rem; max-height: 180px; overflow-y: auto;
+        font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .75rem; line-height: 1.5;
+        white-space: pre-wrap;
+    }
+</style>
+
+@code {
+    private static readonly string[] _breadcrumb =
+        ["Components", "Local-First", "Sync Status Indicator", "Overview"];
+
+    private static readonly SyncState[] _allStates =
+    [
+        SyncState.Healthy,
+        SyncState.Stale,
+        SyncState.Offline,
+        SyncState.ConflictPending,
+        SyncState.Quarantine,
+    ];
+
+    private SyncState _activeState = SyncState.Healthy;
+
+    private record LogEntry(DateTime At, SyncState State);
+    private readonly List<LogEntry> _log = new();
+
+    private void CycleState(SyncState _)
+    {
+        var idx = Array.IndexOf(_allStates, _activeState);
+        _activeState = _allStates[(idx + 1) % _allStates.Length];
+        LogEvent(_activeState);
+    }
+
+    private void OnStateChanged(SyncState state) => LogEvent(state);
+
+    private void LogEvent(SyncState state)
+    {
+        _log.Insert(0, new(DateTime.UtcNow, state));
+        if (_log.Count > 20) _log.RemoveRange(20, _log.Count - 20);
+    }
+
+    private void ClearLog() => _log.Clear();
+
+    private string FormatLog()
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var e in _log)
+        {
+            sb.AppendLine($"{e.At:HH:mm:ss.fff}  OnStateChanged → {e.State}");
+        }
+        return sb.ToString().TrimEnd();
+    }
+}

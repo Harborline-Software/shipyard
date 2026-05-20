@@ -1,0 +1,159 @@
+@page "/components/local-first/freshnessbadge"
+@page "/components/local-first/freshnessbadge/overview"
+@layout MainLayout
+@using Sunfish.UIAdapters.Blazor.Components.LocalFirst
+@using Sunfish.UIAdapters.Blazor.Components.Showcase
+@using Sunfish.Foundation.UIAdapters.LocalFirst
+
+<PageTitle>Freshness Badge · Local-First</PageTitle>
+
+<SunfishExamplePanel Title="Freshness Badge — paper §13.2 staleness indicator"
+                     Breadcrumb="@_breadcrumb"
+                     GitHubUrl="https://github.com/Harborline-Software/shipyard/blob/main/apps/kitchen-sink/Pages/Components/LocalFirst/FreshnessBadge/Overview/Demo.razor">
+
+    <Narrative>
+        <p>
+            <code>SunfishFreshnessBadge</code> renders a compact status badge that auto-derives
+            its <code>SyncState</code> from <code>LastSyncedAt</code> and an optional
+            <code>StalenessThreshold</code> (paper §13.2). Three states are possible:
+        </p>
+        <ul>
+            <li><strong>Healthy</strong> — synced within the threshold (or no threshold set)</li>
+            <li><strong>Stale</strong> — synced, but beyond the threshold</li>
+            <li><strong>Offline</strong> — <code>LastSyncedAt</code> is <c>null</c></li>
+        </ul>
+        <p>
+            Use <code>Prefix</code> to prepend text (e.g. <code>"As of "</code> per the paper's
+            financial-balances treatment). The badge sets <code>role="status"</code> and emits
+            a combined ARIA label with both the state phrase and the visible age text so
+            assistive technology users get the full context (ADR 0036).
+        </p>
+    </Narrative>
+
+    <Example>
+        <div class="demo-freshness">
+
+            <div class="demo-freshness__controls">
+                <label class="demo-freshness__label">Simulate scenario</label>
+                <div class="demo-freshness__variants">
+                    @foreach (var v in _variants)
+                    {
+                        var variant = v;
+                        <button type="button"
+                                class="demo-freshness__variant @(_selected == variant ? "demo-freshness__variant--active" : "")"
+                                @onclick="() => _selected = variant">
+                            <span class="demo-freshness__variant-name">@variant.Name</span>
+                            <span class="demo-freshness__variant-desc">@variant.Description</span>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="demo-freshness__stage">
+                <div class="demo-freshness__badge-row">
+                    <SunfishFreshnessBadge LastSyncedAt="_selected.LastSyncedAt"
+                                           StalenessThreshold="_selected.Threshold"
+                                           Prefix="_selected.Prefix"
+                                           NowProvider="() => _now" />
+                    <span class="demo-freshness__now-label">
+                        (simulated now: @_now.ToString("HH:mm:ss"))
+                    </span>
+                </div>
+
+                @if (_selected.LastSyncedAt.HasValue)
+                {
+                    <div class="demo-freshness__age-control">
+                        <label class="demo-freshness__label" for="age-slider">Age offset (minutes)</label>
+                        <input id="age-slider" type="range" min="0" max="120" step="1"
+                               value="@_ageOffsetMinutes"
+                               @oninput="OnAgeChanged" />
+                        <span class="demo-freshness__age-value">@_ageOffsetMinutes min</span>
+                    </div>
+                }
+            </div>
+
+        </div>
+    </Example>
+
+</SunfishExamplePanel>
+
+<style>
+    .demo-freshness { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .demo-freshness__label { font-weight: 600; font-size: .875rem; color: var(--sunfish-muted, #374151); }
+
+    .demo-freshness__variants { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+    .demo-freshness__variant {
+        flex: 1 1 200px; padding: .5rem .75rem; text-align: start; cursor: pointer;
+        border: 1px solid var(--sunfish-border, #d1d5db);
+        background: var(--sunfish-card-bg, #fff); border-radius: .375rem;
+        transition: border-color .12s, background .12s;
+    }
+    .demo-freshness__variant:hover { border-color: var(--sunfish-accent, #2563eb); }
+    .demo-freshness__variant--active {
+        border-color: var(--sunfish-accent, #2563eb);
+        background: color-mix(in srgb, var(--sunfish-accent, #2563eb) 8%, transparent);
+    }
+    .demo-freshness__variant-name { display: block; font-weight: 600; font-size: .875rem; }
+    .demo-freshness__variant-desc { display: block; font-size: .78rem; color: var(--sunfish-muted, #6b7280); margin-top: .1rem; }
+
+    .demo-freshness__stage {
+        padding: 1.25rem; border: 1px solid var(--sunfish-border, #e5e7eb);
+        border-radius: .5rem; background: var(--sunfish-card-bg, #fff);
+        display: flex; flex-direction: column; gap: .875rem;
+    }
+    .demo-freshness__badge-row {
+        display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+    }
+    .demo-freshness__now-label { font-size: .75rem; color: var(--sunfish-muted, #9ca3af); }
+
+    .demo-freshness__age-control { display: flex; align-items: center; gap: .75rem; }
+    .demo-freshness__age-control input[type=range] { flex: 1; max-width: 300px; }
+    .demo-freshness__age-value { font-size: .8rem; color: var(--sunfish-muted, #6b7280); min-width: 4ch; }
+</style>
+
+@code {
+    private static readonly string[] _breadcrumb =
+        ["Components", "Local-First", "Freshness Badge", "Overview"];
+
+    private record DemoVariant(
+        string Name,
+        string Description,
+        DateTimeOffset? LastSyncedAt,
+        TimeSpan? Threshold,
+        string? Prefix
+    );
+
+    private DateTimeOffset _now = DateTimeOffset.UtcNow;
+    private int _ageOffsetMinutes = 3;
+
+    private DemoVariant[] _variants = [];
+    private DemoVariant _selected = null!;
+
+    protected override void OnInitialized()
+    {
+        _variants =
+        [
+            new("Healthy (2 min ago)", "Within 5-min threshold",
+                DateTimeOffset.UtcNow.AddMinutes(-2), TimeSpan.FromMinutes(5), null),
+            new("Stale (45 min ago)", "Beyond 5-min threshold",
+                DateTimeOffset.UtcNow.AddMinutes(-45), TimeSpan.FromMinutes(5), null),
+            new("Offline", "null LastSyncedAt",
+                null, null, null),
+            new("Financial — As of prefix", "Paper §13.2 financial-balances pattern",
+                DateTimeOffset.UtcNow.AddMinutes(-2), TimeSpan.FromMinutes(5), "As of "),
+            new("No threshold", "Always healthy if synced at all",
+                DateTimeOffset.UtcNow.AddMinutes(-30), null, null),
+        ];
+        _selected = _variants[0];
+    }
+
+    private void OnAgeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var mins) && _selected.LastSyncedAt.HasValue)
+        {
+            _ageOffsetMinutes = mins;
+            _now = _selected.LastSyncedAt.Value.AddMinutes(mins);
+        }
+    }
+}
