@@ -1,0 +1,103 @@
+/*
+ * Sunfish design-token baseline for @sunfish/ui-react Storybook.
+ *
+ * Components use semantic CSS custom properties (--color-success, etc.).
+ * This file provides a representative light-mode theme so stories render
+ * correctly without depending on a host application's stylesheet.
+ */
+
+:root {
+  /* Semantic status colors */
+  --color-success: #16a34a;
+  --color-success-foreground: #ffffff;
+  --color-warning: #d97706;
+  --color-warning-foreground: #ffffff;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-status-offline: #6b7280;
+
+  /* Surface colors */
+  --color-card: #ffffff;
+  --color-card-foreground: #111827;
+  --color-muted: #f3f4f6;
+  --color-muted-foreground: #6b7280;
+  --color-border: #e5e7eb;
+  --color-background: #ffffff;
+  --color-foreground: #111827;
+
+  /* Priority */
+  --color-priority-medium: #f59e0b;
+  --color-priority-medium-fg: #92400e;
+}
+
+/* Tailwind v4 semantic class wiring — these classes reference the custom
+   properties above so component stories render with theme colors even
+   without a full Tailwind build. */
+.bg-success      { background-color: var(--color-success); }
+.text-success    { color: var(--color-success); }
+.bg-warning      { background-color: var(--color-warning); }
+.text-warning    { color: var(--color-warning); }
+.bg-destructive  { background-color: var(--color-destructive); }
+.text-destructive{ color: var(--color-destructive); }
+.bg-primary      { background-color: var(--color-primary); }
+.text-primary    { color: var(--color-primary); }
+.bg-muted        { background-color: var(--color-muted); }
+.text-muted-foreground { color: var(--color-muted-foreground); }
+.bg-card         { background-color: var(--color-card); }
+.text-card-foreground  { color: var(--color-card-foreground); }
+.border-border   { border-color: var(--color-border); }
+.bg-status-offline { background-color: var(--color-status-offline); }
+.bg-priority-medium { background-color: var(--color-priority-medium); }
+.text-priority-medium-fg { color: var(--color-priority-medium-fg); }
+
+/* Tailwind opacity-modifier shorthands used in component source */
+.bg-success\/15  { background-color: color-mix(in srgb, var(--color-success) 15%, transparent); }
+.bg-warning\/15  { background-color: color-mix(in srgb, var(--color-warning) 15%, transparent); }
+.bg-warning\/10  { background-color: color-mix(in srgb, var(--color-warning) 10%, transparent); }
+.border-warning\/20 { border-color: color-mix(in srgb, var(--color-warning) 20%, transparent); }
+.bg-primary\/90  { background-color: color-mix(in srgb, var(--color-primary) 90%, transparent); }
+
+/* Layout helpers */
+.inline-flex   { display: inline-flex; }
+.items-center  { align-items: center; }
+.gap-1         { gap: 0.25rem; }
+.gap-1\.5      { gap: 0.375rem; }
+.gap-2         { gap: 0.5rem; }
+.gap-3         { gap: 0.75rem; }
+.h-2           { height: 0.5rem; }
+.w-2           { width: 0.5rem; }
+.h-3           { height: 0.75rem; }
+.w-3           { width: 0.75rem; }
+.h-4           { height: 1rem; }
+.w-4           { width: 1rem; }
+.rounded-full  { border-radius: 9999px; }
+.rounded-md    { border-radius: 0.375rem; }
+.rounded-lg    { border-radius: 0.5rem; }
+.shrink-0      { flex-shrink: 0; }
+.min-w-0       { min-width: 0; }
+.truncate      { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-xs       { font-size: 0.75rem; line-height: 1rem; }
+.text-sm       { font-size: 0.875rem; line-height: 1.25rem; }
+.font-medium   { font-weight: 500; }
+.font-mono     { font-family: ui-monospace, monospace; }
+.flex          { display: flex; }
+.items-start   { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.mt-3          { margin-top: 0.75rem; }
+.border        { border-width: 1px; }
+.border-t      { border-top-width: 1px; }
+.pt-3          { padding-top: 0.75rem; }
+.p-4           { padding: 1rem; }
+.px-2          { padding-inline-start: 0.5rem; padding-inline-end: 0.5rem; }
+.py-0\.5       { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+.px-4          { padding-inline-start: 1rem; padding-inline-end: 1rem; }
+.py-2          { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.shadow-sm     { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+
+/* animate-pulse used by SyncStateBadge syncing state */
+@keyframes pulse {
+  50% { opacity: .5; }
+}
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }

@@ -1,3 +1,4 @@
+export { CurrencyAmount, type CurrencyAmountProps } from './components/CurrencyAmount'
 export { SyncStateBadge, type SyncStateBadgeProps, type SyncState } from './components/SyncStateBadge'
 export { OfflineIndicator, type OfflineIndicatorProps } from './components/OfflineIndicator'
 export { FreshnessBadge, type FreshnessBadgeProps } from './components/FreshnessBadge'
