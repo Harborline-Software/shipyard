@@ -106,7 +106,7 @@ final class InspectionModelsTests: XCTestCase {
     }
 
     func testEventType_allCases_count() {
-        // 6 original + 5 W#23.3 inspection sub-events = 11
-        XCTAssertEqual(EventType.allCases.count, 11)
+        // 6 original + 5 W#23.3 inspection sub-events + 1 Phase 3 (InspectionScheduled) = 12
+        XCTAssertEqual(EventType.allCases.count, 12)
     }
 }

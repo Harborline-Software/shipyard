@@ -28,4 +28,6 @@ public enum EventType: String, Codable, Sendable, CaseIterable {
     case EquipmentConditionRecorded
     /// Inspection phase transitions from InProgress to Completed.
     case InspectionCompleted
+    /// Ad hoc inspection creation; Bridge creates via IInspectionsService.ScheduleAsync.
+    case InspectionScheduled
 }
