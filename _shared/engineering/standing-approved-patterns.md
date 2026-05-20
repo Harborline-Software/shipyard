@@ -309,7 +309,7 @@ Lifted from W#23.3 P1 sec-eng amendment A2 (2026-05-19).
 
 **Status:** **Formal — promoted 2026-05-17** after cohort-1 PRs 1+2+3 shipped clean. Per `admiral-status-2026-05-17T23-30Z-pattern-009-promoted.md`.
 
-**Council requirement:** MANDATORY security-engineering SPOT-CHECK on EVERY instance. SLA: Admiral dispatches within 30 min of DRAFT PR opening (per `fleet-conventions.md` § SPOT-CHECK dispatch SLA added 2026-05-18).
+**Council requirement:** MANDATORY **security-engineering + .NET-architect dual SPOT-CHECK** on EVERY instance. SLA: Admiral dispatches within 30 min of DRAFT PR opening (per `fleet-conventions.md` § SPOT-CHECK dispatch SLA added 2026-05-18).
 
 **Revoke if:**
 - Any post-merge incident on a pattern-matched PR
@@ -320,6 +320,7 @@ Lifted from W#23.3 P1 sec-eng amendment A2 (2026-05-19).
 ## Patterns proposed but not yet ratified
 
 - **`pattern-004` (Cluster aging service)** — needs 1 more shipping to reach 3-PR ratification minimum
+- **`pattern-009-tenant-keying-retrofit` (Tenant-keying retrofit pass on pre-existing handlers)** — candidate sub-pattern under `pattern-009`. Covers PRs that retrofit the tenant cross-check sub-step (fetch entity → verify tenant → uniform 404 on mismatch) onto handlers that shipped before the sub-step was codified in the formal pattern. Introduced by ADR 0092 §A2; ratification trigger is 4 clean shippings in cohort-2 PRs 0a–0d (sec-eng + .NET-architect dual SPOT-CHECK; per W#76 hand-off). See `coordination/inbox/onr-cohort-2-stage06-handoff.md`.
 - **`pattern-010` (`apps/docs/blocks/<cluster>/toc.yml` entry)** — usually bundled with `pattern-006`; not a standalone pattern yet
 - **`pattern-011` (Cross-cluster event publisher wiring)** — was `pattern-009` candidate; renumbered after pattern-009 slot taken by Bridge endpoint + companion frontend binding. Needs 3 shippings for ratification.
 
