@@ -70,7 +70,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
     /// <inheritdoc />
     public async Task<ClearResult> ClearAsync(PaymentId id, PartyId actor, CancellationToken ct = default)
     {
-        var payment = await _payments.GetAsync(id, ct).ConfigureAwait(false);
+        var payment = await _payments.GetAsync(CurrentTenantId, id, ct).ConfigureAwait(false);
         if (payment is null)
             return new ClearResult(null, null, ClearError.UnknownPayment, $"Payment '{id.Value}' not found.");
 
@@ -119,7 +119,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
             UpdatedBy = actor,
             Version = payment.Version + 1,
         };
-        await _payments.UpdateAsync(cleared, ct).ConfigureAwait(false);
+        await _payments.UpdateAsync(CurrentTenantId, cleared, ct).ConfigureAwait(false);
 
         return new ClearResult(cleared, entry.Id, ClearError.None, null);
     }
@@ -131,7 +131,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
     /// <inheritdoc />
     public async Task<BounceResult> BounceAsync(PaymentId id, string reason, PartyId actor, CancellationToken ct = default)
     {
-        var payment = await _payments.GetAsync(id, ct).ConfigureAwait(false);
+        var payment = await _payments.GetAsync(CurrentTenantId, id, ct).ConfigureAwait(false);
         if (payment is null)
             return new BounceResult(null, null, BounceError.UnknownPayment, $"Payment '{id.Value}' not found.");
 
@@ -169,7 +169,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
         // This is the only place in the cluster where the posting service touches Invoice/Bill
         // repositories directly — intentional per the Stage 02 spec so the bounce is atomic from
         // the caller's perspective.
-        var priorApplications = await _applications.ListByPaymentAsync(payment.Id, ct).ConfigureAwait(false);
+        var priorApplications = await _applications.ListByPaymentAsync(CurrentTenantId, payment.Id, ct).ConfigureAwait(false);
         foreach (var application in priorApplications)
         {
             switch (application.AppliedTo)
@@ -182,7 +182,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
                     break;
             }
 
-            await _applications.DeleteAsync(application.Id, ct).ConfigureAwait(false);
+            await _applications.DeleteAsync(CurrentTenantId, application.Id, ct).ConfigureAwait(false);
         }
 
         var bounced = payment with
@@ -195,7 +195,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
             UpdatedBy = actor,
             Version = payment.Version + 1,
         };
-        await _payments.UpdateAsync(bounced, ct).ConfigureAwait(false);
+        await _payments.UpdateAsync(CurrentTenantId, bounced, ct).ConfigureAwait(false);
 
         return new BounceResult(bounced, reversal.Id, BounceError.None, null);
     }
@@ -207,7 +207,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
     /// <inheritdoc />
     public async Task<VoidResult> VoidAsync(PaymentId id, string reason, PartyId actor, CancellationToken ct = default)
     {
-        var payment = await _payments.GetAsync(id, ct).ConfigureAwait(false);
+        var payment = await _payments.GetAsync(CurrentTenantId, id, ct).ConfigureAwait(false);
         if (payment is null)
             return new VoidResult(null, VoidError.UnknownPayment, $"Payment '{id.Value}' not found.");
 
@@ -223,7 +223,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
             UpdatedBy = actor,
             Version = payment.Version + 1,
         };
-        await _payments.UpdateAsync(voided, ct).ConfigureAwait(false);
+        await _payments.UpdateAsync(CurrentTenantId, voided, ct).ConfigureAwait(false);
 
         return new VoidResult(voided, VoidError.None, null);
     }

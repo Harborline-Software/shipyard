@@ -151,7 +151,7 @@ public class DefaultPaymentPostingServiceTests
     {
         var rig = CreateRig();
         var payment = NewDraft(PaymentDirection.Inbound, amount: 1500m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var result = await rig.Service.ClearAsync(payment.Id, TestActor);
 
@@ -176,7 +176,7 @@ public class DefaultPaymentPostingServiceTests
     {
         var rig = CreateRig();
         var payment = NewDraft(PaymentDirection.Outbound, amount: 750m);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var result = await rig.Service.ClearAsync(payment.Id, TestActor);
 
@@ -197,7 +197,7 @@ public class DefaultPaymentPostingServiceTests
     {
         var rig = CreateRig();
         var payment = NewDraft();
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var firstClear = await rig.Service.ClearAsync(payment.Id, TestActor);
         Assert.Equal(ClearError.None, firstClear.Error);
@@ -214,7 +214,7 @@ public class DefaultPaymentPostingServiceTests
     {
         var rig = CreateRig();
         var payment = NewDraft() with { Status = PaymentStatus.Voided };
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var result = await rig.Service.ClearAsync(payment.Id, TestActor);
 
@@ -242,7 +242,7 @@ public class DefaultPaymentPostingServiceTests
         rig.Accounts.Upsert(inactiveAr);
 
         var payment = NewDraft(PaymentDirection.Inbound);
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var result = await rig.Service.ClearAsync(payment.Id, TestActor);
 
@@ -266,14 +266,14 @@ public class DefaultPaymentPostingServiceTests
             UnappliedAmount = 0m,
             JournalEntryId = JournalEntryId.NewId(),
         };
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var invoiceId = $"inv-{Guid.NewGuid():N}";
         var invoice = NewIssuedInvoice(invoiceId, total: 500m, amountPaid: 500m, status: InvoiceStatus.Paid);
         await rig.Invoices.UpsertAsync(TestTenant, invoice);
 
         var application = PaymentApplication.Create(TestTenant, payment.Id, AppliedTo.Invoice, invoiceId, amountApplied: 500m, appliedDate: new DateOnly(2026, 5, 18));
-        await rig.Applications.AddAsync(application);
+        await rig.Applications.AddAsync(TestTenant, application);
 
         var result = await rig.Service.BounceAsync(payment.Id, "NSF", TestActor);
 
@@ -289,7 +289,7 @@ public class DefaultPaymentPostingServiceTests
         Assert.Equal(BankAccount, credit.AccountId);
 
         // Application deleted.
-        var orphan = await rig.Applications.GetAsync(application.Id);
+        var orphan = await rig.Applications.GetAsync(TestTenant, application.Id);
         Assert.Null(orphan);
 
         // Invoice balance restored.
@@ -310,14 +310,14 @@ public class DefaultPaymentPostingServiceTests
             UnappliedAmount = 0m,
             JournalEntryId = JournalEntryId.NewId(),
         };
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var billId = $"bill-{Guid.NewGuid():N}";
         var bill = NewReceivedBill(billId, total: 200m, amountPaid: 200m, status: BillStatus.Paid);
         await rig.Bills.UpsertAsync(TestTenant, bill);
 
         var application = PaymentApplication.Create(TestTenant, payment.Id, AppliedTo.Bill, billId, amountApplied: 200m, appliedDate: new DateOnly(2026, 5, 18));
-        await rig.Applications.AddAsync(application);
+        await rig.Applications.AddAsync(TestTenant, application);
 
         var result = await rig.Service.BounceAsync(payment.Id, "stop payment", TestActor);
 
@@ -342,7 +342,7 @@ public class DefaultPaymentPostingServiceTests
     {
         var rig = CreateRig();
         var payment = NewDraft(); // Draft
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var result = await rig.Service.BounceAsync(payment.Id, "n/a", TestActor);
 
@@ -359,7 +359,7 @@ public class DefaultPaymentPostingServiceTests
     {
         var rig = CreateRig();
         var payment = NewDraft();
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var result = await rig.Service.VoidAsync(payment.Id, "data-entry error", TestActor);
 
@@ -373,7 +373,7 @@ public class DefaultPaymentPostingServiceTests
     {
         var rig = CreateRig();
         var payment = NewDraft() with { Status = PaymentStatus.Unapplied, JournalEntryId = JournalEntryId.NewId() };
-        await rig.Payments.AddAsync(payment);
+        await rig.Payments.AddAsync(TestTenant, payment);
 
         var result = await rig.Service.VoidAsync(payment.Id, "n/a", TestActor);
 

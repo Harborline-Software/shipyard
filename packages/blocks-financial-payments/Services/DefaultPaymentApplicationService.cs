@@ -123,7 +123,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         // target-existence is leaked — is preserved by ordering: load the
         // payment, check direction match, ONLY THEN load the target.
 
-        var payment = await _payments.GetAsync(paymentId, ct).ConfigureAwait(false);
+        var payment = await _payments.GetAsync(CurrentTenantId, paymentId, ct).ConfigureAwait(false);
         // Tenant-isolation guard: a cross-tenant id-guess must return the SAME
         // error as a non-existent id so the attacker cannot distinguish
         // "wrong tenant" from "id does not exist." The diagnostic message
@@ -192,7 +192,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
             targetId: targetId,
             amountApplied: amountApplied,
             appliedDate: DateOnly.FromDateTime(DateTime.UtcNow));
-        await _applications.AddAsync(application, ct).ConfigureAwait(false);
+        await _applications.AddAsync(CurrentTenantId, application, ct).ConfigureAwait(false);
 
         // 2. Update invoice balance + status.
         var newAmountPaid = invoice.AmountPaid + amountApplied;
@@ -211,7 +211,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         // 3. Update payment unapplied amount + status.
         var newUnapplied = payment.UnappliedAmount - amountApplied;
         var paymentStatus = DeriveAppliedStatus(payment.Amount, payment.Amount - newUnapplied);
-        await _payments.UpdateAsync(payment with
+        await _payments.UpdateAsync(CurrentTenantId, payment with
         {
             UnappliedAmount = newUnapplied,
             Status = paymentStatus,
@@ -258,7 +258,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
             targetId: targetId,
             amountApplied: amountApplied,
             appliedDate: DateOnly.FromDateTime(DateTime.UtcNow));
-        await _applications.AddAsync(application, ct).ConfigureAwait(false);
+        await _applications.AddAsync(CurrentTenantId, application, ct).ConfigureAwait(false);
 
         var newAmountPaid = bill.AmountPaid + amountApplied;
         var newBalance = bill.Total - newAmountPaid;
@@ -275,7 +275,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
 
         var newUnapplied = payment.UnappliedAmount - amountApplied;
         var paymentStatus = DeriveAppliedStatus(payment.Amount, payment.Amount - newUnapplied);
-        await _payments.UpdateAsync(payment with
+        await _payments.UpdateAsync(CurrentTenantId, payment with
         {
             UnappliedAmount = newUnapplied,
             Status = paymentStatus,
@@ -302,13 +302,13 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         // Eager-evaluate the tenant context — same rationale as ApplyAsync.
         _ = CurrentTenantId;
 
-        var application = await _applications.GetAsync(applicationId, ct).ConfigureAwait(false);
+        var application = await _applications.GetAsync(CurrentTenantId, applicationId, ct).ConfigureAwait(false);
         // Tenant-isolation guard: cross-tenant application id fails closed with
         // the same diagnostic as a non-existent id.
         if (application is null || !application.TenantId.Equals(CurrentTenantId))
             return new UnapplyResult(false, UnapplyError.UnknownApplication, $"PaymentApplication '{applicationId.Value}' not found.");
 
-        var payment = await _payments.GetAsync(application.PaymentId, ct).ConfigureAwait(false);
+        var payment = await _payments.GetAsync(CurrentTenantId, application.PaymentId, ct).ConfigureAwait(false);
         // Defensive: the application carries TenantId so this match is guaranteed,
         // but a stale-pointer scenario (PaymentApplication's PaymentId points
         // to a Payment that has been hard-deleted or its TenantId rotated)
@@ -331,7 +331,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         // Restore payment.
         var restoredUnapplied = payment.UnappliedAmount + application.AmountApplied;
         var restoredStatus = DeriveAppliedStatus(payment.Amount, payment.Amount - restoredUnapplied);
-        await _payments.UpdateAsync(payment with
+        await _payments.UpdateAsync(CurrentTenantId, payment with
         {
             UnappliedAmount = restoredUnapplied,
             Status = restoredStatus,
@@ -340,7 +340,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
             Version = payment.Version + 1,
         }, ct).ConfigureAwait(false);
 
-        await _applications.DeleteAsync(applicationId, ct).ConfigureAwait(false);
+        await _applications.DeleteAsync(CurrentTenantId, applicationId, ct).ConfigureAwait(false);
 
         await PublishUnappliedAsync(application, payment.TenantId, actor, ct).ConfigureAwait(false);
 

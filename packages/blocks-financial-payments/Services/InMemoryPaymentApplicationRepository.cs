@@ -1,5 +1,9 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Sunfish.Blocks.FinancialPayments.Models;
+using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Crypto;
+using Sunfish.Kernel.Audit;
 
 namespace Sunfish.Blocks.FinancialPayments.Services;
 
@@ -9,53 +13,127 @@ namespace Sunfish.Blocks.FinancialPayments.Services;
 ///
 /// <para>
 /// <b>Balance updates are NOT performed here.</b> This repository is a pure
-/// storage layer. <c>IPaymentApplicationService</c> (PR 3) is responsible for
+/// storage layer. <c>IPaymentApplicationService</c> is responsible for
 /// updating <see cref="Payment.UnappliedAmount"/>, Invoice/Bill balances, and
 /// status fields after adding or deleting application records.
+/// </para>
+///
+/// <para>
+/// <b>Cohort-2 PR 0c tenant-keying retrofit.</b> Every <c>Get*</c> /
+/// <c>List*</c> / <c>Delete</c> filters by the <c>tenantId</c> argument;
+/// cross-tenant access returns null / empty / false (uniform-404) and emits
+/// <c>AuditEventType.TenantBoundaryViolation</c> when audit emission is wired.
+/// <c>AddAsync</c> asserts <c>application.TenantId == tenantId</c>; mismatch
+/// throws <see cref="ArgumentException"/>.
 /// </para>
 /// </summary>
 public sealed class InMemoryPaymentApplicationRepository : IPaymentApplicationRepository
 {
     private readonly ConcurrentDictionary<PaymentApplicationId, PaymentApplication> _applications = new();
+    private readonly IAuditTrail? _auditTrail;
+    private readonly IOperationSigner? _signer;
+    private readonly TenantId _auditTenant;
+
+    /// <summary>Creates the repository without audit emission (tests, demos).</summary>
+    public InMemoryPaymentApplicationRepository()
+    {
+    }
+
+    /// <summary>
+    /// Creates the repository with audit emission wired through
+    /// <paramref name="auditTrail"/> + <paramref name="signer"/>;
+    /// <paramref name="auditTenant"/> is the tenant attribution applied to
+    /// emitted records.
+    /// </summary>
+    public InMemoryPaymentApplicationRepository(IAuditTrail auditTrail, IOperationSigner signer, TenantId auditTenant)
+    {
+        ArgumentNullException.ThrowIfNull(auditTrail);
+        ArgumentNullException.ThrowIfNull(signer);
+        if (auditTenant == default)
+        {
+            throw new ArgumentException("TenantId is required for audit emission.", nameof(auditTenant));
+        }
+        _auditTrail = auditTrail;
+        _signer = signer;
+        _auditTenant = auditTenant;
+    }
 
     /// <inheritdoc />
-    public Task AddAsync(PaymentApplication application, CancellationToken cancellationToken = default)
+    public Task AddAsync(TenantId tenantId, PaymentApplication application, CancellationToken cancellationToken = default)
     {
         if (application is null) throw new ArgumentNullException(nameof(application));
+        if (!application.TenantId.Equals(tenantId))
+        {
+            throw new ArgumentException(
+                $"PaymentApplication '{application.Id.Value}' carries TenantId '{application.TenantId.Value}' but caller passed tenantId '{tenantId.Value}'.",
+                nameof(application));
+        }
         if (!_applications.TryAdd(application.Id, application))
             throw new InvalidOperationException($"PaymentApplication '{application.Id.Value}' already exists.");
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task<PaymentApplication?> GetAsync(PaymentApplicationId id, CancellationToken cancellationToken = default)
+    public async Task<PaymentApplication?> GetAsync(TenantId tenantId, PaymentApplicationId id, CancellationToken cancellationToken = default)
     {
-        _applications.TryGetValue(id, out var app);
-        return Task.FromResult<PaymentApplication?>(app);
+        if (!_applications.TryGetValue(id, out var app)) return null;
+        if (!app.TenantId.Equals(tenantId))
+        {
+            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, cancellationToken).ConfigureAwait(false);
+            return null;
+        }
+        return app;
     }
 
     /// <inheritdoc />
-    public Task<bool> DeleteAsync(PaymentApplicationId id, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(TenantId tenantId, PaymentApplicationId id, CancellationToken cancellationToken = default)
     {
-        var removed = _applications.TryRemove(id, out _);
-        return Task.FromResult(removed);
+        if (!_applications.TryGetValue(id, out var app)) return false;
+        if (!app.TenantId.Equals(tenantId))
+        {
+            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+        return _applications.TryRemove(id, out _);
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<PaymentApplication>> ListByPaymentAsync(PaymentId paymentId, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<PaymentApplication>> ListByPaymentAsync(TenantId tenantId, PaymentId paymentId, CancellationToken cancellationToken = default)
     {
         var rows = _applications.Values
-            .Where(a => a.PaymentId == paymentId)
+            .Where(a => a.TenantId.Equals(tenantId) && a.PaymentId == paymentId)
             .ToList();
         return Task.FromResult<IReadOnlyList<PaymentApplication>>(rows);
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<PaymentApplication>> ListByTargetAsync(string targetId, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<PaymentApplication>> ListByTargetAsync(TenantId tenantId, string targetId, CancellationToken cancellationToken = default)
     {
         var rows = _applications.Values
-            .Where(a => string.Equals(a.TargetId, targetId, StringComparison.Ordinal))
+            .Where(a => a.TenantId.Equals(tenantId) && string.Equals(a.TargetId, targetId, StringComparison.Ordinal))
             .ToList();
         return Task.FromResult<IReadOnlyList<PaymentApplication>>(rows);
+    }
+
+    private async ValueTask EmitTenantBoundaryViolationAsync(string entityId, TenantId observedTenant, CancellationToken ct)
+    {
+        if (_auditTrail is null || _signer is null) return;
+
+        var payload = new AuditPayload(new Dictionary<string, object?>
+        {
+            ["entity_type"]      = "PaymentApplication",
+            ["entity_id"]        = entityId,
+            ["observed_tenant"]  = observedTenant.Value,
+        });
+        var occurredAt = DateTimeOffset.UtcNow;
+        var signed = await _signer.SignAsync(payload, occurredAt, Guid.NewGuid(), ct).ConfigureAwait(false);
+        var record = new AuditRecord(
+            AuditId: Guid.NewGuid(),
+            TenantId: _auditTenant,
+            EventType: AuditEventType.TenantBoundaryViolation,
+            OccurredAt: occurredAt,
+            Payload: signed,
+            AttestingSignatures: ImmutableArray<AttestingSignature>.Empty);
+        await _auditTrail.AppendAsync(record, ct).ConfigureAwait(false);
     }
 }

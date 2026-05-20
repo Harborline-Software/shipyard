@@ -1,4 +1,6 @@
 using Sunfish.Blocks.FinancialPayments.Models;
+using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Persistence;
 
 namespace Sunfish.Blocks.FinancialPayments.Services;
 
@@ -9,26 +11,33 @@ namespace Sunfish.Blocks.FinancialPayments.Services;
 /// <b>Important:</b> This repository stores and retrieves
 /// <see cref="PaymentApplication"/> rows only — it does NOT update
 /// <see cref="Payment.UnappliedAmount"/>, Invoice balances, or Bill balances.
-/// Balance mutation is the responsibility of <c>IPaymentApplicationService</c> (PR 3).
+/// Balance mutation is the responsibility of <c>IPaymentApplicationService</c>.
+/// </para>
+///
+/// <para>
+/// <b>Cohort-2 PR 0c tenant-keying retrofit.</b> Every method takes
+/// <see cref="TenantId"/> as the first positional parameter. Read methods
+/// filter by tenant (uniform-404). Write methods assert
+/// <c>application.TenantId == tenantId</c>.
 /// </para>
 /// </summary>
-public interface IPaymentApplicationRepository
+public interface IPaymentApplicationRepository : ITenantScopedRepository<PaymentApplication, PaymentApplicationId>
 {
     /// <summary>Insert a new application record.</summary>
-    Task AddAsync(PaymentApplication application, CancellationToken cancellationToken = default);
+    Task AddAsync(TenantId tenantId, PaymentApplication application, CancellationToken cancellationToken = default);
 
-    /// <summary>Get an application by id. Returns null when missing.</summary>
-    Task<PaymentApplication?> GetAsync(PaymentApplicationId id, CancellationToken cancellationToken = default);
+    /// <summary>Get an application by id. Returns null when missing OR cross-tenant.</summary>
+    Task<PaymentApplication?> GetAsync(TenantId tenantId, PaymentApplicationId id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Delete an application record (unapply path). Returns false when the id
-    /// is unknown (idempotent: double-delete is safe).
+    /// is unknown OR scoped to a different tenant. Idempotent.
     /// </summary>
-    Task<bool> DeleteAsync(PaymentApplicationId id, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(TenantId tenantId, PaymentApplicationId id, CancellationToken cancellationToken = default);
 
-    /// <summary>List all applications for a given payment.</summary>
-    Task<IReadOnlyList<PaymentApplication>> ListByPaymentAsync(PaymentId paymentId, CancellationToken cancellationToken = default);
+    /// <summary>List all applications for a given payment, scoped to <paramref name="tenantId"/>.</summary>
+    Task<IReadOnlyList<PaymentApplication>> ListByPaymentAsync(TenantId tenantId, PaymentId paymentId, CancellationToken cancellationToken = default);
 
-    /// <summary>List all applications targeting a given Invoice or Bill (identified by string id).</summary>
-    Task<IReadOnlyList<PaymentApplication>> ListByTargetAsync(string targetId, CancellationToken cancellationToken = default);
+    /// <summary>List all applications targeting a given Invoice or Bill (identified by string id), scoped to <paramref name="tenantId"/>.</summary>
+    Task<IReadOnlyList<PaymentApplication>> ListByTargetAsync(TenantId tenantId, string targetId, CancellationToken cancellationToken = default);
 }
