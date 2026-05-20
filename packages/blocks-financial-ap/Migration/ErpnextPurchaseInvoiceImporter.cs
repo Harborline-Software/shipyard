@@ -46,7 +46,7 @@ public sealed class ErpnextPurchaseInvoiceImporter : IErpnextPurchaseInvoiceImpo
         var externalRef = ExternalRefPrefix + source.Name;
         var modifiedMarker = ModifiedKeyPrefix + source.Modified;
 
-        var existing = await _bills.GetByExternalRefAsync(chartId, externalRef, cancellationToken)
+        var existing = await _bills.GetByExternalRefAsync(tenantId, chartId, externalRef, cancellationToken)
             .ConfigureAwait(false);
 
         if (existing is not null
@@ -127,7 +127,7 @@ public sealed class ErpnextPurchaseInvoiceImporter : IErpnextPurchaseInvoiceImpo
             Version = (existing?.Version ?? 0L) + 1L,
         };
 
-        await _bills.UpsertAsync(bill, cancellationToken).ConfigureAwait(false);
+        await _bills.UpsertAsync(tenantId, bill, cancellationToken).ConfigureAwait(false);
 
         return existing is null
             ? new ImportOutcome<Bill>(ImportOutcomeKind.Inserted, bill, $"Imported {source.Name}.")

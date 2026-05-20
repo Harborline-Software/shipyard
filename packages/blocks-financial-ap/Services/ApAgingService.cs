@@ -1,6 +1,8 @@
 using Sunfish.Blocks.FinancialAp.Models;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.People.Foundation.Models;
+using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.FinancialAp.Services;
 
@@ -12,11 +14,17 @@ namespace Sunfish.Blocks.FinancialAp.Services;
 public sealed class ApAgingService : IApAgingService
 {
     private readonly IBillRepository _bills;
+    private readonly ITenantContext _tenantContext;
 
-    public ApAgingService(IBillRepository bills)
+    public ApAgingService(ITenantContext tenantContext, IBillRepository bills)
     {
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _bills = bills ?? throw new ArgumentNullException(nameof(bills));
     }
+
+    private TenantId CurrentTenantId =>
+        _tenantContext.Tenant?.Id
+            ?? throw new InvalidOperationException("ApAgingService requires a resolved tenant on the ambient ITenantContext.");
 
     /// <inheritdoc />
     public async Task<AgingSummary> GetAgingForChartAsync(
@@ -24,7 +32,7 @@ public sealed class ApAgingService : IApAgingService
         DateOnly asOf,
         CancellationToken cancellationToken = default)
     {
-        var bills = await _bills.ListByChartAsync(chartId, cancellationToken).ConfigureAwait(false);
+        var bills = await _bills.ListByChartAsync(CurrentTenantId, chartId, cancellationToken).ConfigureAwait(false);
         return Summarize(bills, asOf);
     }
 
@@ -35,7 +43,7 @@ public sealed class ApAgingService : IApAgingService
         DateOnly asOf,
         CancellationToken cancellationToken = default)
     {
-        var bills = await _bills.ListByVendorAsync(chartId, vendorId, cancellationToken).ConfigureAwait(false);
+        var bills = await _bills.ListByVendorAsync(CurrentTenantId, chartId, vendorId, cancellationToken).ConfigureAwait(false);
         return Summarize(bills, asOf);
     }
 
@@ -47,7 +55,7 @@ public sealed class ApAgingService : IApAgingService
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(propertyId)) return AgingSummary.Empty(asOf);
-        var all = await _bills.ListByChartAsync(chartId, cancellationToken).ConfigureAwait(false);
+        var all = await _bills.ListByChartAsync(CurrentTenantId, chartId, cancellationToken).ConfigureAwait(false);
         var scoped = all.Where(b => string.Equals(b.PropertyId, propertyId, StringComparison.Ordinal)).ToList();
         return Summarize(scoped, asOf);
     }

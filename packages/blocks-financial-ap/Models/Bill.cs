@@ -1,6 +1,7 @@
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.FinancialAp.Models;
 
@@ -26,7 +27,7 @@ namespace Sunfish.Blocks.FinancialAp.Models;
 /// avoids paying the rounding/aggregation cost on every read.
 /// </para>
 /// </summary>
-public sealed record Bill
+public sealed record Bill : IMustHaveTenant
 {
     /// <summary>Stable identifier.</summary>
     public required BillId Id { get; init; }

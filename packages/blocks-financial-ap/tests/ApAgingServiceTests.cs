@@ -61,7 +61,7 @@ public class ApAgingServiceTests
     public async Task GetAgingForChart_EmptyRepo_ReturnsEmptySummary()
     {
         var repo = new InMemoryBillRepository();
-        var svc = new ApAgingService(repo);
+        var svc = new ApAgingService(new StubTenantContext(Tenant()), repo);
         var summary = await svc.GetAgingForChartAsync(ChartOfAccountsId.NewId(), new DateOnly(2026, 5, 17));
         Assert.Equal(0m, summary.Total);
         Assert.Empty(summary.Rows);
@@ -74,10 +74,10 @@ public class ApAgingServiceTests
         var chart = ChartOfAccountsId.NewId();
         var open = NewBillInChart(chart, due: new DateOnly(2026, 4, 1), status: BillStatus.Received, balance: 100m);
         var disputed = NewBillInChart(chart, due: new DateOnly(2026, 4, 1), status: BillStatus.Disputed, balance: 200m);
-        await repo.UpsertAsync(open);
-        await repo.UpsertAsync(disputed);
+        await repo.UpsertAsync(Tenant(), open);
+        await repo.UpsertAsync(Tenant(), disputed);
 
-        var summary = await new ApAgingService(repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 17));
+        var summary = await new ApAgingService(new StubTenantContext(Tenant()), repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 17));
         Assert.Equal(100m, summary.Total);
         Assert.Single(summary.Rows);
         Assert.Equal(open.Id, summary.Rows[0].BillId);
@@ -88,10 +88,10 @@ public class ApAgingServiceTests
     {
         var repo = new InMemoryBillRepository();
         var chart = ChartOfAccountsId.NewId();
-        await repo.UpsertAsync(NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 100m));
-        await repo.UpsertAsync(NewBillInChart(chart, due: new DateOnly(2026, 4, 30), status: BillStatus.Received, balance: 200m));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 100m));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: new DateOnly(2026, 4, 30), status: BillStatus.Received, balance: 200m));
 
-        var summary = await new ApAgingService(repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 31));
+        var summary = await new ApAgingService(new StubTenantContext(Tenant()), repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 31));
         Assert.Equal(100m, summary.Days0To30);
         Assert.Equal(200m, summary.Days31To60);
         Assert.Equal(300m, summary.Total);
@@ -103,13 +103,13 @@ public class ApAgingServiceTests
         var repo = new InMemoryBillRepository();
         var chart = ChartOfAccountsId.NewId();
         var asOf = new DateOnly(2026, 5, 17);
-        await repo.UpsertAsync(NewBillInChart(chart, due: asOf.AddDays(10),  status: BillStatus.Received, balance: 100m));
-        await repo.UpsertAsync(NewBillInChart(chart, due: asOf.AddDays(-15), status: BillStatus.Received, balance: 200m));
-        await repo.UpsertAsync(NewBillInChart(chart, due: asOf.AddDays(-45), status: BillStatus.Approved, balance: 300m));
-        await repo.UpsertAsync(NewBillInChart(chart, due: asOf.AddDays(-75), status: BillStatus.PartiallyPaid, balance: 400m));
-        await repo.UpsertAsync(NewBillInChart(chart, due: asOf.AddDays(-120), status: BillStatus.Received, balance: 500m));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: asOf.AddDays(10),  status: BillStatus.Received, balance: 100m));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: asOf.AddDays(-15), status: BillStatus.Received, balance: 200m));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: asOf.AddDays(-45), status: BillStatus.Approved, balance: 300m));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: asOf.AddDays(-75), status: BillStatus.PartiallyPaid, balance: 400m));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: asOf.AddDays(-120), status: BillStatus.Received, balance: 500m));
 
-        var summary = await new ApAgingService(repo).GetAgingForChartAsync(chart, asOf);
+        var summary = await new ApAgingService(new StubTenantContext(Tenant()), repo).GetAgingForChartAsync(chart, asOf);
         Assert.Equal(100m, summary.Current);
         Assert.Equal(200m, summary.Days0To30);
         Assert.Equal(300m, summary.Days31To60);
@@ -126,10 +126,10 @@ public class ApAgingServiceTests
         var chart = ChartOfAccountsId.NewId();
         var acme = PartyId.NewId();
         var beta = PartyId.NewId();
-        await repo.UpsertAsync(NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 100m, vendor: acme));
-        await repo.UpsertAsync(NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 200m, vendor: beta));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 100m, vendor: acme));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 200m, vendor: beta));
 
-        var acmeSummary = await new ApAgingService(repo).GetAgingForVendorAsync(chart, acme, new DateOnly(2026, 5, 17));
+        var acmeSummary = await new ApAgingService(new StubTenantContext(Tenant()), repo).GetAgingForVendorAsync(chart, acme, new DateOnly(2026, 5, 17));
         Assert.Equal(100m, acmeSummary.Total);
         Assert.Single(acmeSummary.Rows);
         Assert.Equal(acme, acmeSummary.Rows[0].VendorId);
@@ -140,10 +140,10 @@ public class ApAgingServiceTests
     {
         var repo = new InMemoryBillRepository();
         var chart = ChartOfAccountsId.NewId();
-        await repo.UpsertAsync(NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 100m, property: "100-MAIN"));
-        await repo.UpsertAsync(NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 200m, property: "200-OAK"));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 100m, property: "100-MAIN"));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: new DateOnly(2026, 5, 1), status: BillStatus.Received, balance: 200m, property: "200-OAK"));
 
-        var svc = new ApAgingService(repo);
+        var svc = new ApAgingService(new StubTenantContext(Tenant()), repo);
         var mainSummary = await svc.GetAgingForPropertyAsync(chart, "100-MAIN", new DateOnly(2026, 5, 17));
         Assert.Equal(100m, mainSummary.Total);
 
@@ -159,11 +159,11 @@ public class ApAgingServiceTests
     {
         var repo = new InMemoryBillRepository();
         var chart = ChartOfAccountsId.NewId();
-        await repo.UpsertAsync(NewBillInChart(chart, due: new DateOnly(2026, 4, 15), status: BillStatus.Received, balance: 50m, number: "B-VENDOR"));
-        await repo.UpsertAsync(NewBillInChart(chart, due: new DateOnly(2026, 4, 15), status: BillStatus.Received, balance: 75m, number: "A-VENDOR"));
-        await repo.UpsertAsync(NewBillInChart(chart, due: new DateOnly(2026, 4, 1),  status: BillStatus.Received, balance: 100m, number: "C-VENDOR"));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: new DateOnly(2026, 4, 15), status: BillStatus.Received, balance: 50m, number: "B-VENDOR"));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: new DateOnly(2026, 4, 15), status: BillStatus.Received, balance: 75m, number: "A-VENDOR"));
+        await repo.UpsertAsync(Tenant(), NewBillInChart(chart, due: new DateOnly(2026, 4, 1),  status: BillStatus.Received, balance: 100m, number: "C-VENDOR"));
 
-        var summary = await new ApAgingService(repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 17));
+        var summary = await new ApAgingService(new StubTenantContext(Tenant()), repo).GetAgingForChartAsync(chart, new DateOnly(2026, 5, 17));
         Assert.Equal(3, summary.Rows.Count);
         Assert.Equal("C-VENDOR", summary.Rows[0].BillNumber); // earliest due
         Assert.Equal("A-VENDOR", summary.Rows[1].BillNumber); // tie → ordinal sort

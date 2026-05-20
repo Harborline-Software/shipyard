@@ -7,6 +7,7 @@ using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Blocks.FinancialPayments.Models;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.FinancialPayments.Services;
 
@@ -38,8 +39,10 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
     private readonly IBillRepository _bills;
     private readonly IAccountResolver _accountResolver;
     private readonly IJournalPostingService _journals;
+    private readonly ITenantContext _tenantContext;
 
     public DefaultPaymentPostingService(
+        ITenantContext tenantContext,
         IPaymentRepository payments,
         IPaymentApplicationRepository applications,
         IInvoiceRepository invoices,
@@ -47,6 +50,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
         IAccountResolver accountResolver,
         IJournalPostingService journals)
     {
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _payments = payments ?? throw new ArgumentNullException(nameof(payments));
         _applications = applications ?? throw new ArgumentNullException(nameof(applications));
         _invoices = invoices ?? throw new ArgumentNullException(nameof(invoices));
@@ -54,6 +58,10 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
         _accountResolver = accountResolver ?? throw new ArgumentNullException(nameof(accountResolver));
         _journals = journals ?? throw new ArgumentNullException(nameof(journals));
     }
+
+    private TenantId CurrentTenantId =>
+        _tenantContext.Tenant?.Id
+            ?? throw new InvalidOperationException("DefaultPaymentPostingService requires a resolved tenant on the ambient ITenantContext.");
 
     // ──────────────────────────────────────────────────────────────────
     //  ClearAsync
@@ -313,7 +321,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
 
     private async Task RestoreBillBalanceAsync(PaymentApplication application, PartyId actor, CancellationToken ct)
     {
-        var bill = await _bills.GetAsync(new BillId(application.TargetId), ct).ConfigureAwait(false);
+        var bill = await _bills.GetAsync(CurrentTenantId, new BillId(application.TargetId), ct).ConfigureAwait(false);
         if (bill is null) return;
 
         var restoredAmountPaid = Math.Max(0m, bill.AmountPaid - application.AmountApplied);
@@ -329,7 +337,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
             UpdatedBy = actor,
             Version = bill.Version + 1,
         };
-        await _bills.UpsertAsync(updated, ct).ConfigureAwait(false);
+        await _bills.UpsertAsync(CurrentTenantId, updated, ct).ConfigureAwait(false);
     }
 
     // ──────────────────────────────────────────────────────────────────
