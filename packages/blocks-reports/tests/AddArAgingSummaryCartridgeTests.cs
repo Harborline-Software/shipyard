@@ -3,6 +3,8 @@ using Sunfish.Blocks.FinancialAr.Services;
 using Sunfish.Blocks.People.Foundation.Services;
 using Sunfish.Blocks.Reports.Cartridges.ArAgingSummary;
 using Sunfish.Blocks.Reports.DependencyInjection;
+using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 using Xunit;
 
 namespace Sunfish.Blocks.Reports.Tests;
@@ -25,6 +27,7 @@ public sealed class AddArAgingSummaryCartridgeTests
         // convenience extension needed for test purposes; the cartridge
         // only depends on the IArAgingService + IPartyReadModel interfaces.
         services.AddSingleton<IInvoiceRepository>(new InMemoryInvoiceRepository());
+        services.AddSingleton<ITenantContext>(new StubTenantContext(new TenantId("tenant-di-smoke")));
         services.AddSingleton<IArAgingService, ArAgingService>();
         services.AddSingleton<IPartyReadModel>(new InMemoryPartyRepository());
 

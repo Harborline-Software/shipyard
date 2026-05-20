@@ -19,5 +19,7 @@
     <ProjectReference Include="..\..\blocks-people-foundation\Sunfish.Blocks.People.Foundation.csproj" />
     <!-- W#72 PR 6 — direct refs for test-stub instantiation (InMemoryLeaseService). -->
     <ProjectReference Include="..\..\blocks-leases\Sunfish.Blocks.Leases.csproj" />
+    <!-- Cohort-2 PR 0a — StubTenantContext requires foundation-multitenancy. -->
+    <ProjectReference Include="..\..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
   </ItemGroup>
 </Project>

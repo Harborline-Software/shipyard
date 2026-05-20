@@ -1,6 +1,7 @@
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.FinancialAr.Models;
 
@@ -28,7 +29,7 @@ namespace Sunfish.Blocks.FinancialAr.Models;
 /// view of the numbers.
 /// </para>
 /// </summary>
-public sealed record Invoice
+public sealed record Invoice : IMustHaveTenant
 {
     /// <summary>Stable identifier.</summary>
     public required InvoiceId Id { get; init; }

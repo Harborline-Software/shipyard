@@ -67,7 +67,7 @@ public sealed class RentRollCartridgeTests
     {
         var leases   = new InMemoryLeaseService();
         var invoices = new InMemoryInvoiceRepository();
-        var aging    = new ArAgingService(invoices);
+        var aging    = new ArAgingService(new StubTenantContext(Tenant), invoices);
         var parties  = new InMemoryPartyRepository();
         var cart     = new RentRollCartridge(leases, aging, parties);
         return (cart, leases, invoices, parties);
@@ -416,7 +416,7 @@ public sealed class RentRollCartridgeTests
 
         // Invoice 40 days overdue → Days0To30 bucket is past; 40 days → Days31To60.
         var dueDate = Today.AddDays(-40);
-        await invoices.UpsertAsync(MakeIssuedInvoice(tenant, dueDate, 1200m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(tenant, dueDate, 1200m));
 
         var result = await sut.ExecuteAsync(Context(), DefaultParams());
 

@@ -6,9 +6,19 @@ using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
 using Sunfish.Foundation.Events;
+using Sunfish.Foundation.MultiTenancy;
 using Xunit;
 
 namespace Sunfish.Blocks.FinancialAr.Tests;
+
+internal sealed class StubTenantContext : ITenantContext
+{
+    public StubTenantContext(TenantId tenantId)
+    {
+        Tenant = new TenantMetadata { Id = tenantId, Name = tenantId.Value };
+    }
+    public TenantMetadata? Tenant { get; }
+}
 
 public class InvoicePostingServiceTests
 {
@@ -64,7 +74,8 @@ public class InvoicePostingServiceTests
         var journals = new FakeJournalPostingService();
         var events = new RecordingPublisher();
         var tax = new FixedTaxCalculator(taxRate);
-        var svc = new InvoicePostingService(repo, numbering, tax, journals, events);
+        var tenantContext = new StubTenantContext(Tenant());
+        var svc = new InvoicePostingService(tenantContext, repo, numbering, tax, journals, events);
         return new Sut(svc, repo, journals, events);
     }
 
@@ -89,7 +100,7 @@ public class InvoicePostingServiceTests
             lines: lines,
             arAccountId: GLAccountId.NewId(),
             id: invId);
-        await repo.UpsertAsync(inv);
+        await repo.UpsertAsync(Tenant(), inv);
         return inv;
     }
 
@@ -164,7 +175,7 @@ public class InvoicePostingServiceTests
             customerId: PartyId.NewId(), issueDate: new DateOnly(2026, 5, 17),
             dueDate: new DateOnly(2026, 6, 17), lines: Array.Empty<InvoiceLine>(),
             arAccountId: GLAccountId.NewId());
-        await sut.Repo.UpsertAsync(inv);
+        await sut.Repo.UpsertAsync(Tenant(), inv);
 
         var result = await sut.Service.IssueAsync(inv.Id, Actor());
         Assert.Equal(IssueError.NoLines, result.Error);
@@ -183,7 +194,7 @@ public class InvoicePostingServiceTests
             lines: new[] { InvoiceLine.Create(InvoiceId.NewId(), 1, "x", 1m, 100m, GLAccountId.NewId()) },
             arAccountId: GLAccountId.NewId());
         var voided = inv with { Status = InvoiceStatus.Voided };
-        await sut.Repo.UpsertAsync(voided);
+        await sut.Repo.UpsertAsync(Tenant(), voided);
 
         var result = await sut.Service.IssueAsync(voided.Id, Actor());
         Assert.Equal(IssueError.InvalidStatusForIssue, result.Error);
@@ -219,7 +230,7 @@ public class InvoicePostingServiceTests
         Assert.Equal("test-induced imbalance", result.Detail);
 
         // Invoice should remain Draft.
-        var refetched = await sut.Repo.GetAsync(draft.Id);
+        var refetched = await sut.Repo.GetAsync(Tenant(), draft.Id);
         Assert.Equal(InvoiceStatus.Draft, refetched!.Status);
         Assert.Null(refetched.JournalEntryId);
     }

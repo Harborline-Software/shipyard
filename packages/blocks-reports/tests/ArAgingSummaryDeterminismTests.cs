@@ -35,7 +35,7 @@ public sealed class ArAgingSummaryDeterminismTests
         Build()
     {
         var invoices = new InMemoryInvoiceRepository();
-        var aging = new ArAgingService(invoices);
+        var aging = new ArAgingService(new StubTenantContext(Tenant), invoices);
         var parties = new InMemoryPartyRepository();
         var cartridge = new ArAgingSummaryCartridge(aging, parties);
         return (cartridge, invoices);
@@ -88,8 +88,8 @@ public sealed class ArAgingSummaryDeterminismTests
         var (sut, invoices) = Build();
         var c1 = PartyId.NewId();
         var c2 = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(c1, AsOf.AddDays(5), 100m));
-        await invoices.UpsertAsync(MakeIssuedInvoice(c2, AsOf.AddDays(-100), 400m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(c1, AsOf.AddDays(5), 100m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(c2, AsOf.AddDays(-100), 400m));
 
         var ctx = Context();
         var p = Parameters();
@@ -103,7 +103,7 @@ public sealed class ArAgingSummaryDeterminismTests
     {
         var (sut, invoices) = Build();
         var customer = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, AsOf.AddDays(-35), 200m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, AsOf.AddDays(-35), 200m));
 
         var p = Parameters();
         var ctx = Context();

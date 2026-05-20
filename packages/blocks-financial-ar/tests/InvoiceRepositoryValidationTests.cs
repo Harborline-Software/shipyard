@@ -28,8 +28,8 @@ public class InvoiceRepositoryValidationTests
     {
         var repo = new InMemoryInvoiceRepository();
         var draft = NewInvoice(number: "", InvoiceStatus.Draft);
-        await repo.UpsertAsync(draft); // does not throw
-        var fetched = await repo.GetAsync(draft.Id);
+        await repo.UpsertAsync(Tenant(), draft); // does not throw
+        var fetched = await repo.GetAsync(Tenant(), draft.Id);
         Assert.NotNull(fetched);
     }
 
@@ -42,7 +42,7 @@ public class InvoiceRepositoryValidationTests
     {
         var repo = new InMemoryInvoiceRepository();
         var issued = NewInvoice(badNumber, InvoiceStatus.Issued);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => repo.UpsertAsync(issued));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repo.UpsertAsync(Tenant(), issued));
     }
 
     [Theory]
@@ -55,8 +55,8 @@ public class InvoiceRepositoryValidationTests
     {
         var repo = new InMemoryInvoiceRepository();
         var inv = NewInvoice("INV-2026-05-17-CW-0001", status);
-        await repo.UpsertAsync(inv);
-        var fetched = await repo.GetAsync(inv.Id);
+        await repo.UpsertAsync(Tenant(), inv);
+        var fetched = await repo.GetAsync(Tenant(), inv.Id);
         Assert.NotNull(fetched);
     }
 }

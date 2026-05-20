@@ -53,7 +53,7 @@ public sealed class ErpnextSalesInvoiceImporter : IErpnextSalesInvoiceImporter
         var externalRef = ExternalRefPrefix + source.Name;
         var modifiedMarker = ModifiedKeyPrefix + source.Modified;
 
-        var existing = await FindExistingByExternalRefAsync(chartId, externalRef, cancellationToken)
+        var existing = await FindExistingByExternalRefAsync(tenantId, chartId, externalRef, cancellationToken)
             .ConfigureAwait(false);
 
         if (existing is not null
@@ -150,7 +150,7 @@ public sealed class ErpnextSalesInvoiceImporter : IErpnextSalesInvoiceImporter
             Version = (existing?.Version ?? 0L) + 1L,
         };
 
-        await _invoices.UpsertAsync(inv, cancellationToken).ConfigureAwait(false);
+        await _invoices.UpsertAsync(tenantId, inv, cancellationToken).ConfigureAwait(false);
 
         return existing is null
             ? new ImportOutcome<Invoice>(ImportOutcomeKind.Inserted, inv, $"Imported {source.Name}.")
@@ -158,11 +158,12 @@ public sealed class ErpnextSalesInvoiceImporter : IErpnextSalesInvoiceImporter
     }
 
     private async Task<Invoice?> FindExistingByExternalRefAsync(
+        TenantId tenantId,
         ChartOfAccountsId chartId,
         string externalRef,
         CancellationToken cancellationToken)
     {
-        var all = await _invoices.ListByChartAsync(chartId, cancellationToken).ConfigureAwait(false);
+        var all = await _invoices.ListByChartAsync(tenantId, chartId, cancellationToken).ConfigureAwait(false);
         return all.FirstOrDefault(i =>
             string.Equals(i.ExternalRef, externalRef, StringComparison.Ordinal));
     }

@@ -50,7 +50,7 @@ public sealed class ArAgingSummaryCartridgeTests
         Build()
     {
         var invoices = new InMemoryInvoiceRepository();
-        var aging = new ArAgingService(invoices);
+        var aging = new ArAgingService(new StubTenantContext(Tenant), invoices);
         var parties = new InMemoryPartyRepository();
         var cartridge = new ArAgingSummaryCartridge(aging, parties);
         return (cartridge, invoices, parties);
@@ -129,7 +129,7 @@ public sealed class ArAgingSummaryCartridgeTests
         var customer = PartyId.NewId();
         // Due tomorrow — still current.
         var inv = MakeIssuedInvoice(customer, Today.AddDays(1), 100m);
-        await invoices.UpsertAsync(inv);
+        await invoices.UpsertAsync(Tenant, inv);
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart });
@@ -148,7 +148,7 @@ public sealed class ArAgingSummaryCartridgeTests
 
         // 100 days past due.
         var inv = MakeIssuedInvoice(customerId, Today.AddDays(-100), 500m);
-        await invoices.UpsertAsync(inv);
+        await invoices.UpsertAsync(Tenant, inv);
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart, TopDelinquentN = 5 });
@@ -168,9 +168,9 @@ public sealed class ArAgingSummaryCartridgeTests
     {
         var (sut, invoices, _) = Build();
         var customer = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(5), 100m));
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(10), 200m));
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(-10), 50m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(5), 100m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(10), 200m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(-10), 50m));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart });
@@ -191,8 +191,8 @@ public sealed class ArAgingSummaryCartridgeTests
         var (sut, invoices, _) = Build();
         var c1 = PartyId.NewId();
         var c2 = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(c1, Today.AddDays(5), 100m, "prop-A"));
-        await invoices.UpsertAsync(MakeIssuedInvoice(c2, Today.AddDays(5), 200m, "prop-A"));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(c1, Today.AddDays(5), 100m, "prop-A"));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(c2, Today.AddDays(5), 200m, "prop-A"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart });
@@ -206,7 +206,7 @@ public sealed class ArAgingSummaryCartridgeTests
     {
         var (sut, invoices, _) = Build();
         var customer = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(5), 75m, propertyId: null));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(5), 75m, propertyId: null));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart });
@@ -220,8 +220,8 @@ public sealed class ArAgingSummaryCartridgeTests
     {
         var (sut, invoices, _) = Build();
         var customer = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(5), 50m, "prop-Z"));
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(5), 50m, propertyId: null));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(5), 50m, "prop-Z"));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(5), 50m, propertyId: null));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart });
@@ -239,8 +239,8 @@ public sealed class ArAgingSummaryCartridgeTests
         var (sut, invoices, _) = Build();
         var included = PartyId.NewId();
         var excluded = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(included, Today.AddDays(5), 100m));
-        await invoices.UpsertAsync(MakeIssuedInvoice(excluded, Today.AddDays(5), 200m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(included, Today.AddDays(5), 100m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(excluded, Today.AddDays(5), 200m));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters
@@ -259,8 +259,8 @@ public sealed class ArAgingSummaryCartridgeTests
     {
         var (sut, invoices, _) = Build();
         var customer = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(5), 100m, "prop-A"));
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(5), 200m, "prop-B"));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(5), 100m, "prop-A"));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(5), 200m, "prop-B"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters
@@ -281,8 +281,8 @@ public sealed class ArAgingSummaryCartridgeTests
     {
         var (sut, invoices, _) = Build();
         var customer = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(5), 100m, "prop-A"));
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(5), 50m, propertyId: null));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(5), 100m, "prop-A"));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(5), 50m, propertyId: null));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters
@@ -327,8 +327,8 @@ public sealed class ArAgingSummaryCartridgeTests
         var (sut, invoices, _) = Build();
         var small = PartyId.NewId();
         var large = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(small, Today.AddDays(-100), 100m));
-        await invoices.UpsertAsync(MakeIssuedInvoice(large, Today.AddDays(-100), 500m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(small, Today.AddDays(-100), 100m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(large, Today.AddDays(-100), 500m));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart, TopDelinquentN = 10 });
@@ -345,7 +345,7 @@ public sealed class ArAgingSummaryCartridgeTests
         for (var i = 0; i < 5; i++)
         {
             var c = PartyId.NewId();
-            await invoices.UpsertAsync(MakeIssuedInvoice(c, Today.AddDays(-100), 100m));
+            await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(c, Today.AddDays(-100), 100m));
         }
 
         var result = await sut.ExecuteAsync(Context(),
@@ -359,7 +359,7 @@ public sealed class ArAgingSummaryCartridgeTests
     {
         var (sut, invoices, _) = Build();
         var c = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(c, Today.AddDays(-100), 100m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(c, Today.AddDays(-100), 100m));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart, TopDelinquentN = 0 });
@@ -377,9 +377,9 @@ public sealed class ArAgingSummaryCartridgeTests
         var (sut, invoices, _) = Build();
         var c1 = PartyId.NewId();
         var c2 = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(c1, Today.AddDays(5), 100m));
-        await invoices.UpsertAsync(MakeIssuedInvoice(c1, Today.AddDays(-10), 50m));
-        await invoices.UpsertAsync(MakeIssuedInvoice(c2, Today.AddDays(-50), 200m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(c1, Today.AddDays(5), 100m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(c1, Today.AddDays(-10), 50m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(c2, Today.AddDays(-50), 200m));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart });
@@ -393,9 +393,9 @@ public sealed class ArAgingSummaryCartridgeTests
     {
         var (sut, invoices, _) = Build();
         var customer = PartyId.NewId();
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(5), 100m, "prop-A"));
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(-10), 50m, "prop-B"));
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, Today.AddDays(-50), 200m, propertyId: null));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(5), 100m, "prop-A"));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(-10), 50m, "prop-B"));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, Today.AddDays(-50), 200m, propertyId: null));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart });
@@ -413,7 +413,7 @@ public sealed class ArAgingSummaryCartridgeTests
     {
         var (sut, invoices, parties) = Build();
         var customerId = await SeedPartyAsync(parties, "Jane Tenant");
-        await invoices.UpsertAsync(MakeIssuedInvoice(customerId, Today.AddDays(5), 100m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customerId, Today.AddDays(5), 100m));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart });
@@ -427,7 +427,7 @@ public sealed class ArAgingSummaryCartridgeTests
         var (sut, invoices, _) = Build();
         var customerId = PartyId.NewId();
         // Do NOT seed a Party record — resolution should degrade gracefully.
-        await invoices.UpsertAsync(MakeIssuedInvoice(customerId, Today.AddDays(5), 100m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customerId, Today.AddDays(5), 100m));
 
         var result = await sut.ExecuteAsync(Context(),
             new ArAgingSummaryParameters { ChartId = Chart });
@@ -447,7 +447,7 @@ public sealed class ArAgingSummaryCartridgeTests
         // Due 40 days before the explicit as-of — should appear in Days31To60.
         var explicitAsOf = new DateOnly(2026, 6, 1);
         var dueDate = explicitAsOf.AddDays(-40);
-        await invoices.UpsertAsync(MakeIssuedInvoice(customer, dueDate, 300m));
+        await invoices.UpsertAsync(Tenant, MakeIssuedInvoice(customer, dueDate, 300m));
 
         var result = await sut.ExecuteAsync(Context(explicitAsOf),
             new ArAgingSummaryParameters { ChartId = Chart, AsOfDate = explicitAsOf });
