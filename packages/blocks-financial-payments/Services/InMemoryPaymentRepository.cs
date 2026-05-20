@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialPayments.Models;
 using Sunfish.Blocks.People.Foundation.Models;
@@ -79,7 +80,7 @@ public sealed class InMemoryPaymentRepository : IPaymentRepository
         if (!_payments.TryGetValue(id, out var payment)) return null;
         if (!payment.TenantId.Equals(tenantId))
         {
-            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, cancellationToken).ConfigureAwait(false);
+            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, payment.TenantId, cancellationToken).ConfigureAwait(false);
             return null;
         }
         return payment;
@@ -99,7 +100,7 @@ public sealed class InMemoryPaymentRepository : IPaymentRepository
             throw new InvalidOperationException($"Payment '{payment.Id.Value}' not found; cannot update.");
         if (!existing.TenantId.Equals(tenantId))
         {
-            await EmitTenantBoundaryViolationAsync(payment.Id.Value, tenantId, cancellationToken).ConfigureAwait(false);
+            await EmitTenantBoundaryViolationAsync(payment.Id.Value, tenantId, existing.TenantId, cancellationToken).ConfigureAwait(false);
             throw new ArgumentException(
                 $"Payment id '{payment.Id.Value}' already exists under a different tenant.",
                 nameof(payment));
@@ -127,15 +128,26 @@ public sealed class InMemoryPaymentRepository : IPaymentRepository
         return Task.FromResult<IReadOnlyList<Payment>>(rows);
     }
 
-    private async ValueTask EmitTenantBoundaryViolationAsync(string entityId, TenantId observedTenant, CancellationToken ct)
+    // ── Audit emission (ADR 0092 §A6 canonical payload shape — sec-eng SPOT-CHECK GREEN template) ──
+    //
+    // Mirror of cohort 2 PR 0a InMemoryInvoiceRepository payload shape:
+    //   entity_type, entity_id, requested_tenant, actual_tenant, correlation_id
+    private async ValueTask EmitTenantBoundaryViolationAsync(
+        string entityId,
+        TenantId requestedTenant,
+        TenantId actualTenant,
+        CancellationToken ct)
     {
         if (_auditTrail is null || _signer is null) return;
 
+        var correlationId = Activity.Current?.Id ?? Guid.NewGuid().ToString("N");
         var payload = new AuditPayload(new Dictionary<string, object?>
         {
-            ["entity_type"]      = "Payment",
-            ["entity_id"]        = entityId,
-            ["observed_tenant"]  = observedTenant.Value,
+            ["entity_type"]       = "Payment",
+            ["entity_id"]         = entityId,
+            ["requested_tenant"]  = requestedTenant.Value,
+            ["actual_tenant"]     = actualTenant.Value,
+            ["correlation_id"]    = correlationId,
         });
         var occurredAt = DateTimeOffset.UtcNow;
         var signed = await _signer.SignAsync(payload, occurredAt, Guid.NewGuid(), ct).ConfigureAwait(false);

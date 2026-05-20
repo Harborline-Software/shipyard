@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Sunfish.Blocks.FinancialPayments.Models;
 using Sunfish.Foundation.Assets.Common;
 using Sunfish.Foundation.Crypto;
@@ -79,7 +80,7 @@ public sealed class InMemoryPaymentApplicationRepository : IPaymentApplicationRe
         if (!_applications.TryGetValue(id, out var app)) return null;
         if (!app.TenantId.Equals(tenantId))
         {
-            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, cancellationToken).ConfigureAwait(false);
+            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, app.TenantId, cancellationToken).ConfigureAwait(false);
             return null;
         }
         return app;
@@ -91,7 +92,7 @@ public sealed class InMemoryPaymentApplicationRepository : IPaymentApplicationRe
         if (!_applications.TryGetValue(id, out var app)) return false;
         if (!app.TenantId.Equals(tenantId))
         {
-            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, cancellationToken).ConfigureAwait(false);
+            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, app.TenantId, cancellationToken).ConfigureAwait(false);
             return false;
         }
         return _applications.TryRemove(id, out _);
@@ -115,15 +116,26 @@ public sealed class InMemoryPaymentApplicationRepository : IPaymentApplicationRe
         return Task.FromResult<IReadOnlyList<PaymentApplication>>(rows);
     }
 
-    private async ValueTask EmitTenantBoundaryViolationAsync(string entityId, TenantId observedTenant, CancellationToken ct)
+    // ── Audit emission (ADR 0092 §A6 canonical payload shape — sec-eng SPOT-CHECK GREEN template) ──
+    //
+    // Mirror of cohort 2 PR 0a InMemoryInvoiceRepository payload shape:
+    //   entity_type, entity_id, requested_tenant, actual_tenant, correlation_id
+    private async ValueTask EmitTenantBoundaryViolationAsync(
+        string entityId,
+        TenantId requestedTenant,
+        TenantId actualTenant,
+        CancellationToken ct)
     {
         if (_auditTrail is null || _signer is null) return;
 
+        var correlationId = Activity.Current?.Id ?? Guid.NewGuid().ToString("N");
         var payload = new AuditPayload(new Dictionary<string, object?>
         {
-            ["entity_type"]      = "PaymentApplication",
-            ["entity_id"]        = entityId,
-            ["observed_tenant"]  = observedTenant.Value,
+            ["entity_type"]       = "PaymentApplication",
+            ["entity_id"]         = entityId,
+            ["requested_tenant"]  = requestedTenant.Value,
+            ["actual_tenant"]     = actualTenant.Value,
+            ["correlation_id"]    = correlationId,
         });
         var occurredAt = DateTimeOffset.UtcNow;
         var signed = await _signer.SignAsync(payload, occurredAt, Guid.NewGuid(), ct).ConfigureAwait(false);

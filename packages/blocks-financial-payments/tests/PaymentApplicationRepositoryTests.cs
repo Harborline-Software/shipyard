@@ -1,7 +1,11 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialPayments.Models;
 using Sunfish.Blocks.FinancialPayments.Services;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Crypto;
+using Sunfish.Kernel.Audit;
 using Xunit;
 
 namespace Sunfish.Blocks.FinancialPayments.Tests;
@@ -241,5 +245,154 @@ public class PaymentApplicationRepositoryTests
     {
         var marker = typeof(Sunfish.Foundation.Persistence.ITenantScopedRepository<PaymentApplication, PaymentApplicationId>);
         Assert.True(marker.IsAssignableFrom(typeof(IPaymentApplicationRepository)));
+    }
+
+    // ── Audit-emission regression tests (sec-eng AMBER amendment A3 — ADR 0092 §A6) ──
+    //
+    // Mirrors the cohort 2 PR 0a InvoiceRepositoryTests canonical payload shape:
+    //   entity_type, entity_id, requested_tenant, actual_tenant, correlation_id
+
+    private static AuditRecord SingleViolation(RecordingAuditTrail trail)
+    {
+        var violations = trail.Records
+            .Where(r => r.EventType.Equals(AuditEventType.TenantBoundaryViolation))
+            .ToList();
+        Assert.Single(violations);
+        return violations[0];
+    }
+
+    private static void AssertCanonicalPayload(
+        AuditRecord record,
+        string expectedEntityType,
+        string expectedEntityId,
+        TenantId expectedRequested,
+        TenantId expectedActual)
+    {
+        var body = record.Payload.Payload.Body;
+        Assert.Equal(expectedEntityType, body["entity_type"]);
+        Assert.Equal(expectedEntityId,   body["entity_id"]);
+        Assert.Equal(expectedRequested.Value, body["requested_tenant"]);
+        Assert.Equal(expectedActual.Value,    body["actual_tenant"]);
+        Assert.NotNull(body["correlation_id"]);
+        Assert.IsType<string>(body["correlation_id"]);
+        Assert.False(string.IsNullOrWhiteSpace((string)body["correlation_id"]!));
+    }
+
+    [Fact]
+    public async Task PaymentRepo_GetAsync_CrossTenant_EmitsAuditWithCanonicalPayload()
+    {
+        var trail = new RecordingAuditTrail();
+        var repo = new InMemoryPaymentRepository(trail, new PassthroughSigner(), TestTenant);
+        var pmt = Payment.Create(
+            tenantId: TestTenant,
+            chartId: ChartOfAccountsId.NewId(),
+            direction: PaymentDirection.Inbound,
+            paymentNumber: "PMT-AUDIT-A",
+            partyId: new Sunfish.Blocks.People.Foundation.Models.PartyId("cust-a"),
+            paymentDate: new DateOnly(2026, 5, 18),
+            amount: 100m,
+            method: PaymentMethod.ACH);
+        await repo.AddAsync(TestTenant, pmt);
+
+        Assert.Null(await repo.GetAsync(OtherTenant, pmt.Id));
+
+        var violation = SingleViolation(trail);
+        AssertCanonicalPayload(violation, "Payment", pmt.Id.Value, OtherTenant, TestTenant);
+    }
+
+    [Fact]
+    public async Task PaymentRepo_UpdateAsync_CrossTenantExistingRow_EmitsAudit()
+    {
+        var trail = new RecordingAuditTrail();
+        var repo = new InMemoryPaymentRepository(trail, new PassthroughSigner(), TestTenant);
+        var pmt = Payment.Create(
+            tenantId: TestTenant,
+            chartId: ChartOfAccountsId.NewId(),
+            direction: PaymentDirection.Inbound,
+            paymentNumber: "PMT-AUDIT-B",
+            partyId: new Sunfish.Blocks.People.Foundation.Models.PartyId("cust-b"),
+            paymentDate: new DateOnly(2026, 5, 18),
+            amount: 100m,
+            method: PaymentMethod.ACH);
+        await repo.AddAsync(TestTenant, pmt);
+
+        var shadow = pmt with { TenantId = OtherTenant };
+        await Assert.ThrowsAsync<ArgumentException>(() => repo.UpdateAsync(OtherTenant, shadow));
+
+        var violation = SingleViolation(trail);
+        AssertCanonicalPayload(violation, "Payment", pmt.Id.Value, OtherTenant, TestTenant);
+    }
+
+    [Fact]
+    public async Task ApplicationRepo_GetAsync_CrossTenant_EmitsAuditWithCanonicalPayload()
+    {
+        var trail = new RecordingAuditTrail();
+        var repo = new InMemoryPaymentApplicationRepository(trail, new PassthroughSigner(), TestTenant);
+        var app = NewApp(tenantOverride: TestTenant);
+        await repo.AddAsync(TestTenant, app);
+
+        Assert.Null(await repo.GetAsync(OtherTenant, app.Id));
+
+        var violation = SingleViolation(trail);
+        AssertCanonicalPayload(violation, "PaymentApplication", app.Id.Value, OtherTenant, TestTenant);
+    }
+
+    [Fact]
+    public async Task ApplicationRepo_DeleteAsync_CrossTenant_EmitsAudit()
+    {
+        var trail = new RecordingAuditTrail();
+        var repo = new InMemoryPaymentApplicationRepository(trail, new PassthroughSigner(), TestTenant);
+        var app = NewApp(tenantOverride: TestTenant);
+        await repo.AddAsync(TestTenant, app);
+
+        Assert.False(await repo.DeleteAsync(OtherTenant, app.Id));
+
+        var violation = SingleViolation(trail);
+        AssertCanonicalPayload(violation, "PaymentApplication", app.Id.Value, OtherTenant, TestTenant);
+    }
+
+    [Fact]
+    public async Task AuditEmission_PicksUpAmbientActivityCorrelationId()
+    {
+        var trail = new RecordingAuditTrail();
+        var repo = new InMemoryPaymentApplicationRepository(trail, new PassthroughSigner(), TestTenant);
+        var app = NewApp(tenantOverride: TestTenant);
+        await repo.AddAsync(TestTenant, app);
+
+        using var activity = new Activity("test-correlation").Start();
+        Assert.NotNull(activity.Id);
+
+        Assert.Null(await repo.GetAsync(OtherTenant, app.Id));
+
+        var violation = SingleViolation(trail);
+        Assert.Equal(activity.Id, violation.Payload.Payload.Body["correlation_id"]);
+    }
+}
+
+internal sealed class RecordingAuditTrail : IAuditTrail
+{
+    private readonly List<AuditRecord> _records = new();
+    public IReadOnlyList<AuditRecord> Records => _records;
+
+    public ValueTask AppendAsync(AuditRecord record, CancellationToken ct = default)
+    {
+        _records.Add(record);
+        return ValueTask.CompletedTask;
+    }
+
+    public async IAsyncEnumerable<AuditRecord> QueryAsync(AuditQuery query, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        foreach (var r in _records) yield return r;
+        await Task.CompletedTask;
+    }
+}
+
+internal sealed class PassthroughSigner : IOperationSigner
+{
+    public PrincipalId IssuerId => default;
+
+    public ValueTask<SignedOperation<T>> SignAsync<T>(T payload, DateTimeOffset issuedAt, Guid nonce, CancellationToken ct = default)
+    {
+        return ValueTask.FromResult(new SignedOperation<T>(payload, IssuerId, issuedAt, nonce, default));
     }
 }
