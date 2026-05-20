@@ -63,7 +63,68 @@ public final class AppDatabase: @unchecked Sendable {
     private func applyMigrations() throws {
         var migrator = DatabaseMigrator()
         V1Migration.register(in: &migrator)
+        V2Migration.register(in: &migrator)
         try migrator.migrate(queue)
+    }
+
+    // MARK: Inspection cache
+
+    /// Replace the entire inspections cache with the supplied list.
+    public func cacheInspections(_ items: [InspectionListItem]) throws {
+        let now = ISO8601DateFormatter().string(from: Date())
+        try queue.write { db in
+            try db.execute(sql: "DELETE FROM inspections")
+            for item in items {
+                try db.execute(
+                    sql: """
+                    INSERT INTO inspections
+                        (id, property_id, phase, scheduled_for, template_name,
+                         total_items, responded_items, cached_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    arguments: [
+                        item.id, item.propertyId, item.phase,
+                        item.scheduledFor, item.templateName,
+                        item.totalItems, item.respondedItems, now,
+                    ]
+                )
+            }
+        }
+    }
+
+    /// Returns all cached inspections along with their cache timestamp.
+    /// Returns an empty array if the table is empty.
+    public func cachedInspections() throws -> [(item: InspectionListItem, cachedAt: Date)] {
+        try queue.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT id, property_id, phase, scheduled_for, template_name,
+                       total_items, responded_items, cached_at
+                FROM inspections
+                ORDER BY scheduled_for ASC
+                """)
+            let formatter = ISO8601DateFormatter()
+            return rows.compactMap { row -> (InspectionListItem, Date)? in
+                guard
+                    let id: String = row["id"],
+                    let propertyId: String = row["property_id"],
+                    let phase: String = row["phase"],
+                    let totalItems: Int = row["total_items"],
+                    let respondedItems: Int = row["responded_items"],
+                    let cachedAtStr: String = row["cached_at"],
+                    let cachedAt = formatter.date(from: cachedAtStr)
+                else { return nil }
+                let item = InspectionListItem(
+                    id: id,
+                    propertyId: propertyId,
+                    phase: phase,
+                    scheduledFor: row["scheduled_for"],
+                    templateName: row["template_name"],
+                    totalItems: totalItems,
+                    respondedItems: respondedItems
+                )
+                return (item, cachedAt)
+            }
+        }
     }
 
     /// Mark the database file as Complete-protection (per ADR 0028-A2.3).

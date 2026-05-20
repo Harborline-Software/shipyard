@@ -5,11 +5,13 @@ import SwiftUI
 /// Lists scheduled + in-progress inspections fetched from Bridge.
 ///
 /// Per W#23.3 Phase 1 hand-off. Pulls live from `GET /api/v1/field/inspections`.
-/// Phase 3 adds GRDB offline cache + stale indicator when last cache is >24h old.
+/// Phase 3: caches results in GRDB; shows offline banner + stale warning when
+/// the cached data is more than 24h old.
 public struct InspectionListView: View {
     let pairingResult: PairingResult
     let queueService: any EventQueueServicing
     let blobStore: BlobStore
+    let database: AppDatabase?
     let deviceId: String
     let capturedUnderKernel: String
     let capturedUnderSchemaEpoch: UInt32
@@ -18,11 +20,20 @@ public struct InspectionListView: View {
     @State private var isLoading = false
     @State private var loadError: String?
     @State private var selectedItem: InspectionListItem?
+    @State private var isOffline = false
+    @State private var cacheAge: TimeInterval?
+    @State private var showNewSheet = false
+
+    private var isStale: Bool {
+        guard let age = cacheAge else { return false }
+        return age > 24 * 3600
+    }
 
     public init(
         pairingResult: PairingResult,
         queueService: any EventQueueServicing,
         blobStore: BlobStore,
+        database: AppDatabase? = nil,
         deviceId: String,
         capturedUnderKernel: String,
         capturedUnderSchemaEpoch: UInt32
@@ -30,6 +41,7 @@ public struct InspectionListView: View {
         self.pairingResult = pairingResult
         self.queueService = queueService
         self.blobStore = blobStore
+        self.database = database
         self.deviceId = deviceId
         self.capturedUnderKernel = capturedUnderKernel
         self.capturedUnderSchemaEpoch = capturedUnderSchemaEpoch
@@ -45,7 +57,12 @@ public struct InspectionListView: View {
             } else if inspections.isEmpty {
                 emptyView
             } else {
-                list
+                VStack(spacing: 0) {
+                    if isOffline || isStale {
+                        offlineBanner
+                    }
+                    list
+                }
             }
         }
         .navigationTitle("Inspections")
@@ -63,10 +80,17 @@ public struct InspectionListView: View {
                 if isLoading {
                     ProgressView().scaleEffect(0.75)
                 } else {
-                    Button {
-                        Task { await loadInspections() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
+                    HStack(spacing: 12) {
+                        Button {
+                            showNewSheet = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        Button {
+                            Task { await loadInspections() }
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
                     }
                 }
             }
@@ -85,9 +109,34 @@ public struct InspectionListView: View {
                 }
             )
         }
+        .sheet(isPresented: $showNewSheet) {
+            NewInspectionSheet(
+                queueService: queueService,
+                deviceId: deviceId,
+                capturedUnderKernel: capturedUnderKernel,
+                capturedUnderSchemaEpoch: capturedUnderSchemaEpoch
+            )
+        }
     }
 
     // MARK: Sub-views
+
+    private var offlineBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: isStale ? "exclamationmark.triangle.fill" : "wifi.slash")
+                .font(.caption)
+            Text(isStale ? "Cached data is over 24h old" : "Showing cached inspections")
+                .font(.caption)
+        }
+        .foregroundStyle(isStale ? .orange : .secondary)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
+        .background(
+            isStale
+                ? Color.orange.opacity(0.12)
+                : Color.gray.opacity(0.08)
+        )
+    }
 
     private var list: some View {
         List(inspections) { item in
@@ -139,9 +188,24 @@ public struct InspectionListView: View {
         loadError = nil
         defer { isLoading = false }
         do {
-            inspections = try await fetchFromBridge()
+            let fresh = try await fetchFromBridge()
+            inspections = fresh
+            isOffline = false
+            cacheAge = 0
+            if let db = database {
+                try? db.cacheInspections(fresh)
+            }
         } catch {
-            loadError = error.localizedDescription
+            // Network failed — fall back to GRDB cache if available
+            if let db = database,
+               let cached = try? db.cachedInspections(),
+               !cached.isEmpty {
+                inspections = cached.map { $0.item }
+                isOffline = true
+                cacheAge = cached.first.map { Date().timeIntervalSince($0.cachedAt) }
+            } else {
+                loadError = error.localizedDescription
+            }
         }
     }
 

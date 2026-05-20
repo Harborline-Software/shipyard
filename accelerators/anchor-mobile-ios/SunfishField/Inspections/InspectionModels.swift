@@ -152,3 +152,11 @@ public struct InspectionCompletedPayload: Codable, Sendable {
     public let inspectionId: String
     public let completedAt: String
 }
+
+/// Payload for `.InspectionScheduled` (ad hoc inspection creation, W#23.3 Phase 3).
+/// Bridge-side handler maps this to `IInspectionsService.ScheduleAsync`.
+public struct InspectionScheduledPayload: Codable, Sendable {
+    public let propertyId: String
+    public let inspectorName: String
+    public let scheduledFor: String // ISO 8601
+}
