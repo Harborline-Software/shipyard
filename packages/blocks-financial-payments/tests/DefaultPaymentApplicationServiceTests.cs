@@ -175,7 +175,7 @@ public class DefaultPaymentApplicationServiceTests
 
         var billId = $"bill-{Guid.NewGuid():N}";
         var bill = NewReceivedBill(billId, total: 200m);
-        await rig.Bills.UpsertAsync(bill);
+        await rig.Bills.UpsertAsync(TestTenant, bill);
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Bill, billId,
@@ -183,7 +183,7 @@ public class DefaultPaymentApplicationServiceTests
 
         Assert.Equal(ApplyError.None, result.Error);
 
-        var updatedBill = await rig.Bills.GetAsync(new BillId(billId));
+        var updatedBill = await rig.Bills.GetAsync(TestTenant, new BillId(billId));
         Assert.Equal(200m, updatedBill!.AmountPaid);
         Assert.Equal(BillStatus.Paid, updatedBill.Status);
 
@@ -230,7 +230,7 @@ public class DefaultPaymentApplicationServiceTests
         // Bill with the targeted id DOES exist — but the direction-match guard
         // must reject BEFORE Bill existence is probed.
         var billId = $"bill-{Guid.NewGuid():N}";
-        await rig.Bills.UpsertAsync(NewReceivedBill(billId, total: 500m));
+        await rig.Bills.UpsertAsync(TestTenant, NewReceivedBill(billId, total: 500m));
 
         var result = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Bill, billId,
@@ -241,7 +241,7 @@ public class DefaultPaymentApplicationServiceTests
         Assert.Empty(await rig.Applications.ListByPaymentAsync(payment.Id));
 
         // Bill must be untouched.
-        var bill = await rig.Bills.GetAsync(new BillId(billId));
+        var bill = await rig.Bills.GetAsync(TestTenant, new BillId(billId));
         Assert.Equal(0m, bill!.AmountPaid);
     }
 
@@ -280,7 +280,7 @@ public class DefaultPaymentApplicationServiceTests
 
         // Case 2: target Bill exists.
         var existingBillId = $"bill-{Guid.NewGuid():N}";
-        await rig.Bills.UpsertAsync(NewReceivedBill(existingBillId, total: 100m));
+        await rig.Bills.UpsertAsync(TestTenant, NewReceivedBill(existingBillId, total: 100m));
         var probeExisting = await rig.Service.ApplyAsync(
             payment.Id, AppliedTo.Bill, existingBillId,
             amountApplied: 100m, 0m, 0m, TestActor);

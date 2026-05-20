@@ -234,9 +234,9 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         CancellationToken ct)
     {
         var billId = new BillId(targetId);
-        var bill = await _bills.GetAsync(billId, ct).ConfigureAwait(false);
-        // Tenant-isolation guard mirrors the Payment-load check.
-        if (bill is null || !bill.TenantId.Equals(CurrentTenantId))
+        var bill = await _bills.GetAsync(CurrentTenantId, billId, ct).ConfigureAwait(false);
+        // Tenant-isolation guard — repository enforces uniform-404 on cross-tenant.
+        if (bill is null)
             return new ApplyResult(null, ApplyError.UnknownTarget, $"Bill '{targetId}' not found.");
 
         if (bill.Status.IsTerminal())
@@ -263,7 +263,7 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
         var newAmountPaid = bill.AmountPaid + amountApplied;
         var newBalance = bill.Total - newAmountPaid;
         var newStatus = newBalance <= 0m ? BillStatus.Paid : BillStatus.PartiallyPaid;
-        await _bills.UpsertAsync(bill with
+        await _bills.UpsertAsync(CurrentTenantId, bill with
         {
             AmountPaid = newAmountPaid,
             Balance = newBalance,
@@ -368,13 +368,13 @@ public sealed class DefaultPaymentApplicationService : IPaymentApplicationServic
 
     private async Task UnapplyFromBillAsync(PaymentApplication application, PartyId actor, CancellationToken ct)
     {
-        var bill = await _bills.GetAsync(new BillId(application.TargetId), ct).ConfigureAwait(false);
+        var bill = await _bills.GetAsync(CurrentTenantId, new BillId(application.TargetId), ct).ConfigureAwait(false);
         if (bill is null) return;
 
         var restoredAmountPaid = Math.Max(0m, bill.AmountPaid - application.AmountApplied);
         var restoredBalance = bill.Total - restoredAmountPaid;
         var restoredStatus = restoredAmountPaid == 0m ? BillStatus.Received : BillStatus.PartiallyPaid;
-        await _bills.UpsertAsync(bill with
+        await _bills.UpsertAsync(CurrentTenantId, bill with
         {
             AmountPaid = restoredAmountPaid,
             Balance = restoredBalance,

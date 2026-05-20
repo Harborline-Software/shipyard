@@ -314,7 +314,7 @@ public class DefaultPaymentPostingServiceTests
 
         var billId = $"bill-{Guid.NewGuid():N}";
         var bill = NewReceivedBill(billId, total: 200m, amountPaid: 200m, status: BillStatus.Paid);
-        await rig.Bills.UpsertAsync(bill);
+        await rig.Bills.UpsertAsync(TestTenant, bill);
 
         var application = PaymentApplication.Create(TestTenant, payment.Id, AppliedTo.Bill, billId, amountApplied: 200m, appliedDate: new DateOnly(2026, 5, 18));
         await rig.Applications.AddAsync(application);
@@ -331,7 +331,7 @@ public class DefaultPaymentPostingServiceTests
         Assert.Equal(BankAccount, debit.AccountId);
         Assert.Equal(ApControl, credit.AccountId);
 
-        var restored = await rig.Bills.GetAsync(new BillId(billId));
+        var restored = await rig.Bills.GetAsync(TestTenant, new BillId(billId));
         Assert.NotNull(restored);
         Assert.Equal(0m, restored!.AmountPaid);
         Assert.Equal(BillStatus.Received, restored.Status);

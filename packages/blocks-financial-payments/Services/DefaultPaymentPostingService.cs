@@ -321,7 +321,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
 
     private async Task RestoreBillBalanceAsync(PaymentApplication application, PartyId actor, CancellationToken ct)
     {
-        var bill = await _bills.GetAsync(new BillId(application.TargetId), ct).ConfigureAwait(false);
+        var bill = await _bills.GetAsync(CurrentTenantId, new BillId(application.TargetId), ct).ConfigureAwait(false);
         if (bill is null) return;
 
         var restoredAmountPaid = Math.Max(0m, bill.AmountPaid - application.AmountApplied);
@@ -337,7 +337,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
             UpdatedBy = actor,
             Version = bill.Version + 1,
         };
-        await _bills.UpsertAsync(updated, ct).ConfigureAwait(false);
+        await _bills.UpsertAsync(CurrentTenantId, updated, ct).ConfigureAwait(false);
     }
 
     // ──────────────────────────────────────────────────────────────────

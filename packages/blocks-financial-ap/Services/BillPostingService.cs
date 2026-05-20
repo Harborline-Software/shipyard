@@ -5,6 +5,7 @@ using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
 using Sunfish.Foundation.Events;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.FinancialAp.Services;
 
@@ -20,18 +21,25 @@ public sealed class BillPostingService : IBillPostingService
     private readonly ITaxCalculator _tax;
     private readonly IJournalPostingService _journals;
     private readonly IDomainEventPublisher _events;
+    private readonly ITenantContext _tenantContext;
 
     public BillPostingService(
+        ITenantContext tenantContext,
         IBillRepository bills,
         ITaxCalculator tax,
         IJournalPostingService journals,
         IDomainEventPublisher? events = null)
     {
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _bills = bills ?? throw new ArgumentNullException(nameof(bills));
         _tax = tax ?? throw new ArgumentNullException(nameof(tax));
         _journals = journals ?? throw new ArgumentNullException(nameof(journals));
         _events = events ?? new NoopDomainEventPublisher();
     }
+
+    private TenantId CurrentTenantId =>
+        _tenantContext.Tenant?.Id
+            ?? throw new InvalidOperationException("BillPostingService requires a resolved tenant on the ambient ITenantContext.");
 
     // ──────────────────────────────────────────────────────────────────
     //  RecordAsync — Draft → Received
@@ -43,7 +51,7 @@ public sealed class BillPostingService : IBillPostingService
         PartyId actor,
         CancellationToken cancellationToken = default)
     {
-        var bill = await _bills.GetAsync(billId, cancellationToken).ConfigureAwait(false);
+        var bill = await _bills.GetAsync(CurrentTenantId, billId, cancellationToken).ConfigureAwait(false);
         if (bill is null)
             return new RecordResult(null, null, RecordError.UnknownBill, $"Bill '{billId.Value}' does not exist or is tombstoned.");
 
@@ -114,7 +122,7 @@ public sealed class BillPostingService : IBillPostingService
             UpdatedBy = actor,
             Version = bill.Version + 1,
         };
-        await _bills.UpsertAsync(recorded, cancellationToken).ConfigureAwait(false);
+        await _bills.UpsertAsync(CurrentTenantId, recorded, cancellationToken).ConfigureAwait(false);
 
         await PublishAsync(
             AccountsPayableEventNames.BillRecorded,
@@ -137,7 +145,7 @@ public sealed class BillPostingService : IBillPostingService
         PartyId actor,
         CancellationToken cancellationToken = default)
     {
-        var bill = await _bills.GetAsync(billId, cancellationToken).ConfigureAwait(false);
+        var bill = await _bills.GetAsync(CurrentTenantId, billId, cancellationToken).ConfigureAwait(false);
         if (bill is null)
             return new VoidResult(null, null, VoidError.UnknownBill, $"Bill '{billId.Value}' does not exist or is tombstoned.");
 
@@ -183,7 +191,7 @@ public sealed class BillPostingService : IBillPostingService
             UpdatedBy = actor,
             Version = bill.Version + 1,
         };
-        await _bills.UpsertAsync(voided, cancellationToken).ConfigureAwait(false);
+        await _bills.UpsertAsync(CurrentTenantId, voided, cancellationToken).ConfigureAwait(false);
 
         await PublishAsync(
             AccountsPayableEventNames.BillVoided,
@@ -209,7 +217,7 @@ public sealed class BillPostingService : IBillPostingService
         if (string.IsNullOrWhiteSpace(approvedByUserId))
             return new ApproveResult(null, ApproveError.InvalidApproverId, "ApprovedByUserId is required.");
 
-        var bill = await _bills.GetAsync(billId, cancellationToken).ConfigureAwait(false);
+        var bill = await _bills.GetAsync(CurrentTenantId, billId, cancellationToken).ConfigureAwait(false);
         if (bill is null)
             return new ApproveResult(null, ApproveError.UnknownBill, $"Bill '{billId.Value}' does not exist or is tombstoned.");
 
@@ -227,7 +235,7 @@ public sealed class BillPostingService : IBillPostingService
             UpdatedBy = actor,
             Version = bill.Version + 1,
         };
-        await _bills.UpsertAsync(approved, cancellationToken).ConfigureAwait(false);
+        await _bills.UpsertAsync(CurrentTenantId, approved, cancellationToken).ConfigureAwait(false);
 
         await PublishAsync(
             AccountsPayableEventNames.BillApproved,
@@ -250,7 +258,7 @@ public sealed class BillPostingService : IBillPostingService
         PartyId actor,
         CancellationToken cancellationToken = default)
     {
-        var bill = await _bills.GetAsync(billId, cancellationToken).ConfigureAwait(false);
+        var bill = await _bills.GetAsync(CurrentTenantId, billId, cancellationToken).ConfigureAwait(false);
         if (bill is null)
             return new DisputeResult(null, DisputeError.UnknownBill, $"Bill '{billId.Value}' does not exist or is tombstoned.");
 
@@ -266,7 +274,7 @@ public sealed class BillPostingService : IBillPostingService
             UpdatedBy = actor,
             Version = bill.Version + 1,
         };
-        await _bills.UpsertAsync(disputed, cancellationToken).ConfigureAwait(false);
+        await _bills.UpsertAsync(CurrentTenantId, disputed, cancellationToken).ConfigureAwait(false);
 
         await PublishAsync(
             AccountsPayableEventNames.BillDisputed,
@@ -289,7 +297,7 @@ public sealed class BillPostingService : IBillPostingService
             return new ResolveDisputeResult(null, ResolveDisputeError.InvalidResolutionTarget,
                 $"Dispute may only resolve to Received or Approved (got '{resolveTo}').");
 
-        var bill = await _bills.GetAsync(billId, cancellationToken).ConfigureAwait(false);
+        var bill = await _bills.GetAsync(CurrentTenantId, billId, cancellationToken).ConfigureAwait(false);
         if (bill is null)
             return new ResolveDisputeResult(null, ResolveDisputeError.UnknownBill, $"Bill '{billId.Value}' does not exist or is tombstoned.");
 
@@ -305,7 +313,7 @@ public sealed class BillPostingService : IBillPostingService
             UpdatedBy = actor,
             Version = bill.Version + 1,
         };
-        await _bills.UpsertAsync(resolved, cancellationToken).ConfigureAwait(false);
+        await _bills.UpsertAsync(CurrentTenantId, resolved, cancellationToken).ConfigureAwait(false);
 
         await PublishAsync(
             AccountsPayableEventNames.DisputeResolved,

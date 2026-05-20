@@ -51,7 +51,7 @@ public class BillPostingServiceTests
         var repo = new InMemoryBillRepository();
         var journals = new FakeJournalPostingService();
         var events = new RecordingPublisher();
-        var svc = new BillPostingService(repo, new NoOpTaxCalculator(), journals, events);
+        var svc = new BillPostingService(new StubTenantContext(Tenant()), repo, new NoOpTaxCalculator(), journals, events);
         return new Sut(svc, repo, journals, events);
     }
 
@@ -75,7 +75,7 @@ public class BillPostingServiceTests
             lines: lines,
             apAccountId: GLAccountId.NewId(),
             id: billId);
-        await repo.UpsertAsync(bill);
+        await repo.UpsertAsync(Tenant(), bill);
         return bill;
     }
 
@@ -133,7 +133,7 @@ public class BillPostingServiceTests
             vendorId: PartyId.NewId(), billDate: new DateOnly(2026, 5, 17),
             dueDate: new DateOnly(2026, 6, 17), lines: Array.Empty<BillLine>(),
             apAccountId: GLAccountId.NewId());
-        await sut.Repo.UpsertAsync(bill);
+        await sut.Repo.UpsertAsync(Tenant(), bill);
 
         var result = await sut.Service.RecordAsync(bill.Id, Actor());
         Assert.Equal(RecordError.NoLines, result.Error);
@@ -150,7 +150,7 @@ public class BillPostingServiceTests
             lines: new[] { BillLine.Create(BillId.NewId(), 1, "x", 1m, 100m, GLAccountId.NewId()) },
             apAccountId: GLAccountId.NewId());
         var voided = bill with { Status = BillStatus.Voided };
-        await sut.Repo.UpsertAsync(voided);
+        await sut.Repo.UpsertAsync(Tenant(), voided);
 
         var result = await sut.Service.RecordAsync(voided.Id, Actor());
         Assert.Equal(RecordError.InvalidStatusForRecord, result.Error);
@@ -183,7 +183,7 @@ public class BillPostingServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(RecordError.JournalRejected, result.Error);
-        var refetched = await sut.Repo.GetAsync(draft.Id);
+        var refetched = await sut.Repo.GetAsync(Tenant(), draft.Id);
         Assert.Equal(BillStatus.Draft, refetched!.Status);
         Assert.Null(refetched.JournalEntryId);
     }
