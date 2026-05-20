@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Sunfish.Blocks.FinancialAr.Models;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.People.Foundation.Models;
@@ -84,7 +85,7 @@ public sealed class InMemoryInvoiceRepository : IInvoiceRepository
                 // Cross-tenant write attempt against an existing row — caller
                 // bug. Surface as ArgumentException (same family as the
                 // boundary check above).
-                await EmitTenantBoundaryViolationAsync(invoice.Id.Value, tenantId, cancellationToken).ConfigureAwait(false);
+                await EmitTenantBoundaryViolationAsync(invoice.Id.Value, tenantId, existing.TenantId, cancellationToken).ConfigureAwait(false);
                 throw new ArgumentException(
                     $"Invoice id '{invoice.Id.Value}' already exists under a different tenant.",
                     nameof(invoice));
@@ -112,7 +113,7 @@ public sealed class InMemoryInvoiceRepository : IInvoiceRepository
         if (inv.DeletedAtUtc is not null) return null;
         if (!inv.TenantId.Equals(tenantId))
         {
-            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, cancellationToken).ConfigureAwait(false);
+            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, inv.TenantId, cancellationToken).ConfigureAwait(false);
             return null;
         }
         return inv;
@@ -153,7 +154,7 @@ public sealed class InMemoryInvoiceRepository : IInvoiceRepository
         if (!_invoices.TryGetValue(id, out var inv)) return false;
         if (!inv.TenantId.Equals(tenantId))
         {
-            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, cancellationToken).ConfigureAwait(false);
+            await EmitTenantBoundaryViolationAsync(id.Value, tenantId, inv.TenantId, cancellationToken).ConfigureAwait(false);
             return false;
         }
         if (inv.DeletedAtUtc is not null) return true; // idempotent
@@ -171,15 +172,33 @@ public sealed class InMemoryInvoiceRepository : IInvoiceRepository
         return true;
     }
 
-    private async ValueTask EmitTenantBoundaryViolationAsync(string entityId, TenantId observedTenant, CancellationToken ct)
+    // ── Audit emission (ADR 0092 §A6 canonical payload shape — sec-eng SPOT-CHECK GREEN template) ──
+    //
+    // Payload carries:
+    //   entity_type     — fixed string per repository
+    //   entity_id       — opaque entity identifier value
+    //   requested_tenant — the tenant the CALLER passed (sec-eng AMBER amendment: was "observed_tenant")
+    //   actual_tenant    — the tenant the ENTITY actually carries (sec-eng AMBER amendment A1)
+    //   correlation_id   — current Activity.Id when set, Guid fallback otherwise (sec-eng AMBER amendment A2)
+    //
+    // No entity-specific content (amounts, terminal-state strings, display
+    // names) per ADR 0092 §A6 diagnostic non-leak invariant.
+    private async ValueTask EmitTenantBoundaryViolationAsync(
+        string entityId,
+        TenantId requestedTenant,
+        TenantId actualTenant,
+        CancellationToken ct)
     {
         if (_auditTrail is null || _signer is null) return;
 
+        var correlationId = Activity.Current?.Id ?? Guid.NewGuid().ToString("N");
         var payload = new AuditPayload(new Dictionary<string, object?>
         {
-            ["entity_type"]      = "Invoice",
-            ["entity_id"]        = entityId,
-            ["observed_tenant"]  = observedTenant.Value,
+            ["entity_type"]       = "Invoice",
+            ["entity_id"]         = entityId,
+            ["requested_tenant"]  = requestedTenant.Value,
+            ["actual_tenant"]     = actualTenant.Value,
+            ["correlation_id"]    = correlationId,
         });
         var occurredAt = DateTimeOffset.UtcNow;
         var signed = await _signer.SignAsync(payload, occurredAt, Guid.NewGuid(), ct).ConfigureAwait(false);

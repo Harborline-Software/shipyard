@@ -1,11 +1,43 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Sunfish.Blocks.FinancialAr.Models;
 using Sunfish.Blocks.FinancialAr.Services;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Crypto;
+using Sunfish.Kernel.Audit;
 using Xunit;
 
 namespace Sunfish.Blocks.FinancialAr.Tests;
+
+internal sealed class RecordingAuditTrail : IAuditTrail
+{
+    private readonly List<AuditRecord> _records = new();
+    public IReadOnlyList<AuditRecord> Records => _records;
+
+    public ValueTask AppendAsync(AuditRecord record, CancellationToken ct = default)
+    {
+        _records.Add(record);
+        return ValueTask.CompletedTask;
+    }
+
+    public async IAsyncEnumerable<AuditRecord> QueryAsync(AuditQuery query, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        foreach (var r in _records) yield return r;
+        await Task.CompletedTask;
+    }
+}
+
+internal sealed class PassthroughSigner : IOperationSigner
+{
+    public PrincipalId IssuerId => default;
+
+    public ValueTask<SignedOperation<T>> SignAsync<T>(T payload, DateTimeOffset issuedAt, Guid nonce, CancellationToken ct = default)
+    {
+        return ValueTask.FromResult(new SignedOperation<T>(payload, IssuerId, issuedAt, nonce, default));
+    }
+}
 
 public class InvoiceRepositoryTests
 {
@@ -245,5 +277,119 @@ public class InvoiceRepositoryTests
     {
         var marker = typeof(Sunfish.Foundation.Persistence.ITenantScopedRepository<Invoice, InvoiceId>);
         Assert.True(marker.IsAssignableFrom(typeof(IInvoiceRepository)));
+    }
+
+    // ── Audit-emission regression tests (sec-eng AMBER amendment A3 — ADR 0092 §A6) ──
+    //
+    // Canonical TenantBoundaryViolation payload shape (sec-eng AMBER amendment template):
+    //   entity_type, entity_id, requested_tenant, actual_tenant, correlation_id
+
+    private static InMemoryInvoiceRepository NewAuditingRepo(out RecordingAuditTrail trail)
+    {
+        trail = new RecordingAuditTrail();
+        return new InMemoryInvoiceRepository(trail, new PassthroughSigner(), Tenant());
+    }
+
+    private static AuditRecord SingleViolation(RecordingAuditTrail trail)
+    {
+        var violations = trail.Records
+            .Where(r => r.EventType.Equals(AuditEventType.TenantBoundaryViolation))
+            .ToList();
+        Assert.Single(violations);
+        return violations[0];
+    }
+
+    private static void AssertCanonicalPayload(
+        AuditRecord record,
+        string expectedEntityType,
+        string expectedEntityId,
+        TenantId expectedRequested,
+        TenantId expectedActual)
+    {
+        var body = record.Payload.Payload.Body;
+        Assert.Equal(expectedEntityType, body["entity_type"]);
+        Assert.Equal(expectedEntityId,   body["entity_id"]);
+        Assert.Equal(expectedRequested.Value, body["requested_tenant"]);
+        Assert.Equal(expectedActual.Value,    body["actual_tenant"]);
+        Assert.NotNull(body["correlation_id"]);
+        Assert.IsType<string>(body["correlation_id"]);
+        Assert.False(string.IsNullOrWhiteSpace((string)body["correlation_id"]!));
+    }
+
+    [Fact]
+    public async Task GetAsync_CrossTenant_EmitsAuditWithCanonicalPayload()
+    {
+        var repo = NewAuditingRepo(out var trail);
+        var inv = NewInvoice(ChartOfAccountsId.NewId(), PartyId.NewId(), tenant: Tenant());
+        await repo.UpsertAsync(Tenant(), inv);
+
+        // Cross-tenant probe — OtherTenant requests Tenant's invoice id.
+        Assert.Null(await repo.GetAsync(OtherTenant(), inv.Id));
+
+        var violation = SingleViolation(trail);
+        AssertCanonicalPayload(violation, "Invoice", inv.Id.Value, OtherTenant(), Tenant());
+    }
+
+    [Fact]
+    public async Task UpsertAsync_CrossTenantExistingRow_EmitsAudit()
+    {
+        var repo = NewAuditingRepo(out var trail);
+        var inv = NewInvoice(ChartOfAccountsId.NewId(), PartyId.NewId(), tenant: Tenant());
+        await repo.UpsertAsync(Tenant(), inv);
+
+        // Construct a Tenant-stamped row sharing the existing row's id but with
+        // a different TenantId — simulate an attacker passing OtherTenant + a
+        // shadow Invoice that also carries OtherTenant. The repo first checks
+        // entity.TenantId vs caller-tenantId; we pass OtherTenant for BOTH so
+        // the entity-vs-caller check passes, then the existing-row tenant
+        // check fires and triggers the audit.
+        var shadow = inv with { TenantId = OtherTenant() };
+        await Assert.ThrowsAsync<ArgumentException>(() => repo.UpsertAsync(OtherTenant(), shadow));
+
+        var violation = SingleViolation(trail);
+        AssertCanonicalPayload(violation, "Invoice", inv.Id.Value, OtherTenant(), Tenant());
+    }
+
+    [Fact]
+    public async Task SoftDeleteAsync_CrossTenant_EmitsAudit()
+    {
+        var repo = NewAuditingRepo(out var trail);
+        var inv = NewInvoice(ChartOfAccountsId.NewId(), PartyId.NewId(), tenant: Tenant());
+        await repo.UpsertAsync(Tenant(), inv);
+
+        Assert.False(await repo.SoftDeleteAsync(OtherTenant(), inv.Id, PartyId.NewId(), null));
+
+        var violation = SingleViolation(trail);
+        AssertCanonicalPayload(violation, "Invoice", inv.Id.Value, OtherTenant(), Tenant());
+    }
+
+    [Fact]
+    public async Task AuditEmission_PicksUpAmbientActivityCorrelationId()
+    {
+        var repo = NewAuditingRepo(out var trail);
+        var inv = NewInvoice(ChartOfAccountsId.NewId(), PartyId.NewId(), tenant: Tenant());
+        await repo.UpsertAsync(Tenant(), inv);
+
+        using var activity = new Activity("test-correlation").Start();
+        Assert.NotNull(activity.Id);
+
+        Assert.Null(await repo.GetAsync(OtherTenant(), inv.Id));
+
+        var violation = SingleViolation(trail);
+        Assert.Equal(activity.Id, violation.Payload.Payload.Body["correlation_id"]);
+    }
+
+    [Fact]
+    public async Task AuditEmission_WithoutWiredAuditTrail_NoOp()
+    {
+        // Parameter-less ctor — no IAuditTrail, no IOperationSigner. Cross-tenant
+        // reads still return null (uniform-404) but no NRE on the missing audit
+        // wiring.
+        var repo = new InMemoryInvoiceRepository();
+        var inv = NewInvoice(ChartOfAccountsId.NewId(), PartyId.NewId(), tenant: Tenant());
+        await repo.UpsertAsync(Tenant(), inv);
+
+        Assert.Null(await repo.GetAsync(OtherTenant(), inv.Id));
+        // No exception, no NRE — silent path.
     }
 }
