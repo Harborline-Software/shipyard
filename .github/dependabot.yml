@@ -28,6 +28,9 @@ updates:
           - "Microsoft.EntityFrameworkCore"
           - "Microsoft.EntityFrameworkCore.*"
           - "Npgsql.EntityFrameworkCore.PostgreSQL"
+      aspire:
+        patterns:
+          - "Aspire.*"
       testing:
         patterns:
           - "xunit*"
