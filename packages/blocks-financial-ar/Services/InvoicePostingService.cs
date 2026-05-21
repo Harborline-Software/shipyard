@@ -114,6 +114,7 @@ public sealed class InvoicePostingService : IInvoicePostingService
 
         var entry = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: CurrentTenantId,
             entryDate: invoice.IssueDate,
             memo: $"Invoice {invoiceNumber}",
             lines: jeLines,
@@ -195,6 +196,7 @@ public sealed class InvoicePostingService : IInvoicePostingService
 
         var reversal = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: CurrentTenantId,
             entryDate: DateOnly.FromDateTime(DateTime.UtcNow),
             memo: $"Void invoice {invoice.InvoiceNumber}: {reason}",
             lines: jeLines,
@@ -254,6 +256,7 @@ public sealed class InvoicePostingService : IInvoicePostingService
         var amount = invoice.Balance;
         var entry = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: CurrentTenantId,
             entryDate: DateOnly.FromDateTime(DateTime.UtcNow),
             memo: $"Write off invoice {invoice.InvoiceNumber}: {reason}",
             lines: new[]

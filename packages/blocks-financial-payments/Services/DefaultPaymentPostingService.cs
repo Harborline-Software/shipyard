@@ -94,6 +94,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
         var jeLines = BuildClearLines(payment.Direction, bankAccountId, controlAccount.Id, payment.Amount);
         var entry = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: CurrentTenantId,
             entryDate: payment.PaymentDate,
             memo: $"Clear payment {payment.PaymentNumber}",
             lines: jeLines,
@@ -155,6 +156,7 @@ public sealed class DefaultPaymentPostingService : IPaymentPostingService
         var reversalLines = BuildReversalLines(payment.Direction, bankAccountId, controlAccount.Id, payment.Amount);
         var reversal = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: CurrentTenantId,
             entryDate: DateOnly.FromDateTime(DateTime.UtcNow),
             memo: $"Bounce payment {payment.PaymentNumber}: {reason}",
             lines: reversalLines,

@@ -1,4 +1,5 @@
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.FinancialLedger.Models;
 
@@ -10,13 +11,25 @@ namespace Sunfish.Blocks.FinancialLedger.Models;
 /// Invariant (enforced at construction): sum of all <see cref="JournalEntryLine.Debit"/> values
 /// must equal sum of all <see cref="JournalEntryLine.Credit"/> values across all
 /// <see cref="Lines"/>. Imbalanced entries are rejected with <see cref="ArgumentException"/>.
-/// Use the constructor <c>JournalEntry(id, entryDate, memo, lines, createdAtUtc, sourceReference)</c>
+/// Use the constructor <c>JournalEntry(id, tenantId, entryDate, memo, lines, createdAtUtc, sourceReference)</c>
 /// to create instances.
+///
+/// <para>
+/// Cohort-2 PR 0d tenant-keying retrofit (ADR 0092 Step 1; pattern-009-
+/// tenant-keying-retrofit ratification trigger): implements
+/// <see cref="IMustHaveTenant"/> so the ledger primitive can be safely
+/// stored through a <see cref="Sunfish.Foundation.Persistence.ITenantScopedRepository{TEntity,TKey}"/>
+/// implementation. Defense-in-depth at the ledger layer matches the
+/// financial-data sensitivity per admiral-ruling-2026-05-20T14-20Z.
+/// </para>
 /// </remarks>
-public sealed record JournalEntry
+public sealed record JournalEntry : IMustHaveTenant
 {
     /// <summary>Unique journal entry identifier.</summary>
     public JournalEntryId Id { get; }
+
+    /// <summary>Tenant scope (cohort-2 PR 0d). Required per <see cref="IMustHaveTenant"/>.</summary>
+    public TenantId TenantId { get; }
 
     /// <summary>The accounting date this entry is effective for.</summary>
     public DateOnly EntryDate { get; }
@@ -101,6 +114,7 @@ public sealed record JournalEntry
     /// </exception>
     public JournalEntry(
         JournalEntryId id,
+        TenantId tenantId,
         DateOnly entryDate,
         string memo,
         IReadOnlyList<JournalEntryLine> lines,
@@ -118,6 +132,7 @@ public sealed record JournalEntry
                 nameof(lines));
 
         Id = id;
+        TenantId = tenantId;
         EntryDate = entryDate;
         Memo = memo;
         Lines = lines;

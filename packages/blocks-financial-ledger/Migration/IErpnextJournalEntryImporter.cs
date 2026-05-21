@@ -1,4 +1,5 @@
 using Sunfish.Blocks.FinancialLedger.Models;
+using Sunfish.Foundation.Assets.Common;
 
 namespace Sunfish.Blocks.FinancialLedger.Migration;
 
@@ -14,6 +15,7 @@ public interface IErpnextJournalEntryImporter
 {
     Task<ImportOutcome<JournalEntry>> UpsertFromErpnextAsync(
         ErpnextJournalEntrySource source,
+        TenantId tenantId,
         ChartOfAccountsId targetChart,
         CancellationToken cancellationToken = default);
 }

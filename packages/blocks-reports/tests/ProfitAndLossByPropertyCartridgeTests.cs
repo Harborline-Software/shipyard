@@ -78,7 +78,7 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
             new JournalEntryLine(revenueAccountId, debit: 0m, credit: amount)
                 with { PropertyId = propTag },
         };
-        return new JournalEntry(JournalEntryId.NewId(), date, "Revenue", lines, Instant.Now)
+        return new JournalEntry(JournalEntryId.NewId(), Tenant, date, "Revenue", lines, Instant.Now)
             with { Status = JournalEntryStatus.Posted, ChartId = Chart };
     }
 
@@ -100,7 +100,7 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
             new JournalEntryLine(clearingAccountId, debit: 0m, credit: amount)
                 with { PropertyId = propTag },
         };
-        return new JournalEntry(JournalEntryId.NewId(), date, "Expense", lines, Instant.Now)
+        return new JournalEntry(JournalEntryId.NewId(), Tenant, date, "Expense", lines, Instant.Now)
             with { Status = JournalEntryStatus.Posted, ChartId = Chart };
     }
 
@@ -136,7 +136,7 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     {
         var rev = RevAcct("4000", "Rental Revenue");
         var (sut, journals, _) = Build(new[] { rev });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -161,7 +161,7 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     {
         var exp = ExpAcct("5000", "Maintenance");
         var (sut, journals, _) = Build(new[] { exp });
-        await journals.SaveAtomicAsync(ExpenseEntry(exp.Id, ClearingId, 500m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, ExpenseEntry(exp.Id, ClearingId, 500m, Today, "prop-A"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -186,8 +186,8 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
         var rev = RevAcct("4000");
         var exp = ExpAcct("5000");
         var (sut, journals, _) = Build(new[] { rev, exp });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 3000m, Today, "prop-A"));
-        await journals.SaveAtomicAsync(ExpenseEntry(exp.Id, ClearingId, 1200m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 3000m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, ExpenseEntry(exp.Id, ClearingId, 1200m, Today, "prop-A"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -208,8 +208,8 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     {
         var rev = RevAcct("4000");
         var (sut, journals, _) = Build(new[] { rev });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 2000m, Today, "prop-B"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 2000m, Today, "prop-B"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -225,7 +225,7 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     {
         var rev = RevAcct("4000");
         var (sut, journals, _) = Build(new[] { rev });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 750m, Today, propertyId: null));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 750m, Today, propertyId: null));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -239,8 +239,8 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     {
         var rev = RevAcct("4000");
         var (sut, journals, _) = Build(new[] { rev });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 100m, Today, "prop-Z"));
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 50m, Today, propertyId: null));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 100m, Today, "prop-Z"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 50m, Today, propertyId: null));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -253,9 +253,9 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     {
         var rev = RevAcct("4000");
         var (sut, journals, _) = Build(new[] { rev });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 100m, Today, "prop-C"));
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 100m, Today, "prop-A"));
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 100m, Today, propertyId: null));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 100m, Today, "prop-C"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 100m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 100m, Today, propertyId: null));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -277,7 +277,7 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
         var (sut, journals, _) = Build(new[] { rev });
         var periodEnd = new DateOnly(2026, 3, 31);
         // This entry is after the period end — should be excluded.
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 500m, new DateOnly(2026, 4, 1), "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 500m, new DateOnly(2026, 4, 1), "prop-A"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart, PeriodEnd = periodEnd });
@@ -293,7 +293,7 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
         var (sut, journals, _) = Build(new[] { rev });
         var periodStart = new DateOnly(2026, 4, 1);
         // This entry is before the period start — should be excluded.
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 500m, new DateOnly(2026, 3, 31), "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 500m, new DateOnly(2026, 3, 31), "prop-A"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters
@@ -314,8 +314,8 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
         var (sut, journals, _) = Build(new[] { rev });
         var start = new DateOnly(2026, 1, 1);
         var end = new DateOnly(2026, 3, 31);
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 100m, start, "prop-A"));
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 200m, end, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 100m, start, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 200m, end, "prop-A"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters
@@ -351,8 +351,8 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     {
         var rev = RevAcct("4000");
         var (sut, journals, _) = Build(new[] { rev });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 2000m, Today, "prop-B"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 2000m, Today, "prop-B"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters
@@ -371,8 +371,8 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     {
         var rev = RevAcct("4000");
         var (sut, journals, _) = Build(new[] { rev });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 500m, Today, propertyId: null));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 500m, Today, propertyId: null));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters
@@ -395,10 +395,10 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
         var rev = RevAcct("4000");
         var exp = ExpAcct("5000");
         var (sut, journals, _) = Build(new[] { rev, exp });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 2000m, Today, "prop-B"));
-        await journals.SaveAtomicAsync(ExpenseEntry(exp.Id, ClearingId, 400m, Today, "prop-A"));
-        await journals.SaveAtomicAsync(ExpenseEntry(exp.Id, ClearingId, 600m, Today, propertyId: null));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 1000m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 2000m, Today, "prop-B"));
+        await journals.SaveAtomicAsync(Tenant, ExpenseEntry(exp.Id, ClearingId, 400m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, ExpenseEntry(exp.Id, ClearingId, 600m, Today, propertyId: null));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -425,9 +425,9 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
             new JournalEntryLine(ClearingId, debit: 500m, credit: 0m),
             new JournalEntryLine(rev.Id, debit: 0m, credit: 500m),
         };
-        var draftEntry = new JournalEntry(JournalEntryId.NewId(), Today, "Draft", lines, Instant.Now)
+        var draftEntry = new JournalEntry(JournalEntryId.NewId(), Tenant, Today, "Draft", lines, Instant.Now)
             with { Status = JournalEntryStatus.Draft, ChartId = Chart };
-        await journals.SaveAtomicAsync(draftEntry);
+        await journals.SaveAtomicAsync(Tenant, draftEntry);
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -450,9 +450,9 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
             new JournalEntryLine(ClearingId, debit: 999m, credit: 0m),
             new JournalEntryLine(rev.Id, debit: 0m, credit: 999m),
         };
-        var otherChartEntry = new JournalEntry(JournalEntryId.NewId(), Today, "Other", lines, Instant.Now)
+        var otherChartEntry = new JournalEntry(JournalEntryId.NewId(), Tenant, Today, "Other", lines, Instant.Now)
             with { Status = JournalEntryStatus.Posted, ChartId = otherChart };
-        await journals.SaveAtomicAsync(otherChartEntry);
+        await journals.SaveAtomicAsync(Tenant, otherChartEntry);
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -470,8 +470,8 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
         var rev1 = RevAcct("4200", "Late Fees");
         var rev2 = RevAcct("4000", "Rent");
         var (sut, journals, _) = Build(new[] { rev1, rev2 });
-        await journals.SaveAtomicAsync(RevenueEntry(rev1.Id, ClearingId, 100m, Today, "prop-A"));
-        await journals.SaveAtomicAsync(RevenueEntry(rev2.Id, ClearingId, 500m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev1.Id, ClearingId, 100m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev2.Id, ClearingId, 500m, Today, "prop-A"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });
@@ -490,7 +490,7 @@ public sealed class ProfitAndLossByPropertyCartridgeTests
     {
         var rev = RevAcct("4000");
         var (sut, journals, _) = Build(new[] { rev });
-        await journals.SaveAtomicAsync(RevenueEntry(rev.Id, ClearingId, 100m, Today, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, RevenueEntry(rev.Id, ClearingId, 100m, Today, "prop-A"));
 
         var result = await sut.ExecuteAsync(Context(),
             new ProfitAndLossByPropertyParameters { ChartId = Chart });

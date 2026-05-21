@@ -124,7 +124,7 @@ public sealed class TrialBalanceCartridge : IReportCartridge<TrialBalanceParamet
 
         // 5. Read raw balances (signed: debit positive, credit negative per IGeneralLedgerReadModel contract).
         var balances = await _ledger.GetAccountBalancesAsOfAsync(
-            parameters.ChartId, asOf, context.SnapshotMarker, ct).ConfigureAwait(false);
+            context.TenantId, parameters.ChartId, asOf, context.SnapshotMarker, ct).ConfigureAwait(false);
 
         // 6. Compose rows ordered by Code (ordinal) then Id (stable tie-break).
         var rows = new List<TrialBalanceRow>();

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Sunfish.Blocks.FinancialLedger.Models;
+using Sunfish.Foundation.Assets.Common;
 
 namespace Sunfish.Blocks.FinancialLedger.Services;
 
@@ -32,6 +33,7 @@ public sealed class InMemoryGeneralLedgerReadModel : IGeneralLedgerReadModel
 
     /// <inheritdoc />
     public Task<IReadOnlyDictionary<GLAccountId, decimal>> GetAccountBalancesAsOfAsync(
+        TenantId tenantId,
         ChartOfAccountsId chartId,
         System.DateOnly asOf,
         string snapshotMarker,
@@ -39,7 +41,7 @@ public sealed class InMemoryGeneralLedgerReadModel : IGeneralLedgerReadModel
     {
         // snapshotMarker accepted + ignored in Phase 1 (no per-tenant snapshot isolation in the in-memory store).
         var balances = new Dictionary<GLAccountId, decimal>();
-        foreach (var entry in _journals.Snapshot())
+        foreach (var entry in _journals.Snapshot(tenantId))
         {
             if (entry.Status != JournalEntryStatus.Posted) continue;
             if (entry.ChartId is null || entry.ChartId.Value != chartId) continue;

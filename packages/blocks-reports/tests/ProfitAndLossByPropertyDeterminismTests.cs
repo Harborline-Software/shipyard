@@ -70,7 +70,7 @@ public sealed class ProfitAndLossByPropertyDeterminismTests
                   new JournalEntryLine(ClearingId, debit: 0m, credit: amount)
                       with { PropertyId = propTag },
               };
-        return new JournalEntry(JournalEntryId.NewId(), AsOf, "det", lines, Instant.Now)
+        return new JournalEntry(JournalEntryId.NewId(), Tenant, AsOf, "det", lines, Instant.Now)
             with { Status = JournalEntryStatus.Posted, ChartId = Chart };
     }
 
@@ -101,9 +101,9 @@ public sealed class ProfitAndLossByPropertyDeterminismTests
         var exp = ExpAcct("5000");
         var (sut, journals) = Build(new[] { rev, exp });
 
-        await journals.SaveAtomicAsync(PostedEntry(rev.Id, isCredit: true, 1500m, "prop-A"));
-        await journals.SaveAtomicAsync(PostedEntry(rev.Id, isCredit: true, 800m, "prop-B"));
-        await journals.SaveAtomicAsync(PostedEntry(exp.Id, isCredit: false, 300m, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(rev.Id, isCredit: true, 1500m, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(rev.Id, isCredit: true, 800m, "prop-B"));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(exp.Id, isCredit: false, 300m, "prop-A"));
 
         var ctx = Context();
         var p = Parameters();
@@ -117,7 +117,7 @@ public sealed class ProfitAndLossByPropertyDeterminismTests
     {
         var rev = RevAcct("4000");
         var (sut, journals) = Build(new[] { rev });
-        await journals.SaveAtomicAsync(PostedEntry(rev.Id, isCredit: true, 600m, "prop-A"));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(rev.Id, isCredit: true, 600m, "prop-A"));
 
         var p = Parameters();
         var ctx = Context();

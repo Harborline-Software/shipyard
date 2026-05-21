@@ -16,6 +16,7 @@ public sealed class JournalEntryExtensionsTests
 {
     private static readonly GLAccountId AccountA = GLAccountId.NewId();
     private static readonly GLAccountId AccountB = GLAccountId.NewId();
+    private static readonly TenantId TestTenant = new("tenant-je-ext-test");
 
     [Fact]
     public void JournalEntry_Defaults_StatusDraft_SourceManual()
@@ -100,6 +101,7 @@ public sealed class JournalEntryExtensionsTests
         };
         var ex = Assert.Throws<ArgumentException>(() => new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: TestTenant,
             entryDate: DateOnly.FromDateTime(DateTime.UtcNow),
             memo: "imbalanced",
             lines: lines,
@@ -153,6 +155,7 @@ public sealed class JournalEntryExtensionsTests
         var creditAcc = creditAccount ?? AccountB;
         return new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: TestTenant,
             entryDate: DateOnly.FromDateTime(DateTime.UtcNow),
             memo: "test",
             lines: new[]

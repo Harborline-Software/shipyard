@@ -9,6 +9,7 @@ public class QuickBooksIifExporterTests
 {
     private static readonly QuickBooksIifExporter Exporter = new();
     private static readonly QuickBooksExportOptions DefaultOptions = new();
+    private static readonly TenantId TestTenant = new("tenant-qb-test");
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -21,6 +22,7 @@ public class QuickBooksIifExporterTests
         string? sourceRef = null)
         => new(
             id: JournalEntryId.NewId(),
+            tenantId: TestTenant,
             entryDate: date,
             memo: memo,
             lines: lines,

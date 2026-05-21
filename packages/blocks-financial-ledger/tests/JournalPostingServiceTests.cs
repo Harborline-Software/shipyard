@@ -12,6 +12,7 @@ namespace Sunfish.Blocks.FinancialLedger.Tests;
 public sealed class JournalPostingServiceTests
 {
     private static readonly ChartOfAccountsId Chart = ChartOfAccountsId.NewId();
+    private static readonly TenantId TestTenant = new("tenant-posting-test");
 
     [Fact]
     public async Task Post_RejectsNonDraft()
@@ -22,7 +23,7 @@ public sealed class JournalPostingServiceTests
 
         Assert.Equal(PostError.NotADraft, result.Error);
         Assert.Null(result.Entry);
-        Assert.Empty(h.Store.Snapshot());
+        Assert.Empty(h.Store.Snapshot(TestTenant));
     }
 
     [Fact]
@@ -126,7 +127,7 @@ public sealed class JournalPostingServiceTests
 
         Assert.Equal(PostError.None, result.Error);
         Assert.NotNull(result.Entry);
-        Assert.Single(h.Store.Snapshot());
+        Assert.Single(h.Store.Snapshot(TestTenant));
     }
 
     [Fact]
@@ -162,7 +163,7 @@ public sealed class JournalPostingServiceTests
         Assert.Equal(JournalEntryStatus.Posted, result.Entry!.Status);
         Assert.NotNull(result.Entry.PostedAtUtc);
         Assert.Equal(entry.Id, result.Entry.Id);
-        var stored = h.Store.Snapshot();
+        var stored = h.Store.Snapshot(TestTenant);
         Assert.Single(stored);
         Assert.Equal(JournalEntryStatus.Posted, stored[0].Status);
     }
@@ -178,7 +179,7 @@ public sealed class JournalPostingServiceTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => h.Sut.PostAsync(entry));
 
         // Verify NO partial state landed (atomic rollback).
-        Assert.Empty(h.Store.Snapshot());
+        Assert.Empty(h.Store.Snapshot(TestTenant));
     }
 
     [Fact]
@@ -201,6 +202,7 @@ public sealed class JournalPostingServiceTests
         var h = new Harness();
         var entry = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: TestTenant,
             entryDate: DateOnly.FromDateTime(DateTime.UtcNow),
             memo: "decimal precision check",
             lines: new[]
@@ -256,6 +258,7 @@ public sealed class JournalPostingServiceTests
             decimal amount = 100m)
             => new JournalEntry(
                 id: JournalEntryId.NewId(),
+                tenantId: TestTenant,
                 entryDate: DateOnly.FromDateTime(DateTime.UtcNow),
                 memo: "test",
                 lines: new[]
