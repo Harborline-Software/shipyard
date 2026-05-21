@@ -103,7 +103,7 @@ public sealed class ProfitAndLossByPropertyCartridge
         var revenueBalances = new Dictionary<(GLAccountId, string), decimal>();
         var expenseBalances = new Dictionary<(GLAccountId, string), decimal>();
 
-        foreach (var entry in _journals.Snapshot())
+        foreach (var entry in _journals.Snapshot(context.TenantId))
         {
             if (entry.Status != JournalEntryStatus.Posted) continue;
             if (entry.ChartId is null || entry.ChartId.Value != parameters.ChartId) continue;

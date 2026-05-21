@@ -20,6 +20,7 @@ namespace Sunfish.Blocks.FinancialPeriods.Tests;
 public sealed class PeriodGatingIntegrationTests
 {
     private static readonly ChartOfAccountsId Chart = ChartOfAccountsId.NewId();
+    private static readonly TenantId TestTenant = new("tenant-period-gating-test");
 
     [Fact]
     public async Task RoundTrip_OpenThenSoftCloseThenAdminBypass()
@@ -61,6 +62,7 @@ public sealed class PeriodGatingIntegrationTests
 
         JournalEntry NewEntry() => new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: TestTenant,
             entryDate: today,
             memo: "round-trip",
             lines: new[]

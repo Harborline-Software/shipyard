@@ -1,10 +1,15 @@
 using Sunfish.Blocks.FinancialLedger.Models;
+using Sunfish.Foundation.Assets.Common;
 
 namespace Sunfish.Blocks.FinancialLedger.Services;
 
 /// <summary>
 /// Input for <see cref="IAccountingService.PostEntryAsync"/>.
 /// </summary>
+/// <param name="TenantId">
+/// Tenant scope (cohort-2 PR 0d). Stamped onto the resulting
+/// <see cref="JournalEntry"/> per ADR 0092 Step 1 tenant-keying retrofit.
+/// </param>
 /// <param name="EntryDate">Accounting date the entry is effective for.</param>
 /// <param name="Memo">Human-readable description of the transaction.</param>
 /// <param name="Lines">
@@ -15,6 +20,7 @@ namespace Sunfish.Blocks.FinancialLedger.Services;
 /// Optional opaque back-reference to the originating event (e.g. <c>"rent-payment:INV-123"</c>).
 /// </param>
 public sealed record PostJournalEntryRequest(
+    TenantId TenantId,
     DateOnly EntryDate,
     string Memo,
     IReadOnlyList<JournalEntryLine> Lines,

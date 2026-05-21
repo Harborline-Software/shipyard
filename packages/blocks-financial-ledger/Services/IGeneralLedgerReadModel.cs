@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Sunfish.Blocks.FinancialLedger.Models;
+using Sunfish.Foundation.Assets.Common;
 
 namespace Sunfish.Blocks.FinancialLedger.Services;
 
@@ -49,12 +50,14 @@ public interface IGeneralLedgerReadModel
     /// posted entries with <see cref="JournalEntry.EntryDate"/> on or
     /// before <paramref name="asOf"/>.
     /// </summary>
+    /// <param name="tenantId">Tenant scope. Only entries belonging to this tenant are included.</param>
     /// <param name="chartId">Chart of accounts to scope the projection to. Required.</param>
     /// <param name="asOf">Cutoff date (inclusive). Entries posted on or before this date contribute.</param>
     /// <param name="snapshotMarker">Opaque snapshot marker forwarded from the report-runner; Phase 1 implementations ignore.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Dictionary keyed by <see cref="GLAccountId"/> with signed balances. Accounts with no posted activity are omitted.</returns>
     Task<IReadOnlyDictionary<GLAccountId, decimal>> GetAccountBalancesAsOfAsync(
+        TenantId tenantId,
         ChartOfAccountsId chartId,
         System.DateOnly asOf,
         string snapshotMarker,

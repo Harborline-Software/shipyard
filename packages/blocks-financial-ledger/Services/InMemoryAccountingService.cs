@@ -93,6 +93,7 @@ public sealed class InMemoryAccountingService : IAccountingService
         // JournalEntry constructor enforces balance + line invariants; let it throw naturally.
         var entry = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: request.TenantId,
             entryDate: request.EntryDate,
             memo: request.Memo,
             lines: request.Lines,

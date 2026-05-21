@@ -13,11 +13,13 @@ public sealed class InMemoryGeneralLedgerReadModelTests
     private static readonly ChartOfAccountsId Chart = ChartOfAccountsId.NewId();
     private static readonly GLAccountId AccountA = GLAccountId.NewId();
     private static readonly GLAccountId AccountB = GLAccountId.NewId();
+    private static readonly TenantId TestTenant = new("tenant-gl-readmodel-test");
 
     private static JournalEntry Entry(DateOnly entryDate, JournalEntryStatus status, decimal amount, ChartOfAccountsId? chartId = null)
     {
         var entry = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: TestTenant,
             entryDate: entryDate,
             memo: "test",
             lines: new[]
@@ -34,7 +36,7 @@ public sealed class InMemoryGeneralLedgerReadModelTests
     {
         var store = new InMemoryJournalStore();
         var sut = new InMemoryGeneralLedgerReadModel(store);
-        var result = await sut.GetAccountBalancesAsOfAsync(Chart, new DateOnly(2026, 12, 31), "marker:1");
+        var result = await sut.GetAccountBalancesAsOfAsync(TestTenant, Chart, new DateOnly(2026, 12, 31), "marker:1");
         Assert.Empty(result);
     }
 
@@ -42,10 +44,10 @@ public sealed class InMemoryGeneralLedgerReadModelTests
     public async Task PostedEntry_ProducesSignedBalance()
     {
         var store = new InMemoryJournalStore();
-        await store.SaveAtomicAsync(Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Posted, 100m));
+        await store.SaveAtomicAsync(TestTenant, Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Posted, 100m));
         var sut = new InMemoryGeneralLedgerReadModel(store);
 
-        var result = await sut.GetAccountBalancesAsOfAsync(Chart, new DateOnly(2026, 12, 31), "marker:1");
+        var result = await sut.GetAccountBalancesAsOfAsync(TestTenant, Chart, new DateOnly(2026, 12, 31), "marker:1");
 
         Assert.Equal(2, result.Count);
         Assert.Equal(100m, result[AccountA]);    // debit-positive
@@ -56,11 +58,11 @@ public sealed class InMemoryGeneralLedgerReadModelTests
     public async Task MultipleEntries_AggregatePerAccount()
     {
         var store = new InMemoryJournalStore();
-        await store.SaveAtomicAsync(Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Posted, 100m));
-        await store.SaveAtomicAsync(Entry(new DateOnly(2026, 5, 15), JournalEntryStatus.Posted, 50m));
+        await store.SaveAtomicAsync(TestTenant, Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Posted, 100m));
+        await store.SaveAtomicAsync(TestTenant, Entry(new DateOnly(2026, 5, 15), JournalEntryStatus.Posted, 50m));
         var sut = new InMemoryGeneralLedgerReadModel(store);
 
-        var result = await sut.GetAccountBalancesAsOfAsync(Chart, new DateOnly(2026, 12, 31), "marker:1");
+        var result = await sut.GetAccountBalancesAsOfAsync(TestTenant, Chart, new DateOnly(2026, 12, 31), "marker:1");
 
         Assert.Equal(150m, result[AccountA]);
         Assert.Equal(-150m, result[AccountB]);
@@ -70,11 +72,11 @@ public sealed class InMemoryGeneralLedgerReadModelTests
     public async Task EntryAfterAsOf_ExcludedFromResults()
     {
         var store = new InMemoryJournalStore();
-        await store.SaveAtomicAsync(Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Posted, 100m));
-        await store.SaveAtomicAsync(Entry(new DateOnly(2026, 6, 1), JournalEntryStatus.Posted, 50m));
+        await store.SaveAtomicAsync(TestTenant, Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Posted, 100m));
+        await store.SaveAtomicAsync(TestTenant, Entry(new DateOnly(2026, 6, 1), JournalEntryStatus.Posted, 50m));
         var sut = new InMemoryGeneralLedgerReadModel(store);
 
-        var result = await sut.GetAccountBalancesAsOfAsync(Chart, new DateOnly(2026, 5, 31), "marker:1");
+        var result = await sut.GetAccountBalancesAsOfAsync(TestTenant, Chart, new DateOnly(2026, 5, 31), "marker:1");
 
         // Only May 1 entry counted; June 1 excluded.
         Assert.Equal(100m, result[AccountA]);
@@ -85,10 +87,10 @@ public sealed class InMemoryGeneralLedgerReadModelTests
     public async Task DraftEntry_ExcludedFromResults()
     {
         var store = new InMemoryJournalStore();
-        await store.SaveAtomicAsync(Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Draft, 100m));
+        await store.SaveAtomicAsync(TestTenant, Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Draft, 100m));
         var sut = new InMemoryGeneralLedgerReadModel(store);
 
-        var result = await sut.GetAccountBalancesAsOfAsync(Chart, new DateOnly(2026, 12, 31), "marker:1");
+        var result = await sut.GetAccountBalancesAsOfAsync(TestTenant, Chart, new DateOnly(2026, 12, 31), "marker:1");
         Assert.Empty(result);
     }
 
@@ -97,10 +99,10 @@ public sealed class InMemoryGeneralLedgerReadModelTests
     {
         var otherChart = ChartOfAccountsId.NewId();
         var store = new InMemoryJournalStore();
-        await store.SaveAtomicAsync(Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Posted, 100m, chartId: otherChart));
+        await store.SaveAtomicAsync(TestTenant, Entry(new DateOnly(2026, 5, 1), JournalEntryStatus.Posted, 100m, chartId: otherChart));
         var sut = new InMemoryGeneralLedgerReadModel(store);
 
-        var result = await sut.GetAccountBalancesAsOfAsync(Chart, new DateOnly(2026, 12, 31), "marker:1");
+        var result = await sut.GetAccountBalancesAsOfAsync(TestTenant, Chart, new DateOnly(2026, 12, 31), "marker:1");
         Assert.Empty(result);
     }
 }

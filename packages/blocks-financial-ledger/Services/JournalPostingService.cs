@@ -110,7 +110,7 @@ public sealed class JournalPostingService : IJournalPostingService
             Status = JournalEntryStatus.Posted,
             PostedAtUtc = new Instant(_time.GetUtcNow()),
         };
-        await _store.SaveAtomicAsync(posted, cancellationToken).ConfigureAwait(false);
+        await _store.SaveAtomicAsync(posted.TenantId, posted, cancellationToken).ConfigureAwait(false);
 
         // Phase 6 — result.
         return new PostResult(posted, PostError.None, null);

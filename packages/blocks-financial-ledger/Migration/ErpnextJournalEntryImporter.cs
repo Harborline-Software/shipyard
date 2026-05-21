@@ -30,13 +30,14 @@ public sealed class ErpnextJournalEntryImporter : IErpnextJournalEntryImporter
     /// <inheritdoc />
     public async Task<ImportOutcome<JournalEntry>> UpsertFromErpnextAsync(
         ErpnextJournalEntrySource source,
+        TenantId tenantId,
         ChartOfAccountsId targetChart,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(source);
 
         // Idempotency check. Posted entries are immutable.
-        var existing = _store.Snapshot()
+        var existing = _store.Snapshot(tenantId)
             .FirstOrDefault(e => string.Equals(e.ExternalRef, source.Name, StringComparison.Ordinal));
         if (existing is not null)
         {
@@ -77,6 +78,7 @@ public sealed class ErpnextJournalEntryImporter : IErpnextJournalEntryImporter
         {
             draft = new JournalEntry(
                 id:              JournalEntryId.NewId(),
+                tenantId:        tenantId,
                 entryDate:       source.PostingDate,
                 memo:            source.Memo,
                 lines:           lines,

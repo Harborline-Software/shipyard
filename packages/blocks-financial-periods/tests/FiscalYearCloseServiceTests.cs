@@ -98,7 +98,7 @@ public sealed class FiscalYearCloseServiceTests
         Assert.Null(result.ClosingEntryId);
         Assert.Equal(FiscalYearStatus.Closed, result.FiscalYear!.Status);
         Assert.NotNull(result.FiscalYear.ClosedAtUtc);
-        Assert.Empty(h.Store.Snapshot()); // no JE posted
+        Assert.Empty(h.Store.Snapshot(TenantId.System)); // no JE posted
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class FiscalYearCloseServiceTests
 
         Assert.True(result.IsSuccess, result.Detail);
         Assert.NotNull(result.ClosingEntryId);
-        var closing = h.Store.Snapshot().Single();
+        var closing = h.Store.Snapshot(TenantId.System).Single();
         Assert.Equal(JournalEntryStatus.Posted, closing.Status);
         Assert.Equal(JournalEntrySource.Closing, closing.SourceKind);
         // Retained earnings line: credit 700 (net income).
@@ -139,7 +139,7 @@ public sealed class FiscalYearCloseServiceTests
         var result = await h.Sut.CloseFiscalYearAsync(fy.Id);
 
         Assert.True(result.IsSuccess);
-        var closing = h.Store.Snapshot().Single();
+        var closing = h.Store.Snapshot(TenantId.System).Single();
         var retainedLine = closing.Lines.Single(l => l.AccountId.Equals(retained.Id));
         Assert.Equal(300m, retainedLine.Debit);
         Assert.Equal(0m, retainedLine.Credit);
@@ -158,7 +158,7 @@ public sealed class FiscalYearCloseServiceTests
         var result = await h.Sut.CloseFiscalYearAsync(fy.Id);
         Assert.True(result.IsSuccess);
 
-        var closing = h.Store.Snapshot().Single();
+        var closing = h.Store.Snapshot(TenantId.System).Single();
         Assert.Equal(closing.Lines.Sum(l => l.Debit), closing.Lines.Sum(l => l.Credit));
     }
 
@@ -286,7 +286,7 @@ public sealed class FiscalYearCloseServiceTests
 
         Assert.True(result.IsSuccess, result.Detail);
         Assert.Equal(phantomJEId, result.ClosingEntryId);
-        Assert.Empty(h.Store.Snapshot()); // no NEW JE posted
+        Assert.Empty(h.Store.Snapshot(TenantId.System)); // no NEW JE posted
     }
 
     [Fact]

@@ -30,6 +30,7 @@ public sealed class TrialBalanceCartridgeTests
     private static JournalEntry PostedEntry(DateOnly date, GLAccountId debit, GLAccountId credit, decimal amount)
         => new JournalEntry(
                 id: JournalEntryId.NewId(),
+                tenantId: Tenant,
                 entryDate: date,
                 memo: "test",
                 lines: new[]
@@ -84,7 +85,7 @@ public sealed class TrialBalanceCartridgeTests
         var cash = Acct("1000", GLAccountType.Asset);
         var revenue = Acct("4000", GLAccountType.Revenue);
         var (sut, _, _, _, journals) = Build(new[] { cash, revenue });
-        await journals.SaveAtomicAsync(PostedEntry(new DateOnly(2026, 5, 1), cash.Id, revenue.Id, 100m));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(new DateOnly(2026, 5, 1), cash.Id, revenue.Id, 100m));
 
         var result = await sut.ExecuteAsync(Context(),
             new TrialBalanceParameters { ChartId = Chart, AsOfDate = new DateOnly(2026, 12, 31) });
@@ -103,8 +104,8 @@ public sealed class TrialBalanceCartridgeTests
         var cash = Acct("1000", GLAccountType.Asset);
         var revenue = Acct("4000", GLAccountType.Revenue);
         var (sut, _, _, _, journals) = Build(new[] { cash, revenue });
-        await journals.SaveAtomicAsync(PostedEntry(new DateOnly(2026, 5, 1), cash.Id, revenue.Id, 100m));
-        await journals.SaveAtomicAsync(PostedEntry(new DateOnly(2026, 5, 15), cash.Id, revenue.Id, 50m));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(new DateOnly(2026, 5, 1), cash.Id, revenue.Id, 100m));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(new DateOnly(2026, 5, 15), cash.Id, revenue.Id, 50m));
 
         var result = await sut.ExecuteAsync(Context(),
             new TrialBalanceParameters { ChartId = Chart, AsOfDate = new DateOnly(2026, 12, 31) });
@@ -151,7 +152,7 @@ public sealed class TrialBalanceCartridgeTests
         var active = Acct("1000", GLAccountType.Asset);
         var inactive = Acct("1001", GLAccountType.Asset, isActive: false);
         var (sut, _, _, _, journals) = Build(new[] { active, inactive });
-        await journals.SaveAtomicAsync(PostedEntry(new DateOnly(2026, 5, 1), active.Id, inactive.Id, 100m));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(new DateOnly(2026, 5, 1), active.Id, inactive.Id, 100m));
 
         var result = await sut.ExecuteAsync(Context(),
             new TrialBalanceParameters { ChartId = Chart, AsOfDate = new DateOnly(2026, 12, 31), IncludeZeroBalanceAccounts = true });
@@ -165,7 +166,7 @@ public sealed class TrialBalanceCartridgeTests
         var active = Acct("1000", GLAccountType.Asset);
         var inactive = Acct("1001", GLAccountType.Asset, isActive: false);
         var (sut, _, _, _, journals) = Build(new[] { active, inactive });
-        await journals.SaveAtomicAsync(PostedEntry(new DateOnly(2026, 5, 1), active.Id, inactive.Id, 100m));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(new DateOnly(2026, 5, 1), active.Id, inactive.Id, 100m));
 
         var result = await sut.ExecuteAsync(Context(),
             new TrialBalanceParameters { ChartId = Chart, AsOfDate = new DateOnly(2026, 12, 31), IncludeInactiveAccounts = true });
@@ -180,7 +181,7 @@ public sealed class TrialBalanceCartridgeTests
         var zero = Acct("1001", GLAccountType.Asset);
         var revenue = Acct("4000", GLAccountType.Revenue);
         var (sut, _, _, _, journals) = Build(new[] { withBalance, zero, revenue });
-        await journals.SaveAtomicAsync(PostedEntry(new DateOnly(2026, 5, 1), withBalance.Id, revenue.Id, 100m));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(new DateOnly(2026, 5, 1), withBalance.Id, revenue.Id, 100m));
 
         var result = await sut.ExecuteAsync(Context(),
             new TrialBalanceParameters { ChartId = Chart, AsOfDate = new DateOnly(2026, 12, 31), IncludeZeroBalanceAccounts = false });
@@ -195,7 +196,7 @@ public sealed class TrialBalanceCartridgeTests
         var zero = Acct("1001", GLAccountType.Asset);
         var revenue = Acct("4000", GLAccountType.Revenue);
         var (sut, _, _, _, journals) = Build(new[] { withBalance, zero, revenue });
-        await journals.SaveAtomicAsync(PostedEntry(new DateOnly(2026, 5, 1), withBalance.Id, revenue.Id, 100m));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(new DateOnly(2026, 5, 1), withBalance.Id, revenue.Id, 100m));
 
         var result = await sut.ExecuteAsync(Context(),
             new TrialBalanceParameters { ChartId = Chart, AsOfDate = new DateOnly(2026, 12, 31), IncludeZeroBalanceAccounts = true });
@@ -251,8 +252,8 @@ public sealed class TrialBalanceCartridgeTests
         var a2 = Acct("2000", GLAccountType.Liability);
         var rev = Acct("4000", GLAccountType.Revenue);
         var (sut, _, _, _, journals) = Build(new[] { a3, a1, a2, rev });
-        await journals.SaveAtomicAsync(PostedEntry(new DateOnly(2026, 5, 1), a1.Id, rev.Id, 100m));
-        await journals.SaveAtomicAsync(PostedEntry(new DateOnly(2026, 5, 2), a2.Id, a3.Id, 50m));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(new DateOnly(2026, 5, 1), a1.Id, rev.Id, 100m));
+        await journals.SaveAtomicAsync(Tenant, PostedEntry(new DateOnly(2026, 5, 2), a2.Id, a3.Id, 50m));
 
         var result = await sut.ExecuteAsync(Context(),
             new TrialBalanceParameters { ChartId = Chart, AsOfDate = new DateOnly(2026, 12, 31) });

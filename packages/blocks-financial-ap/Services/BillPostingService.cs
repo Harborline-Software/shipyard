@@ -98,6 +98,7 @@ public sealed class BillPostingService : IBillPostingService
 
         var entry = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: CurrentTenantId,
             entryDate: bill.BillDate,
             memo: $"Bill {bill.BillNumber} from {bill.VendorId.Value}",
             lines: jeLines,
@@ -171,6 +172,7 @@ public sealed class BillPostingService : IBillPostingService
 
         var reversal = new JournalEntry(
             id: JournalEntryId.NewId(),
+            tenantId: CurrentTenantId,
             entryDate: DateOnly.FromDateTime(DateTime.UtcNow),
             memo: $"Void bill {bill.BillNumber}: {reason}",
             lines: jeLines,

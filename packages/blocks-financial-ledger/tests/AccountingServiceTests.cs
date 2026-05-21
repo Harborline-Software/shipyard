@@ -7,6 +7,8 @@ namespace Sunfish.Blocks.FinancialLedger.Tests;
 
 public class AccountingServiceTests
 {
+    private static readonly TenantId TestTenant = new("tenant-accounting-test");
+
     private static InMemoryAccountingService CreateService() => new();
 
     // -------------------------------------------------------------------------
@@ -37,6 +39,7 @@ public class AccountingServiceTests
             new(creditId, debit: 0m, credit: amount),
         };
         return await svc.PostEntryAsync(new PostJournalEntryRequest(
+            TenantId: TestTenant,
             EntryDate: date ?? new DateOnly(2025, 6, 1),
             Memo: "Test entry",
             Lines: lines,
@@ -122,6 +125,7 @@ public class AccountingServiceTests
 
         await Assert.ThrowsAsync<ArgumentException>(
             () => svc.PostEntryAsync(new PostJournalEntryRequest(
+                TenantId: TestTenant,
                 EntryDate: new DateOnly(2025, 6, 1),
                 Memo: "Imbalanced",
                 Lines: imbalancedLines)).AsTask());
@@ -178,6 +182,7 @@ public class AccountingServiceTests
 
         await Assert.ThrowsAsync<KeyNotFoundException>(
             () => svc.PostEntryAsync(new PostJournalEntryRequest(
+                TenantId: TestTenant,
                 EntryDate: new DateOnly(2025, 6, 1),
                 Memo: "Unknown account",
                 Lines: lines)).AsTask());

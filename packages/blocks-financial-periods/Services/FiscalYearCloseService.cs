@@ -155,6 +155,7 @@ public sealed class FiscalYearCloseService : IFiscalYearCloseService
         {
             var closingEntry = new JournalEntry(
                 id: JournalEntryId.NewId(),
+                tenantId: _tenantId,
                 entryDate: fy.EndDate,
                 memo: $"Year-end closing entry — {fy.Label}",
                 lines: closingLines,

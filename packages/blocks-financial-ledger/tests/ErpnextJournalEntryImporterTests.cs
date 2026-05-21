@@ -13,6 +13,7 @@ namespace Sunfish.Blocks.FinancialLedger.Tests;
 public sealed class ErpnextJournalEntryImporterTests
 {
     private static readonly ChartOfAccountsId Chart = ChartOfAccountsId.NewId();
+    private static readonly TenantId TestTenant = new("tenant-erpnext-test");
 
     [Fact]
     public async Task UpsertJE_NewEntry_InsertsAndReturnsInserted()
@@ -20,12 +21,12 @@ public sealed class ErpnextJournalEntryImporterTests
         var h = new Harness();
         var source = h.NewBalancedSource("je-001", "Manual JE", "Journal Entry");
 
-        var outcome = await h.Sut.UpsertFromErpnextAsync(source, Chart);
+        var outcome = await h.Sut.UpsertFromErpnextAsync(source, TestTenant, Chart);
 
         Assert.Equal(ImportAction.Inserted, outcome.Action);
         Assert.NotNull(outcome.Record);
         Assert.Equal(JournalEntryStatus.Posted, outcome.Record.Status);
-        Assert.Single(h.Store.Snapshot());
+        Assert.Single(h.Store.Snapshot(TestTenant));
     }
 
     [Fact]
@@ -33,13 +34,13 @@ public sealed class ErpnextJournalEntryImporterTests
     {
         var h = new Harness();
         var source = h.NewBalancedSource("je-001", "first", "Journal Entry");
-        await h.Sut.UpsertFromErpnextAsync(source, Chart);
+        await h.Sut.UpsertFromErpnextAsync(source, TestTenant, Chart);
 
-        var again = await h.Sut.UpsertFromErpnextAsync(source with { Memo = "second" }, Chart);
+        var again = await h.Sut.UpsertFromErpnextAsync(source with { Memo = "second" }, TestTenant, Chart);
 
         Assert.Equal(ImportAction.Skipped, again.Action);
         // Skipped does NOT add another entry to the store.
-        Assert.Single(h.Store.Snapshot());
+        Assert.Single(h.Store.Snapshot(TestTenant));
     }
 
     [Fact]
@@ -50,7 +51,7 @@ public sealed class ErpnextJournalEntryImporterTests
         // but IsOpening=true must override to Migration.
         var source = h.NewBalancedSource("je-001", "Opening", "Journal Entry") with { IsOpening = true };
 
-        var outcome = await h.Sut.UpsertFromErpnextAsync(source, Chart);
+        var outcome = await h.Sut.UpsertFromErpnextAsync(source, TestTenant, Chart);
 
         Assert.Equal(ImportAction.Inserted, outcome.Action);
         Assert.Equal(JournalEntrySource.Migration, outcome.Record.SourceKind);
@@ -70,12 +71,12 @@ public sealed class ErpnextJournalEntryImporterTests
             },
         };
 
-        var outcome = await h.Sut.UpsertFromErpnextAsync(source, Chart);
+        var outcome = await h.Sut.UpsertFromErpnextAsync(source, TestTenant, Chart);
 
         Assert.Equal(ImportAction.Skipped, outcome.Action);
         Assert.NotNull(outcome.Detail);
         Assert.Contains(unknown, outcome.Detail!);
-        Assert.Empty(h.Store.Snapshot());
+        Assert.Empty(h.Store.Snapshot(TestTenant));
     }
 
     [Theory]
