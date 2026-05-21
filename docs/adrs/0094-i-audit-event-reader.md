@@ -1,9 +1,10 @@
 ---
 id: 94
 title: IAuditEventReader — Read-Side Audit Substrate Primitive
-status: Proposed
+status: Accepted
 date: 2026-05-21
 proposed-date: 2026-05-21
+accepted-date: 2026-05-21
 author: Admiral
 tier: kernel
 pipeline_variant: sunfish-api-change
@@ -41,12 +42,16 @@ requires-council:
 
 co-pre-authorized: false  # Admiral-scope ADR; cohort-4 Engineer PR 0 consumes; pre-auth granted on a per-PR basis only
 
-amendments: []
+amendments:
+  - rev: 2
+    date: 2026-05-21
+    status: Accepted
+    summary: Folded 3 .NET-architect AMBER amendments (kernel-tier marker-free in Decision drivers; cursor tuple-compare predicate explicit; InMemoryAuditEventReader DI lifetime constraint). Added 2 sec-eng forward-watch items for downstream Step 1-5 substrate PR. Sec-eng verdict GREEN no amendments. See §Revision History.
 ---
 
 # ADR 0094 — `IAuditEventReader` — Read-Side Audit Substrate Primitive
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-05-21
 **Resolves:** Cohort-4 C3 audit-trail-viewer Stage-06 hand-off (`shipyard#81`) halt condition H2 — *"`IAuditTrail` doesn't have query-side primitives"*. The existing `IAuditTrail.QueryAsync` is a single-tuple AND-filter stream (sufficient for kernel-internal callers); the cohort-4 viewer's pagination shape, drill-down-by-id semantics, and CSV-export streaming pattern want a dedicated read-side contract.
 
@@ -133,6 +138,8 @@ Three options to address this gap. The decision space is shaped by ADR 0092's "s
 - **Council-attestation discipline (per ADR 0069).** This ADR is kernel-tier and audit-substrate-shaping; pre-merge council review by BOTH `.NET-architect` and `security-engineering` is mandatory before promotion to `Accepted` (mirrors the dual-council discipline on ADR 0091 R2 and ADR 0092 Rev 2).
 
 - **Recursion-safe audit-emission.** A reader that emits `TenantBoundaryViolation` audit events must NOT call back through `IAuditEventReader` to verify those emissions — that path is for the write-side `IAuditTrail.AppendAsync`. The reader and writer share substrate (kernel `IEventLog` per ADR 0049) but the reader does not emit to itself.
+
+- **Kernel-tier reads are marker-free (pending Q3).** Kernel-tier read primitives (substrate-internal, not UI-adjacent) MAY be marker-free — not extending `Sunfish.Foundation.Persistence.ITenantScopedRepository<TEntity, TKey>` — until ADR 0094 Q3 ("Marker interface for kernel-tier reads") resolves whether kernel-tier reads need substrate-marker conformance. This ADR ships `IAuditEventReader` marker-free per current Q3 disposition (punt to future ADR; Step 4a/4b/4c analyzers do not currently scan kernel-audit). The interface INHERITS the substrate's tenant-scoping discipline (EXPLICIT first-positional `TenantId`, uniform-empty cross-tenant, audit-emission on probe) without claiming the marker. Future kernel-tier read-side ADRs SHALL inherit this driver until Q3 is resolved (then revisit via amendment to this ADR and to the future ADRs that depend on it).
 
 ---
 
@@ -389,9 +396,33 @@ public sealed record AuditEventPage(
 /// (cross-tenant probe path); the Bridge handler's signature-check fires
 /// first.
 /// </para>
+///
+/// <para>
+/// <b>Tuple-compare walking predicate (cursor advancement).</b> The cursor
+/// compares as a tuple <c>(OccurredAt, AuditId)</c> strictly descending.
+/// Given a cursor <c>C = (C.OccurredAt, C.AuditId)</c>, the
+/// <see cref="IAuditEventReader.ListAsync"/> implementation MUST include a
+/// record <c>R = (R.OccurredAt, R.AuditId)</c> in the next page iff:
+/// <code>
+/// R.OccurredAt &lt; C.OccurredAt
+///     OR (R.OccurredAt = C.OccurredAt AND R.AuditId &lt; C.AuditId)
+/// </code>
+/// The <see cref="AuditId"/> tie-breaker is load-bearing: when multiple
+/// audit events share a sub-millisecond <see cref="OccurredAt"/> (entirely
+/// possible under burst-write workloads, e.g., a cohort-2 service-layer
+/// guard emitting N <c>TenantBoundaryViolation</c> records in a tight
+/// loop), comparing on <see cref="OccurredAt"/> alone would silently drop
+/// records sharing the cursor's timestamp. The tie-breaker on
+/// <see cref="AuditId"/> (a <see cref="Guid"/> — total order under
+/// byte-lex compare) ensures every record is walked exactly once across
+/// page boundaries. Reference implementations SHALL implement this
+/// predicate; the test case
+/// <c>ListAsync_TieOccurredAt_CursorWalksBoth</c> (see §Compatibility plan)
+/// asserts the behavior under shared-timestamp conditions.
+/// </para>
 /// </remarks>
-/// <param name="OccurredAt">Resume-after point on <see cref="AuditRecord.OccurredAt"/> (records strictly older are included).</param>
-/// <param name="AuditId">Tie-breaker on <see cref="AuditRecord.AuditId"/> for records sharing <see cref="OccurredAt"/>.</param>
+/// <param name="OccurredAt">Resume-after point on <see cref="AuditRecord.OccurredAt"/> (records strictly older are included; records sharing this timestamp are included iff their <see cref="AuditId"/> sorts strictly less than <paramref name="AuditId"/>).</param>
+/// <param name="AuditId">Tie-breaker on <see cref="AuditRecord.AuditId"/> for records sharing <see cref="OccurredAt"/>. Compared as a <see cref="Guid"/> total order; records with <c>R.AuditId &lt; cursor.AuditId</c> are included when timestamps match.</param>
 /// <param name="TenantId">The tenant this cursor was issued to. Bridge signature verification rejects cross-tenant reuse before the cursor reaches the substrate.</param>
 public sealed record AuditEventCursor(
     DateTimeOffset OccurredAt,
@@ -404,6 +435,8 @@ public sealed record AuditEventCursor(
 Ship two reference implementations in `packages/kernel-audit/`:
 
 1. **`InMemoryAuditEventReader`** — restart-volatile; shares the in-memory store with `InMemoryAuditTrail` via constructor injection so test fixtures get consistent read-after-write behavior without two parallel stores.
+
+   **DI lifetime constraint (per .NET-architect Amendment 2.5).** `InMemoryAuditEventReader` constructor-injects `InMemoryAuditTrail` as the CONCRETE class (not the `IAuditTrail` interface) so the reader can access the writer's in-memory backing field directly. Hosts MUST register `InMemoryAuditTrail` as **Scoped** or **Singleton** — NOT `Transient`. A `Transient` registration would create a fresh, empty `InMemoryAuditTrail` instance on each resolution, silently losing every record appended via the writer's `InMemoryAuditTrail` instance before the reader resolved its own copy. The `AddSunfishKernelAuditReaderInMemory()` DI extension registers `InMemoryAuditTrail` as Scoped (matches the writer's existing `AddSunfishKernelAuditInMemory()` registration); hosts overriding the lifetime MUST keep it Scoped or Singleton. The Step 1-5 substrate PR ships a startup-assertion (or a unit test) that verifies the registered lifetime is not `Transient`.
 
    ```csharp
    public sealed class InMemoryAuditEventReader : IAuditEventReader
@@ -554,11 +587,12 @@ When `GetByIdAsync` detects a cross-tenant probe, it emits via the WRITE-side `I
 - **Test substrate.** `packages/kernel-audit/tests/AuditEventReaderTests.cs` (new file) ships with the Step 1 PR. Test surface mirrors existing `AuditTrailTests.cs`:
   - `GetByIdAsync_TenantMatch_ReturnsRecord` — happy path
   - `GetByIdAsync_TenantMismatch_ReturnsNull` — uniform-empty per ADR 0092 §A3
-  - `GetByIdAsync_TenantMismatch_EmitsTenantBoundaryViolation` — per ADR 0092 §A6
+  - `GetByIdAsync_TenantMismatch_EmitsTenantBoundaryViolation` — per ADR 0092 §A6 (sec-eng forward-watch FW1 below — add `Assert.AreNotSame(reader, emitter)` no-recursion assertion variant)
   - `GetByIdAsync_NotFound_ReturnsNullNoEmission` — not-found path is silent
   - `ListAsync_TenantMatch_ReturnsScopedPage` — pagination happy path
   - `ListAsync_CrossTenantCursor_ReturnsEmpty` — Decision 5 substrate behavior
   - `ListAsync_PageSizeOverLimit_ThrowsArgumentException` — input validation
+  - `ListAsync_TieOccurredAt_CursorWalksBoth` — tuple-compare tie-breaker (per Amendment 2.3 / `AuditEventCursor` xmldoc). Seed two records with identical sub-millisecond `OccurredAt` and distinct `AuditId` values; assert `ListAsync(PageSize=1)` returns one + emits a `NextCursor` whose subsequent `ListAsync` call returns the SECOND record (not empty). Failure mode if the tie-breaker is missing: the second record is silently dropped at the page boundary.
   - `StreamAsync_TenantMatch_StreamsScopedRecords` — streaming happy path
   - `StreamAsync_Cancelled_EndsEnumeration` — cancellation semantics
 
@@ -586,6 +620,16 @@ Step 1-5 land as a single PR (kernel-audit substrate change; modest LOC; one new
 - **Q3 — Marker interface for kernel-tier reads.** ADR 0092's `ITenantScopedRepository<TEntity, TKey>` is block-cluster-scoped. Should a parallel marker (e.g., `IKernelTenantScopedReader<TRecord>`) be introduced to cover `IAuditEventReader` and future kernel-tier read surfaces, so the Step 4a/4b/4c analyzers can extend their scan to kernel-audit? **Disposition:** punt to a future ADR. Cohort-4 doesn't gate on analyzer coverage of kernel-audit; the SPOT-CHECK pattern (sec-eng on shipyard#71 + future cohort-4 PR 0) carries the gap until the analyzer extension lands.
 
 - **Q4 — `StreamAsync` cap at the substrate layer.** Should `StreamAsync` honor a substrate-layer hard cap (e.g., 10M records) or leave the cap entirely to handler-layer enforcement? **Disposition:** leave to handler layer (cohort-4 enforces 10M); the substrate primitive is uncapped to preserve future-extensibility for legitimate bulk-export use cases (regulatory exports, e.g., IRS audit support per Phase 2 commercial scope).
+
+---
+
+## Forward-watched dimensions
+
+Items surfaced during dual-council SPOT-CHECK that are NOT amendments to this ADR but SHALL be addressed in the downstream Step 1-5 substrate PR (or its companion PRs). Captured here so the Engineer building the substrate PR inherits the context.
+
+- **FW1 — No-recursion assertion in tenant-mismatch emission test (sec-eng).** The test `GetByIdAsync_TenantMismatch_EmitsTenantBoundaryViolation` (enumerated in §Compatibility plan) MUST include an assertion that emission goes through the WRITE-side `IAuditTrail.AppendAsync` injected separately, NOT back through `IAuditEventReader` (which would be recursive). Suggested assertion shape: capture the emitter as a `Mock<IAuditTrail>` (separate from the reader's own `_emitter` field if it is the same instance), verify `AppendAsync` was called exactly once, and verify the reader's own `GetByIdAsync` / `ListAsync` / `StreamAsync` were not re-entered during the emission (`Mock.Verify(r => r.GetByIdAsync(...), Times.Never())` on the reader-as-mock test variant). This is defense-in-depth against a future refactor that accidentally introduces self-emission. Captured from sec-eng GREEN verdict 2026-05-21T1300Z.
+
+- **FW2 — Audit-payload field-count reconciliation (sec-eng).** This ADR cites the canonical `TenantBoundaryViolation` payload as **5-field** (`entity_type`, `entity_id`, `requested_tenant`, `actual_tenant`, `correlation_id`) — see §"Decision drivers" + §Decision interface remarks + §"Reference implementations". ADR 0092 §A6 enumerates a **4-field** payload; the existing emitter `packages/blocks-maintenance/Services/InMemoryMaintenanceService.cs:210-222` ships a **3-field** payload. The Step 1-5 substrate PR (Engineer scope) MUST resolve this divergence on one of two paths: (a) align Step 1-5 substrate on the 5-field shape this ADR cites and update ADR 0092 §A6 + the maintenance-service emitter to match (sec-eng amendment to ADR 0092 + tracked PR to maintenance-service), OR (b) realign this ADR's payload citations on the 4-field ADR 0092 §A6 shape and file an amendment to this ADR. Sec-eng disposition: prefer path (a) — the 5-field shape carries the correlation-id required for cohort-4 drill-down + future regulatory-audit traceability — but defer the decision to the Step 1-5 substrate PR's sec-eng SPOT-CHECK. Captured from sec-eng GREEN verdict 2026-05-21T1300Z.
 
 ---
 
@@ -673,4 +717,17 @@ Run by author 2026-05-21. All `Sunfish.*` short-names found in `packages/` (exis
 
 ---
 
-*This ADR enforces the lightweight Universal Planning Framework checks per `.claude/rules/universal-planning.md` and the ADR authoring discipline in ADR 0069 (pre-merge council + §A0 + three-direction). Status will move to `Accepted` after both `.NET-architect` and `security-engineering` councils return GREEN-attested verdicts.*
+## Revision History
+
+- **Rev 1 — 2026-05-21T15:45Z — Proposed.** Initial draft authored by Admiral; PR shipyard#86 opened. Dual-council SPOT-CHECK requested per pre-merge ADR 0069 + sec-eng + .NET-architect attestation discipline.
+
+- **Rev 2 — 2026-05-21T17:30Z — Accepted.** Folded 3 .NET-architect AMBER amendments per council verdict `coordination/inbox/council-verdict-2026-05-21T1259Z-net-architect-shipyard-86-adr-0094-spot-check.md`:
+  - **Amendment 2.1** — Promoted "kernel-tier reads are marker-free (pending Q3)" from xmldoc remarks to §"Decision drivers" so future kernel-tier read-side ADRs inherit the rationale cleanly.
+  - **Amendment 2.3** — Made cursor tuple-compare predicate explicit. Added xmldoc paragraph on `AuditEventCursor` documenting the walking predicate (`OccurredAt < C.OccurredAt OR (OccurredAt = C.OccurredAt AND AuditId < C.AuditId)`) + test case `ListAsync_TieOccurredAt_CursorWalksBoth` in §Compatibility plan.
+  - **Amendment 2.5** — Added DI lifetime constraint to `InMemoryAuditEventReader` reference-implementation section: hosts MUST register `InMemoryAuditTrail` as Scoped or Singleton (not Transient) so the writer + reader share the in-memory backing field; startup-assertion or unit test ships with the Step 1-5 PR.
+
+  Sec-eng SPOT-CHECK verdict GREEN with NO amendments per `coordination/inbox/council-verdict-2026-05-21T1300Z-security-engineering-shipyard-86-adr-0094-spot-check.md`. Two non-blocking forward-watch items captured in new §"Forward-watched dimensions" section (no-recursion assertion variant on tenant-mismatch test FW1; audit-payload field-count reconciliation FW2 — to be resolved in Step 1-5 substrate PR, not in this ADR). Both councils' verdicts inherited as GREEN-via-fold for the mechanical amendments matching their recommendations exactly. Promoted Status: Proposed → Accepted; auto-merge armed on shipyard#86.
+
+---
+
+*This ADR enforces the lightweight Universal Planning Framework checks per `.claude/rules/universal-planning.md` and the ADR authoring discipline in ADR 0069 (pre-merge council + §A0 + three-direction). Status moved to `Accepted` 2026-05-21T17:30Z after dual-council attestation: `.NET-architect` AMBER → folded amendments → GREEN-via-fold; `security-engineering` GREEN with forward-watch items captured in §"Forward-watched dimensions".*
