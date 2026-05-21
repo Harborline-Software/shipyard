@@ -317,12 +317,44 @@ Lifted from W#23.3 P1 sec-eng amendment A2 (2026-05-19).
 
 ---
 
+### `pattern-009-tenant-keying-retrofit` — Tenant-keying retrofit pass on pre-existing handlers
+
+**Definition:** Sub-pattern under `pattern-009`. Covers PRs that retrofit the tenant cross-check sub-step (fetch entity → verify tenant → uniform 404 on mismatch) onto handlers or repository contracts that shipped before the sub-step was codified in the formal pattern. Introduced by ADR 0092 §A2.
+
+**Matches when:**
+- PR retrofits tenant-keyed repository contract (`ITenantId tenantId` first-positional parameter on every repository method) for a cluster's `I<X>Repository` interface OR
+- PR adds Option A service-layer tenant guards to a pre-existing service (W#68 PR 3 Option A precedent) OR
+- PR adds Option B substrate-wide tenant filtering (HasQueryFilter at EFCore layer) per ADR 0092 Step 2 convention
+- `@candidate-pattern: pattern-009-tenant-keying-retrofit` OR `@standing-pattern: pattern-009-tenant-keying-retrofit` appears in PR description
+
+**Does NOT match if:**
+- PR introduces NEW handler / service / repository contract (use `pattern-009` formal for new surfaces; this sub-pattern is RETROFIT only)
+- Diff exceeds 1500 lines net
+
+**Shipping history (4 clean shippings — ratification trigger met 2026-05-21):**
+1. Cohort-2 PR 0a — `blocks-financial-ar` `IInvoiceRepository` tenant-keyed (shipyard#52; sec-eng + .NET-arch dual SPOT-CHECK GREEN; merged 2026-05-20)
+2. Cohort-2 PR 0b — `blocks-financial-ap` `IBillRepository` tenant-keyed (shipyard#57; sec-eng + .NET-arch dual SPOT-CHECK GREEN; merged 2026-05-20)
+3. Cohort-2 PR 0c — `blocks-financial-payments` `IPaymentRepository` + `IPaymentApplicationRepository` tenant-keyed (shipyard#60; sec-eng + .NET-arch dual SPOT-CHECK GREEN; merged 2026-05-20)
+4. Cohort-2 PR 0d — `blocks-financial-ledger` `IJournalStore` tenant-keyed (shipyard#64; sec-eng + .NET-arch dual SPOT-CHECK GREEN; merged 2026-05-21) ← **ratification trigger**
+5. Plus shipyard#63 — pattern-009-tenant-keying-retrofit corrigendum (dual SPOT-CHECK ratification)
+
+**Status:** **Formal — promoted 2026-05-21** after cohort-2 PRs 0a–0d shipped clean with dual sec-eng + .NET-architect SPOT-CHECK GREEN. Per V4 #4 ONR audit + V5 #2 ONR catalog hygiene PR.
+
+**Council requirement:** MANDATORY **dual sec-eng + .NET-architect SPOT-CHECK** on every retrofit instance (same as parent `pattern-009`). SLA: Admiral dispatches within 30 min of DRAFT PR opening.
+
+**Revoke if:**
+- Any post-merge incident on a retrofit-pattern-matched PR
+- A SPOT-CHECK finds a systematic gap across ≥2 instances — pattern must be re-ratified with amended criteria
+
+---
+
 ## Patterns proposed but not yet ratified
 
 - **`pattern-004` (Cluster aging service)** — needs 1 more shipping to reach 3-PR ratification minimum
-- **`pattern-009-tenant-keying-retrofit` (Tenant-keying retrofit pass on pre-existing handlers)** — candidate sub-pattern under `pattern-009`. Covers PRs that retrofit the tenant cross-check sub-step (fetch entity → verify tenant → uniform 404 on mismatch) onto handlers that shipped before the sub-step was codified in the formal pattern. Introduced by ADR 0092 §A2; ratification trigger is 4 clean shippings in cohort-2 PRs 0a–0d (sec-eng + .NET-architect dual SPOT-CHECK; per W#76 hand-off). See `coordination/inbox/onr-cohort-2-stage06-handoff.md`.
 - **`pattern-010` (`apps/docs/blocks/<cluster>/toc.yml` entry)** — usually bundled with `pattern-006`; not a standalone pattern yet
 - **`pattern-011` (Cross-cluster event publisher wiring)** — was `pattern-009` candidate; renumbered after pattern-009 slot taken by Bridge endpoint + companion frontend binding. Needs 3 shippings for ratification.
+- **`pattern-012-financial-write-path` (Financial Bridge POST endpoint + CSRF + tenant-derived audit emission + cross-tenant rejection without diagnostic leak)** — was previously proposed as `pattern-010-financial-write-path` in cohort-2 hand-off §3.27 (shipyard#42 / W#76); renumbered to `pattern-012` because `pattern-010` (docs-toc-entry) and `pattern-011` (cross-cluster event publisher) slots were already taken. 1st instance: cohort-2 PR 3 RentCollection POST. 3rd-instance anchor candidate per V2 #4 research (shipyard#72): `POST /api/v1/financial/journal-entries` (W#60 P4 PR 2 + cohort-4 convergence). Both councils HOLD on ratification pending 3rd clean shipping. Sec-eng Q1 (inlined-vs-separated CSRF) / Q2 (Idempotency-Key) / Q3 (E2 reload-vs-retry) carry forward — see V2 #4 research for ONR provisional answers.
+- **`pattern-013-cartridge-read-via-post` (Cartridge-read-via-POST: Bridge POST endpoint for read-only cartridge queries with typed-list parameter envelopes)** — proposed in V1 #1 cohort-3 hand-off §3.27 (shipyard#51) as `pattern-011-cartridge-read-via-post`; renumbered to `pattern-013` per V4 #4 audit (collision with existing `pattern-011` cross-cluster event publisher). 1st instance candidate: Engineer cohort-3 prereq PR 0 + FED cohort-3 PR 1 (`POST /api/v1/reports/{kind}` cartridge runner endpoints). Sec-eng SPOT-CHECK MANDATORY on the read-via-POST carve-out under `pattern-009 §B1` (per V1 #1 hand-off recommendation; carve-out catalog amendment pending).
 
 ## What's explicitly NOT a standing pattern (always needs full pipeline)
 
@@ -330,8 +362,8 @@ Lifted from W#23.3 P1 sec-eng amendment A2 (2026-05-19).
 - Anything touching `packages/kernel-audit/AuditEventType.cs` (new audit constants)
 - Anything touching `packages/kernel-security/**`
 - Anything touching `docs/adrs/**` (ADRs are first-class governance artifacts)
-- Anything touching `accelerators/anchor/` substrate (Anchor is high-stakes per ADR 0088)
-- Anything touching `accelerators/bridge/Sunfish.Bridge/Cockpit/**` or `accelerators/bridge/Sunfish.Bridge/Features/Identity/**` (auth surface)
+- Anything touching `sunfish/apps/desktop/ (formerly accelerators/anchor/)` substrate (Anchor is high-stakes per ADR 0088)
+- Anything touching `signal-bridge/Sunfish.Bridge/Cockpit/ (formerly accelerators/bridge/)**` or `signal-bridge/Sunfish.Bridge/Features/Identity/ (formerly accelerators/bridge/)**` (auth surface)
 - Anything touching `_shared/product/local-node-architecture-paper.md` (foundational paper)
 - Any PR adding a NEW workstream row to `active-workstreams.md`
 - Any PR with `merge-tier: co-review` or `merge-tier: co-ruling` in its hand-off frontmatter
@@ -339,8 +371,8 @@ Lifted from W#23.3 P1 sec-eng amendment A2 (2026-05-19).
 
 ## Catalog maintenance
 
-- **XO authority:** XO proposes new patterns + revocations
-- **CO authority:** CO ratifies new patterns + can revoke at any time
+- **Admiral authority:** Admiral proposes new patterns + revocations (formerly XO before 2026-05-17 fleet restructure)
+- **CIC authority:** CIC ratifies new patterns + can revoke at any time (formerly CO)
 - **Review cadence:** Monthly XO+CO review; revoke or graduate proposed patterns
 - **Incident response:** Any post-merge incident on a pattern-matched PR triggers IMMEDIATE pattern review; XO files a post-mortem within 24h
 - **Versioning:** This file is versioned by commit; patterns are not stable across versions — `@standing-pattern: pattern-001` is keyed to whatever pattern-001 is defined as AT THE TIME OF PR MERGE
