@@ -96,4 +96,12 @@ public sealed class InMemoryAuditTrail : IAuditTrail
     /// production paths consume <see cref="QueryAsync"/> instead.
     /// </summary>
     public int Count => _records.Count;
+
+    /// <summary>
+    /// Returns an immutable snapshot of all stored records. Used by
+    /// <see cref="InMemoryAuditEventReader"/> to share the in-memory backing
+    /// store without duplicating the queue. Internal to prevent external code
+    /// from bypassing the <see cref="AppendAsync"/> contract.
+    /// </summary>
+    internal AuditRecord[] Snapshot() => _records.ToArray();
 }
