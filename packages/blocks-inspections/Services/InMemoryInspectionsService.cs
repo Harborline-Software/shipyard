@@ -441,9 +441,14 @@ public sealed class InMemoryInspectionsService : IInspectionsService
             deficiencyCount++;
 
         // Resolve checklist items from the template to get TotalItems.
+        // TemplateId is nullable for ad-hoc inspections — skip template lookup when null.
         var totalItems = 0;
-        if (_templates.TryGetValue(inspection.TemplateId, out var template))
+        InspectionTemplate? template = null;
+        if (inspection.TemplateId.HasValue && _templates.TryGetValue(inspection.TemplateId.Value, out var found))
+        {
+            template = found;
             totalItems = template.Items.Count;
+        }
 
         // Compute PassedItems: apply a per-kind pass heuristic.
         var passedItems = 0;

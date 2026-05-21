@@ -89,6 +89,45 @@ public class InMemoryInspectionsServiceTests
     }
 
     [Fact]
+    public async Task ScheduleAsync_NullTemplateId_AdHocInspection_Succeeds()
+    {
+        var svc = new InMemoryInspectionsService();
+
+        var inspection = await svc.ScheduleAsync(new ScheduleInspectionRequest
+        {
+            TemplateId = null,
+            UnitId = TestUnitId,
+            InspectorName = "Ad-Hoc Inspector",
+            ScheduledDate = new DateOnly(2026, 5, 21),
+        });
+
+        Assert.False(string.IsNullOrWhiteSpace(inspection.Id.Value));
+        Assert.Null(inspection.TemplateId);
+        Assert.Equal(InspectionPhase.Scheduled, inspection.Phase);
+    }
+
+    [Fact]
+    public async Task GenerateReportAsync_NullTemplateId_AdHocInspection_ReturnsZeroItems()
+    {
+        var svc = new InMemoryInspectionsService();
+        var inspection = await svc.ScheduleAsync(new ScheduleInspectionRequest
+        {
+            TemplateId = null,
+            UnitId = TestUnitId,
+            InspectorName = "Ad-Hoc Inspector",
+            ScheduledDate = new DateOnly(2026, 5, 21),
+        });
+        await svc.StartAsync(inspection.Id);
+        await svc.CompleteAsync(inspection.Id);
+
+        var report = await svc.GenerateReportAsync(inspection.Id);
+
+        Assert.Equal(0, report.TotalItems);
+        Assert.Equal(0, report.PassedItems);
+        Assert.Equal(0, report.DeficiencyCount);
+    }
+
+    [Fact]
     public async Task StartAsync_Scheduled_TransitionsToInProgress_AndSetsStartedAtUtc()
     {
         var (svc, template) = await MakeServiceWithTemplate();

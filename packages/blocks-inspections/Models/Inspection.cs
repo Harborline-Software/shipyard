@@ -7,7 +7,7 @@ namespace Sunfish.Blocks.Inspections.Models;
 /// carried out by a named inspector on a scheduled date.
 /// </summary>
 /// <param name="Id">Unique identifier for this inspection.</param>
-/// <param name="TemplateId">The template that defines the checklist for this inspection.</param>
+/// <param name="TemplateId">The template that defines the checklist for this inspection, or <see langword="null"/> for ad-hoc inspections.</param>
 /// <param name="UnitId">The unit being inspected.</param>
 /// <param name="InspectorName">Display name of the person conducting the inspection.</param>
 /// <param name="ScheduledDate">The calendar date on which the inspection is scheduled.</param>
@@ -18,7 +18,7 @@ namespace Sunfish.Blocks.Inspections.Models;
 /// <param name="Trigger">Why this inspection was scheduled (annual / move-in / move-out / post-repair / on-demand). Optional for backward compat with pre-revision records — defaults to <see langword="null"/>.</param>
 public sealed record Inspection(
     InspectionId Id,
-    InspectionTemplateId TemplateId,
+    InspectionTemplateId? TemplateId,
     EntityId UnitId,
     string InspectorName,
     DateOnly ScheduledDate,
