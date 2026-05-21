@@ -9,8 +9,11 @@ namespace Sunfish.Blocks.Inspections.Services;
 /// </summary>
 public sealed record ScheduleInspectionRequest
 {
-    /// <summary>The template that defines the checklist for this inspection.</summary>
-    public required InspectionTemplateId TemplateId { get; init; }
+    /// <summary>
+    /// The template that defines the checklist for this inspection.
+    /// <see langword="null"/> for ad-hoc inspections that are not derived from a template.
+    /// </summary>
+    public InspectionTemplateId? TemplateId { get; init; }
 
     /// <summary>The unit to be inspected.</summary>
     public required EntityId UnitId { get; init; }
