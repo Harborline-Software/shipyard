@@ -21,7 +21,7 @@ public sealed class ErpnextJournalEntryImporterTests
         var h = new Harness();
         var source = h.NewBalancedSource("je-001", "Manual JE", "Journal Entry");
 
-        var outcome = await h.Sut.UpsertFromErpnextAsync(source, TestTenant, Chart);
+        var outcome = await h.Sut.UpsertFromErpnextAsync(TestTenant, source, Chart);
 
         Assert.Equal(ImportAction.Inserted, outcome.Action);
         Assert.NotNull(outcome.Record);
@@ -34,9 +34,9 @@ public sealed class ErpnextJournalEntryImporterTests
     {
         var h = new Harness();
         var source = h.NewBalancedSource("je-001", "first", "Journal Entry");
-        await h.Sut.UpsertFromErpnextAsync(source, TestTenant, Chart);
+        await h.Sut.UpsertFromErpnextAsync(TestTenant, source, Chart);
 
-        var again = await h.Sut.UpsertFromErpnextAsync(source with { Memo = "second" }, TestTenant, Chart);
+        var again = await h.Sut.UpsertFromErpnextAsync(TestTenant, source with { Memo = "second" }, Chart);
 
         Assert.Equal(ImportAction.Skipped, again.Action);
         // Skipped does NOT add another entry to the store.
@@ -51,7 +51,7 @@ public sealed class ErpnextJournalEntryImporterTests
         // but IsOpening=true must override to Migration.
         var source = h.NewBalancedSource("je-001", "Opening", "Journal Entry") with { IsOpening = true };
 
-        var outcome = await h.Sut.UpsertFromErpnextAsync(source, TestTenant, Chart);
+        var outcome = await h.Sut.UpsertFromErpnextAsync(TestTenant, source, Chart);
 
         Assert.Equal(ImportAction.Inserted, outcome.Action);
         Assert.Equal(JournalEntrySource.Migration, outcome.Record.SourceKind);
@@ -71,7 +71,7 @@ public sealed class ErpnextJournalEntryImporterTests
             },
         };
 
-        var outcome = await h.Sut.UpsertFromErpnextAsync(source, TestTenant, Chart);
+        var outcome = await h.Sut.UpsertFromErpnextAsync(TestTenant, source, Chart);
 
         Assert.Equal(ImportAction.Skipped, outcome.Action);
         Assert.NotNull(outcome.Detail);
