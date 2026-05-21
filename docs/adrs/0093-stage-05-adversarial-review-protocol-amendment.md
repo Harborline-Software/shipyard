@@ -46,10 +46,10 @@ amendments: []
 
 # ADR 0093 — Stage-05 Adversarial Review Protocol Amendment
 
-**Status:** Proposed (will move to Accepted after dual-council attestation + CIC ratification per ADR 0069)
-**Date:** 2026-05-21 (Proposed)
+**Status:** Proposed (Rev 2; will move to Accepted after Rev 2 re-attestation by both councils + CIC ratification per ADR 0069)
+**Date:** 2026-05-21 (Proposed Rev 1); 2026-05-21 (Rev 2 fold of dual-council SPOT-CHECK verdicts)
 **Resolves:** Cohort-1 R3 retrospective (cerebrum entry 2026-05-21 — "SPOT-CHECK timing race") + UPF audit recommendation in `coordination/inbox/onr-status-2026-05-21T1159Z-upf-audit-security-officer-agent-proposal.md` (AHA candidate: Stage-05 adversarial review extension). Operationalizes "adversarial to happy path" at the gate where the bias forms (Stage-05 planning), not at the gate where it is detected (Stage-06 PR-open).
-**Council inputs:** Pending — this ADR is itself the protocol amendment that mandates dual-council attestation at Stage-05 going forward; the ADR's own attestation cycle (dispatch on PR-open at shipyard) is the first instance of the new protocol exercised against itself.
+**Council inputs:** Rev 1 SPOT-CHECK verdicts (both AMBER) folded into Rev 2 — `coordination/inbox/council-verdict-2026-05-21T1504Z-security-engineering-shipyard-104-adr-0093-spot-check.md` (6 amendments) + `coordination/inbox/council-verdict-2026-05-21T1504Z-net-architect-shipyard-104-adr-0093-spot-check.md` (3 BLOCKERS + 4 AMBER). Rev 2 awaits re-attestation by both councils (dispatch on next ADR-text update) per ADR 0069 §D1.
 
 ---
 
@@ -58,34 +58,37 @@ amendments: []
 | Rev | Date | Author | Summary |
 |---|---|---|---|
 | 1 | 2026-05-21 | Admiral | Initial draft per `coordination/inbox/admiral-directive-2026-05-21T12-25Z-stage-05-adversarial-review-extension-plan.md` Phase 1. Phase 0 instrumentation complete (3 QM deliverables; see §Context). Adversarial Brief template prototype landed at `icm/02_architecture/adversarial-brief-template-prototype.md` (shipyard#78). Test-eng-council research landed at `icm/02_architecture/test-eng-council-subagent-definition-research.md` (shipyard#90). First canonical Adversarial Brief integrated in cohort-4 audit-trail viewer Stage-05 hand-off (shipyard#81). Status: Proposed pending dual-council attestation. |
+| 2 | 2026-05-21 | Admiral | Folded dual-council SPOT-CHECK verdicts (both AMBER): `coordination/inbox/council-verdict-2026-05-21T1504Z-security-engineering-shipyard-104-adr-0093-spot-check.md` (6 amendments — Checks 1-6) + `coordination/inbox/council-verdict-2026-05-21T1504Z-net-architect-shipyard-104-adr-0093-spot-check.md` (3 BLOCKERS + 4 AMBER amendments). Changes: (a) §A0 cited-symbol audit restructured — three precedent artifacts (shipyard#78/#81/#90) reclassified as "in worktree, pending merge"; `sec-eng-council` + `.NET-architect-council` reclassified as "dispatch convention; no definition file extant"; test-eng-council acknowledged as first-of-kind written council definition. (b) Dispatch trigger matrix amended with edge-case resolutions: 3a all-three-council concurrency budget paragraph; 3b pattern-009 carve-out row; 3c ADR-text-only disposition promoted from §Open questions Q3 into matrix proper. (c) Test-eng-council beacon shape pinned at `-stage-05.md` / `(Stage-05)`; supersedes-prior-research note added; fleet-conventions `council-verdict-*` prefix table addition added as Phase 2 deliverable. (d) Decision drivers' "ADR 0091 R2 + ADR 0092 Rev 2" precedent claim corrected to "ADR 0092 Rev 2 + ADR 0094" (ADR 0091 has no `requires-council`). (e) §Decision adds Q2 dual-council adjudication interim rule. (f) §Phase 4 decision gate reframed — ratify criterion #1 conjoined with criteria (b) and (c) variance allowances; cohort-4 ratification made provisional pending first write-side substrate cohort. (g) §Reversibility expanded with Steps 6 (in-flight verdict beacons), 7 (mid-execution-cohort handling), 5b (Stage-06 lightening rollback), plus Mid-cohort retirement transition rule. (h) §Consequences Phase 2 sizing claim revised (precedent-setting authoring). (i) §ADR-protocol compliance adds Merge-order dependency note (promotion-to-Accepted contingent on shipyard#78/#81/#90 landing). (j) §"Adversarial Brief — template" adds 5-12 bullet escape-hatch sentence (procedural; sec-eng Check 1). (k) Phase 2 deliverables list adds QM daemon extensions (inbox-velocity-by-beacon-type; dispatch-latency p95). (l) Open questions Q3 retired (promoted into matrix); Q2 retired (interim rule adopted); Q1, Q4 retained. Status remains `Proposed`; pending CIC ratification + re-attestation by both councils on Rev 2. |
 
 ---
 
 ## A0 cited-symbol audit
 
+Per Rev 2 fold (sec-eng Check 6 + .NET-architect F1/F2/F3/F4), classifications are split into four states: **Existing & verified** (merged on `shipyard/main`); **In-worktree, pending merge** (file exists on an ONR/admiral worktree branch; PR is OPEN against shipyard); **Dispatch convention (no on-disk definition file)** (the council is dispatched as ad-hoc `Agent()` calls from Admiral; no shared definition file pins effort/model/checklist); **Introduced by this ADR**.
+
 | Symbol / Path / ADR | Classification | Verified |
 |---|---|---|
-| ADR 0069 (ADR Authoring Discipline) | Existing | yes — `shipyard/docs/adrs/0069-adr-authoring-discipline.md` (mandates pre-merge council requirement for substrate/governance ADRs) |
-| ADR 0091 (ITenantContext Divergence Resolution) | Existing | yes — `shipyard/docs/adrs/0091-itenantcontext-divergence-resolution.md` (referenced from Adversarial Brief prototype Decision 1) |
-| ADR 0092 (Substrate Tenant-Keyed Repository Contract Pattern) | Existing | yes — `shipyard/docs/adrs/0092-substrate-tenant-keyed-repository-contract.md` §A3 / §A6 (referenced from Adversarial Brief prototype Decision 7) |
-| ADR 0094 (IAuditEventReader) | Existing | yes — `shipyard/docs/adrs/0094-i-audit-event-reader.md` (cohort-4 anchor; first canonical Adversarial Brief consumer) |
-| `_shared/engineering/standing-approved-patterns.md` | Existing | yes — fleet-wide standing-pattern catalog; this ADR coordinates with the catalog but does not modify it |
-| `.claude/rules/fleet-conventions.md` § "SPOT-CHECK dispatch SLA" | Existing | yes — fleet-conventions; this ADR extends the dispatch protocol to include a Stage-05 trigger alongside the existing Stage-06 trigger |
-| `coordination/inbox/onr-status-2026-05-21T1159Z-upf-audit-security-officer-agent-proposal.md` | Existing | yes — UPF audit recommending this protocol amendment as AHA candidate |
-| `coordination/inbox/admiral-directive-2026-05-21T12-25Z-stage-05-adversarial-review-extension-plan.md` | Existing | yes — Admiral Phase 0/1/2 plan ratified by CIC at 12:20Z |
-| `coordination/inbox/qm-status-2026-05-21T2030Z-spot-check-stage-05-catchability-audit.md` | Existing | yes — Phase 0 evidence #1 (25% of findings Stage-05-catchable) |
-| `coordination/inbox/qm-status-2026-05-21T2035Z-test-coverage-gaps-retro.md` | Existing | yes — Phase 0 evidence #2 (2 documented test-coverage gaps in 14-day window) |
-| `coordination/inbox/qm-status-2026-05-21T2040Z-sec-eng-dispatch-latency-retro.md` | Existing | yes — Phase 0 evidence #3 (median 8 min; p95 ~28 min; 0 SLA violations post-rule) |
-| `icm/02_architecture/adversarial-brief-template-prototype.md` (shipyard#78) | Existing | yes — Adversarial Brief template + 8-bullet worked example for cohort-4 audit-trail viewer |
-| `icm/02_architecture/test-eng-council-subagent-definition-research.md` (shipyard#90) | Existing | yes — test-eng-council role definition feeding this ADR's §"Test-eng-council subagent" section |
-| `icm/_state/handoffs/cohort-4-c3-audit-trail-viewer-stage06-handoff.md` (shipyard#81) | Existing | yes — first canonical Stage-05 hand-off carrying an Adversarial Brief |
-| Cerebrum entry "Cohort-1 R3 retrospective" (2026-05-21) | Existing | yes — `.wolf/cerebrum.md`; SPOT-CHECK timing race motivated the dispatch-SLA rule and this ADR |
-| Cerebrum entry "Inbox-directed agents proceed continuously" (2026-05-19) | Existing | yes — `.wolf/cerebrum.md`; informs the parallel-dispatch shape (sec-eng + test-eng fire independently) |
-| `sec-eng-council` subagent (existing) | Existing | yes — dispatched via Admiral `Agent` call; Opus 4.7 + xhigh |
-| `.NET-architect-council` subagent (existing) | Existing | yes — dispatched via Admiral `Agent` call; Opus 4.7 + xhigh |
-| `test-eng-council` subagent | Introduced by this ADR | no — definition shipped under shipyard `.claude/agents/test-eng-council.md` in Step 2 of this ADR's roll-out |
+| ADR 0069 (ADR Authoring Discipline) | Existing & verified | yes — `shipyard/docs/adrs/0069-adr-authoring-discipline.md` (mandates pre-merge council requirement for substrate/governance ADRs) |
+| ADR 0091 (ITenantContext Divergence Resolution) | Existing & verified | yes — `shipyard/docs/adrs/0091-itenantcontext-divergence-resolution.md` (referenced from Adversarial Brief prototype Decision 1). NOTE: ADR 0091 frontmatter does NOT carry `requires-council`; forward-watch documents retroactive parity amendment recommendation. |
+| ADR 0092 (Substrate Tenant-Keyed Repository Contract Pattern) | Existing & verified | yes — `shipyard/docs/adrs/0092-substrate-tenant-keyed-repository-contract.md` §A3 / §A6 (referenced from Adversarial Brief prototype Decision 7). Carries `requires-council: [dotnet-architect, security-engineering]`. |
+| ADR 0094 (IAuditEventReader) | Existing & verified | yes — `shipyard/docs/adrs/0094-i-audit-event-reader.md` (cohort-4 anchor; first canonical Adversarial Brief consumer). Carries `requires-council: [dotnet-architect, security-engineering]`. |
+| `_shared/engineering/standing-approved-patterns.md` | Existing & verified (deferential) | not independently re-checked in Rev 2; cited as coordination surface only; this ADR coordinates with the catalog but does not modify it |
+| `.claude/rules/fleet-conventions.md` § "SPOT-CHECK dispatch SLA" | Existing & verified | yes — fleet-conventions lines 17-29; this ADR extends the dispatch protocol to include a Stage-05 trigger alongside the existing Stage-06 trigger |
+| `coordination/inbox/onr-status-2026-05-21T1159Z-upf-audit-security-officer-agent-proposal.md` | Existing & verified | yes — UPF audit recommending this protocol amendment as AHA candidate |
+| `coordination/inbox/admiral-directive-2026-05-21T12-25Z-stage-05-adversarial-review-extension-plan.md` | Existing & verified | yes — Admiral Phase 0/1/2 plan ratified by CIC at 12:20Z |
+| `coordination/inbox/qm-status-2026-05-21T2030Z-spot-check-stage-05-catchability-audit.md` | Existing & verified | yes — Phase 0 evidence #1 (25% of findings Stage-05-catchable) |
+| `coordination/inbox/qm-status-2026-05-21T2035Z-test-coverage-gaps-retro.md` | Existing & verified | yes — Phase 0 evidence #2 (2 documented test-coverage gaps in 14-day window) |
+| `coordination/inbox/qm-status-2026-05-21T2040Z-sec-eng-dispatch-latency-retro.md` | Existing & verified | yes — Phase 0 evidence #3 (median 8 min; p95 ~28 min; 0 SLA violations post-rule) |
+| `icm/02_architecture/adversarial-brief-template-prototype.md` | **In-worktree, pending merge (shipyard#78)** | verified at `shipyard/.worktrees/onr-v3-4-adversarial-brief/icm/02_architecture/`. NOT yet on `shipyard/main`. ADR 0093 promotion to Accepted is contingent on shipyard#78 landing first (see §"ADR-protocol compliance" — Merge-order dependency). |
+| `icm/02_architecture/test-eng-council-subagent-definition-research.md` | **In-worktree, pending merge (shipyard#90)** | verified at `shipyard/.worktrees/onr-v5-3-test-eng-council/icm/02_architecture/`. NOT yet on `shipyard/main`. **Note (.NET-architect BLOCKER 3 resolution):** the research file's tentative output-beacon shape (`council-verdict-<ts>-test-engineering-<workstream>-spot-check.md` / `council: test-engineering (SPOT-CHECK)`) is **superseded by this ADR** — the authoritative convention is `-stage-05.md` / `(Stage-05)` per §"Council dispatch — trigger matrix" below. The research file's Phase 2 update brings it into alignment. |
+| `icm/_state/handoffs/cohort-4-c3-audit-trail-viewer-stage06-handoff.md` | **In-worktree, pending merge (shipyard#81)** | verified at `shipyard/.worktrees/onr-v3-1-cohort-4-handoff/icm/_state/handoffs/`. NOT yet on `shipyard/main`. First canonical Stage-05 hand-off carrying an Adversarial Brief. ADR 0093 promotion to Accepted is contingent on shipyard#81 landing first. |
+| Cerebrum entry "Cohort-1 R3 retrospective" (2026-05-21) | Existing & verified | yes — `.wolf/cerebrum.md`; SPOT-CHECK timing race motivated the dispatch-SLA rule and this ADR |
+| Cerebrum entry "Inbox-directed agents proceed continuously" (2026-05-19) | Existing & verified | yes — `.wolf/cerebrum.md`; informs the parallel-dispatch shape (sec-eng + test-eng fire independently) |
+| `sec-eng-council` (dispatch convention) | **Dispatch convention; no definition file extant** | the council is dispatched as ad-hoc `Agent()` calls from Admiral at Opus 4.7 + xhigh; no `.claude/agents/sec-eng-council.md` exists at any fleet location (verified Rev 2 by both councils). The "existing subagent" framing in Rev 1 was a category claim, not a file claim. |
+| `.NET-architect-council` (dispatch convention) | **Dispatch convention; no definition file extant** | same as above — no `net-architect-council.md` exists. |
+| `test-eng-council` subagent definition file | **Introduced by this ADR (first-of-kind)** | no — definition file ships at `shipyard/.claude/agents/test-eng-council.md` as Phase 2 deliverable. **Per .NET-architect AMBER 2 resolution:** this is the FIRST written council subagent definition file in the fleet (not the third); the existing role-agent definitions at `/Users/christopherwood/Projects/Harborline-Software/.claude/agents/<role>.md` (admiral, engineer, fed, onr, pao, po-mac, po-win, qm, yeoman) provide a structural template. Phase 2 sizing is precedent-setting authoring, not precedent-following; the 150-200 line estimate may grow to ~300 lines as a result. |
 
-§A0 totals: 18 cited references. Existing & verified: 17. Introduced by this ADR: 1 (the `test-eng-council` subagent definition file).
+§A0 totals: 18 cited references. Existing & verified: 13. In-worktree pending merge (shipyard#78/#81/#90): 3. Dispatch convention (no on-disk definition file): 2 (sec-eng-council + .NET-architect-council). Introduced by this ADR: 1 (test-eng-council definition file, as first-of-kind).
 
 ---
 
@@ -162,7 +165,7 @@ Three verdicts; three real findings; all Stage-05-catchable in retrospect. The p
 
 - **Zero-cost reversibility.** Stage-05 adversarial review extension is reversible at zero cost. If Phase 4 gate fails, revert the protocol amendment + retire the test-eng-council subagent type. No in-flight code dependencies; documentation-only change.
 
-- **Substrate-canonical precedent.** ADR 0091 R2 and ADR 0092 Rev 2 established the dual-council attestation discipline (sec-eng + .NET-architect at substrate-shaping ADRs). This ADR extends that discipline one stage earlier — the substrate-shaping intent is identified at Stage-05; the attestation cycle is concentrated where the design judgment is made.
+- **Substrate-canonical precedent.** ADR 0092 Rev 2 and ADR 0094 established the dual-council attestation discipline (sec-eng + .NET-architect at substrate-shaping ADRs; both carry `requires-council: [dotnet-architect, security-engineering]` in their frontmatter). This ADR extends that discipline one stage earlier — the substrate-shaping intent is identified at Stage-05; the attestation cycle is concentrated where the design judgment is made. (Forward-watch: ADR 0091 R2 was originally cited here but its frontmatter does not carry `requires-council`; per .NET-architect SPOT-CHECK AMBER 1, retroactive frontmatter parity amendment for ADR 0091 is recommended in a follow-on Admiral ruling.)
 
 - **Council-fresh-perspective preserved.** The triggered (per-event) dispatch model retains sec-eng-council's per-task fresh-perspective value. Each Stage-05 dispatch is a fresh subagent with no memory of prior dispatches. Standing-continuity (which the rejected security-officer proposal would have introduced) would erode that.
 
@@ -276,6 +279,8 @@ The Adversarial Brief is a Stage-05 hand-off section that answers, for each load
 
 **Cap.** 5-8 bullets per Adversarial Brief. Beyond that, the brief loses focus.
 
+**Substrate-shaping escape hatch (sec-eng SPOT-CHECK Check 1 amendment).** For hand-offs with 4+ load-bearing design decisions per cluster touched (substrate-shaping hand-offs — new repository contract that adds 4+ new endpoints, ADRs that propose a new substrate primitive, cross-cluster + cross-substrate work), the cap MAY extend to 12 bullets at hand-off authorship discretion. The brief should remain focused on adversarial framings rather than enumerating every design decision; the extension exists so that distinct adversarial vectors are not aggregated into a single bullet at the cost of threat-model coverage.
+
 **Mandatory for:** All Stage-05 hand-offs filed under this ADR (post-ratification). The cohort-4 audit-trail viewer hand-off (shipyard#81) is the first canonical instance.
 
 **Optional for:** Stage-05 hand-offs with trivial scope (single-file fix; doc-only change; rename); Admiral judgment call at hand-off authorship.
@@ -284,11 +289,27 @@ The Adversarial Brief is a Stage-05 hand-off section that answers, for each load
 
 | Council | Effort | Trigger conditions | Verdict beacon shape |
 |---|---|---|---|
-| `sec-eng-council` (existing; Opus 4.7 + xhigh) | xhigh | Stage-05 hand-off filed with Adversarial Brief section present | `council-verdict-<ts>-security-engineering-<workstream>-stage-05.md` |
-| `.NET-architect-council` (existing; Opus 4.7 + xhigh) | xhigh | Stage-05 hand-off filed with substrate-touch (new entity, new endpoint family, new audit event type) OR ADR-text review | `council-verdict-<ts>-net-architect-<workstream>-stage-05.md` |
-| `test-eng-council` (new; Sonnet 4.6 + medium) | medium | Stage-05 hand-off filed with >5 test cases as acceptance criteria OR substrate-touching PR OR cross-cluster integration tests required | `council-verdict-<ts>-test-engineering-<workstream>-stage-05.md` |
+| `sec-eng-council` (dispatch convention; Opus 4.7 + xhigh) | xhigh | Stage-05 hand-off filed with Adversarial Brief section present. **ADR-text hand-offs (per edge case 3c resolution):** Stage-05 sec-eng dispatch applies IF the ADR introduces a new substrate primitive, protocol amendment, or kernel-tier marker; pure-amendment ADRs (Revision-N folds, mechanical-fix amendments) use Stage-06 SPOT-CHECK only. | `council-verdict-<ts>-security-engineering-<workstream>-stage-05.md` |
+| `.NET-architect-council` (dispatch convention; Opus 4.7 + xhigh) | xhigh | Stage-05 hand-off filed with substrate-touch (new entity, new endpoint family, new audit event type) OR ADR-text review (per edge case 3c, same disposition as sec-eng above). | `council-verdict-<ts>-net-architect-<workstream>-stage-05.md` |
+| `test-eng-council` (introduced by this ADR; Sonnet 4.6 + medium) | medium | Stage-05 hand-off filed with >5 test cases as acceptance criteria OR substrate-touching PR OR cross-cluster integration tests required. Does NOT trigger on ADR-text-only hand-offs (no test scaffold; no acceptance criteria as test cases). | `council-verdict-<ts>-test-engineering-<workstream>-stage-05.md` |
+
+**Filename suffix convention (per .NET-architect SPOT-CHECK BLOCKER 3 resolution).** Suffix `-stage-05` (vs `-spot-check`) distinguishes Stage-05 verdicts from Stage-06 SPOT-CHECK verdicts. The ONR V5 #3 research file's tentative `-spot-check` suffix and `council: test-engineering (SPOT-CHECK)` frontmatter are **superseded** by this ADR for the Stage-05 trigger event; Stage-06 SPOT-CHECK verdicts retain the existing `-spot-check` suffix. The research file (`shipyard#90`) Phase 2 update brings it into alignment. Admiral's regex-based inbox scanning differentiates the two events by suffix.
 
 **Parallel dispatch.** All applicable councils dispatch in parallel on the same Stage-05 hand-off. Verdicts are independent and non-blocking on each other.
+
+**Edge case 3a — concurrency budget for all-three-council dispatch.** For cohort-4-shaped hand-offs (Bridge endpoint + frontend rebind + new substrate primitive + >5 tests + cross-cluster integration tests), ALL THREE councils dispatch in parallel. The total concurrent burn is bounded at one Opus xhigh (sec-eng) + one Opus xhigh (.NET-arch) + one Sonnet medium (test-eng) per such hand-off. Per Evidence #3's SLA headroom (median 8 min; p95 ~28 min; 0 violations at current load), this is within current dispatch infrastructure capacity. No sequencing constraint between the three verdicts; if sec-eng's threat verdict surfaces a coverage-implicating concern, the cross-coupling is captured by test-eng on the next dispatch cycle (or as a forward-watch in the Stage-06 SPOT-CHECK that follows). The dual-council adjudication interim rule (below) governs overlap on shared findings.
+
+**Edge case 3b — pattern-009 carve-out.** Pattern-009 (Bridge endpoint + frontend rebind pair) currently triggers Stage-06 sec-eng SPOT-CHECK per `.claude/rules/fleet-conventions.md` §"SPOT-CHECK dispatch SLA." Under the amended protocol, pattern-009 hand-offs continue to use Stage-06 sec-eng SPOT-CHECK as the primary trigger; **additionally**, Stage-05 sec-eng dispatch applies IF the pattern-009 hand-off includes a substrate-touching component (new audit event type, new repository contract, new substrate primitive). Pure rebind-only pattern-009 hand-offs (no substrate touch) do NOT trigger Stage-05 sec-eng; they remain Stage-06-only. This pins the +20% sec-eng volume math: the +20% increment reflects cohort hand-offs (substrate-touching), not every pattern-009 PR pair.
+
+**Edge case 3c — ADR-text-only hand-offs (resolved; promoted from §Open questions Q3).** ADR-text hand-offs trigger Stage-05 sec-eng + .NET-architect dispatch ONLY IF the ADR introduces a new substrate primitive, protocol amendment, or kernel-tier marker (i.e., the ADR's own changes have substrate-shaping consequences). Pure-amendment ADRs — Revision-N folds, mechanical-fix amendments, doc-only typo fixes — use Stage-06 SPOT-CHECK only. This ADR (0093 itself) qualifies as a protocol amendment and was therefore subject to Stage-06 SPOT-CHECK at PR-open (the last application of that pre-amendment protocol); its Rev 2 fold is itself an amendment-of-amendment which triggers re-attestation by both councils per §"Phase 4 decision authority."
+
+**Dual-council adjudication interim rule (sec-eng SPOT-CHECK Check 2 / Q2 resolution).** When sec-eng-council and test-eng-council issue verdicts on the same Stage-05 hand-off whose findings overlap on the same test scenario:
+
+- **sec-eng's verdict is authoritative on whether the scenario exists and what it covers** (threat-model intent — e.g., does an audit-emission test exist for the new `TenantBoundaryViolation` event type; does a cross-tenant probe test exist for the new repository contract).
+- **test-eng's verdict is authoritative on whether the enumeration is complete relative to the hand-off's stated acceptance criteria** (coverage-model completeness — e.g., does the audit-emission test scaffold cover all 6 enumerated `AuditEventType` constants; does the cross-tenant probe enumerate all 4 endpoints in the new family).
+- **A hand-off that passes sec-eng's intent gate may still fail test-eng's enumeration gate; both verdicts must reach GREEN-or-AMBER-with-amendments for Stage-06 build to begin.**
+
+This preserves the differentiation-table lens partition (sec-eng = threat-model depth; test-eng = enumeration completeness) and gives Engineer a clear adjudication path through dual-AMBER scenarios. The boundary case Q2 stays open for emergent edge cases not covered by this rule; refinement deferred to Phase 4 evidence.
 
 **SLA.** 30 minutes from Admiral consumption of the Stage-05 hand-off status beacon (mirrors fleet-conventions §"SPOT-CHECK dispatch SLA" for the Stage-06 trigger). QM daemon's `spot-check-backstop` check extends to catch missed Stage-05 dispatches by analogy.
 
@@ -339,7 +360,7 @@ Body sections: Summary verdict (1 paragraph); per-item review (typically 5-10 it
 
 **Memory model.** Stateless per dispatch. Each subagent reads the hand-off + companion PRs + referenced ADRs + cerebrum (auto-load) + fleet-conventions (auto-load), but carries no memory across dispatches. Cross-dispatch coordination flows via beacon (forward-watched concerns in the verdict body).
 
-**File location for definition.** Ship as `.claude/agents/test-eng-council.md` under shipyard, mirroring the convention for existing council subagent definitions. Definition file deliverable is Phase 2 of this ADR's roll-out.
+**File location for definition.** Ship as `.claude/agents/test-eng-council.md` under shipyard. **Per Rev 2 §A0 reclassification (sec-eng Check 6.1 + .NET-architect F4):** this is the FIRST written council subagent definition file in the fleet. The existing `sec-eng-council` and `.NET-architect-council` are dispatched as ad-hoc Admiral `Agent()` calls with no on-disk definition file; the test-eng-council file establishes the convention rather than inheriting from it. The structural template inheritance is from the existing role-agent definitions at `/Users/christopherwood/Projects/Harborline-Software/.claude/agents/<role>.md` (admiral, engineer, fed, onr, pao, po-mac, po-win, qm, yeoman). Definition file deliverable is Phase 2 of this ADR's roll-out; Phase 2 sizing acknowledges precedent-setting authoring (the 150-200 line estimate may grow to ~300 lines as a result; this is expected, not surprising).
 
 ### Stage-06 SPOT-CHECK relationship
 
@@ -369,14 +390,39 @@ The cohort-4 C3 audit-trail viewer (`icm/_state/handoffs/cohort-4-c3-audit-trail
 
 ## Phase 4 decision gate
 
-Per Admiral directive `coordination/inbox/admiral-directive-2026-05-21T12-25Z`, this ADR's adoption is conditional on Phase 4 evidence after the first cohort under the amended protocol. Decision-gate criteria:
+Per Admiral directive `coordination/inbox/admiral-directive-2026-05-21T12-25Z`, this ADR's adoption is conditional on Phase 4 evidence after the first cohort under the amended protocol. Decision-gate criteria (Rev 2 — variance-aware per sec-eng SPOT-CHECK Check 3 + representativeness-constrained per sec-eng Check 4 + measurement-tooling specified per .NET-architect AMBER 3):
 
-### Ratify-protocol-amendment-permanently criteria (ALL must hold)
+### Cohort-4 ratification is PROVISIONAL (sec-eng Check 4 amendment)
 
-1. **Cohort-4 Stage-06 SPOT-CHECK findings drop ≥25%** relative to cohort-2 + cohort-3 Stage-06 baseline (consistent with Phase 0 Evidence #1's 25% Stage-05-catchability number).
-2. **Engineer velocity is not measurably hit.** Cohort-4 hand-off → first PR latency is within 1.5× the cohort-2 + cohort-3 average. (Per cerebrum 2026-05-19 inbox-directed-agents discipline, per-task ack between queue items is over-conservative; the Stage-05 gate must not regress on this.)
-3. **Stage-05 verdicts produce ≥1 substantive finding** that would NOT have surfaced at Stage-06 PR-open. (Validates the AHA premise empirically. Zero substantive findings = the gate is theater.)
-4. **Inbox-noise contribution stays within budget.** Stage-05 verdict beacons + Stage-05 hand-off status beacons add ≤5 beacons/week relative to pre-amendment baseline.
+Cohort-4 (C3 audit-trail viewer) is a **read-only** pilot: 4 read-side PRs (no POST/PUT/DELETE endpoints; no idempotency-key surface; no antiforgery surface; no EFCore migration; no new entity introduced; no DbContext changes). It exercises the Stage-05 protocol against a small, substrate-conformant surface. **This is appropriate for Phase 4-A** (low-risk introduction; clear comparison baseline; existing 8-bullet brief already authored). But Phase 4 evidence harvested from cohort-4 alone is NOT generalizable to write-side cohorts or substrate-introducing cohorts.
+
+**Ratification proceeds in two phases:**
+
+- **Phase 4-A — Provisional ratification after cohort-4.** All Phase 4-A ratify criteria (below) must hold. On Phase 4-A pass, the protocol amendment is provisionally ratified; cohort-5 + onward proceed under the amended protocol. The retire-criteria continue to apply.
+- **Phase 4-B — Final ratification after the first write-side substrate cohort.** The next cohort that introduces a POST/PUT/DELETE endpoint, new entity (with `IMustHaveTenant` interface), or new DbContext (cohort-5 or cohort-6, whichever has substrate write-side first) becomes the Phase 4-B observation cohort. On Phase 4-B pass, the protocol amendment is finally ratified. On Phase 4-B fail, Admiral files a retrofit ruling per §"Retrofit-and-iterate criteria."
+
+### Phase 4-A ratify-criteria (cohort-4; ALL must hold)
+
+Per sec-eng SPOT-CHECK Check 3 amendment (variance-aware reframing): the original "≥25% Stage-06 finding drop" criterion has high single-cohort variance (per QM Evidence #1, 3 of 10 verdicts account for 50% of catchable findings; cohort finding-mix dominates the drop measurement). The reframed conjunction protects against single-cohort variance:
+
+1. **Empirical AHA-validation (was criterion #3; promoted to #1).** Stage-05 verdicts produce ≥1 substantive finding that would NOT have surfaced at Stage-06 PR-open. Zero substantive findings = the gate is theater regardless of other metrics. This is the primary criterion.
+2. **Combined-rate non-regression (new).** Cohort-4 Stage-05 + Stage-06 combined finding rate is ≤ pre-amendment Stage-06-only baseline (i.e., the protocol does not ADD net findings; it RESHAPES when they surface). Protects against the "brief becomes boilerplate but Stage-06 SPOT-CHECK still catches everything" failure mode.
+3. **Reshape-evidence (new).** Of findings that DID surface at both stages, ≥2 across the cohort-4 pilot were Stage-05-catchable per the Evidence #1 taxonomy (interface/contract completeness; structural/architectural choices; temporal dependencies not in spec). Baseline-aware success measure that does not depend on cohort-finding-mix variance.
+4. **Engineer velocity not measurably hit (was criterion #2; retained).** Cohort-4 hand-off → first PR latency is within 1.5× the cohort-2 + cohort-3 average.
+5. **Inbox-noise contribution within budget (was criterion #4; retained).** Stage-05 verdict beacons + Stage-05 hand-off status beacons add ≤5 beacons/week relative to pre-amendment baseline.
+
+**Alternative form (escape valve):** Phase 4-A may instead extend to a 2-cohort pilot (cohort-4 + cohort-5) before final ratification, with criteria 1-5 evaluated across both cohorts in aggregate. Admiral chooses the form (single-cohort or two-cohort) based on cohort-5's substrate-write-side status when it activates. **Single-cohort ratification requires explicit CIC override + rationale** if cohort-4 alone is to settle Phase 4; otherwise the two-cohort form is the default. (Per sec-eng Check 3 substantive amendment.)
+
+### Phase 4-B ratify-criteria (first write-side substrate cohort; ALL must hold)
+
+For the first cohort that exercises write-side substrate surface (POST/PUT/DELETE endpoint family, new `IMustHaveTenant` entity, new DbContext, or EFCore migration):
+
+1. All Phase 4-A criteria continue to hold across the write-side cohort.
+2. **Cross-tenant probe completeness.** test-eng-council's "cross-tenant tests for any `IMustHaveTenant` entity introduced" check item produces ≥1 finding pre-build OR Stage-06 confirms zero such gaps surfaced post-build.
+3. **Idempotency / antiforgery coverage.** test-eng-council's "idempotency-key + antiforgery tests for any POST endpoint" check item produces ≥1 finding pre-build OR Stage-06 confirms zero such gaps surfaced post-build.
+4. **Populated-DB regression coverage.** If the cohort retrofits any legacy entity (per ADR 0091 R2 §A5), the regression-baseline test requirement is enforced via test-eng-council at Stage-05.
+
+On Phase 4-B pass: protocol amendment is FINALLY ratified per ADR 0069 §"ADR amendment authority" (Rev 3 entry recording final ratification). On Phase 4-B fail: Admiral files retrofit ruling per §"Retrofit-and-iterate criteria."
 
 ### Retire-protocol-amendment criteria (ANY of these triggers retirement)
 
@@ -385,13 +431,31 @@ Per Admiral directive `coordination/inbox/admiral-directive-2026-05-21T12-25Z`, 
 3. **Inbox noise crosses budget.** Stage-05 verdict beacons exceed +10/week relative to pre-amendment baseline AND CIC flags inbox-triage burden → re-evaluate at 14 days.
 4. **Dispatch infrastructure strain.** sec-eng-council OR test-eng-council dispatch latency p95 exceeds 60 minutes (2× current p95 ~28 min per Evidence #3) → constraint binds; retrofit or retire.
 
+### Phase 4 measurement tooling (Phase 2 deliverables; .NET-architect AMBER 3)
+
+Phase 4 metrics fall into two tooling tiers:
+
+**Instrumentable today (no daemon extension):**
+
+- Cohort-N Stage-06 SPOT-CHECK findings tally (QM already audits verdicts; Evidence #1 demonstrated capability).
+- Engineer velocity (cohort hand-off → first PR latency; Engineer beacons carry timestamps; QM computes).
+- Stage-05 verdict substantive-finding count (manual QM audit per cohort end; same shape as Evidence #1 audit; reusable).
+- Adversarial Brief boilerplate detection (QM audit pattern per cohort end).
+
+**Requires NEW QM daemon checks (Phase 2 deliverable):**
+
+- **Inbox-beacon-velocity-by-type.** Periodic count of `council-verdict-*-stage-05.md` + `*-status-*-stage-05-handoff.md` beacons per week. QM daemon does not currently track inbox-velocity-by-beacon-type; a new periodic check is needed to evaluate the "+5/week budget" criterion continuously. Alternative: mark this metric as manual-QM-audit per cohort end (lower-frequency signal but lighter tooling lift).
+- **Dispatch-latency p95 aggregation.** QM daemon's `spot-check-backstop` check currently watches for missed dispatches (>2h DRAFT + no verdict); it emits findings at violation only, not at the p95-trending threshold. A new aggregation is needed to evaluate the "p95 > 60 min" retire-criterion continuously. Alternative: mark this metric as manual-QM-audit per cohort end with explicit acknowledgment that it is a lower-frequency signal.
+
+Admiral routes both QM daemon extensions to QM as Phase 2 follow-on tasks (post Rev 2 ratification); if QM scoping determines daemon extension is disproportionate to value, the metrics fall back to per-cohort manual audit. Either path is acceptable; the constraint is that the metric exists, not the tooling shape.
+
 ### Retrofit-and-iterate criteria (intermediate outcome)
 
-If Phase 4 metrics are ambiguous (e.g., Stage-06 finding drop is 15% rather than 25%; or 1 substantive Stage-05 finding but Engineer reports moderate friction), Admiral files a retrofit ruling extending the pilot to a second cohort (cohort-5 once active) before final ratification or retirement.
+If Phase 4 metrics are ambiguous (e.g., combined-rate non-regression unclear; or 1 substantive Stage-05 finding but Engineer reports moderate friction), Admiral files a retrofit ruling extending the pilot to a second cohort (cohort-5 once active) before final ratification or retirement.
 
 ### Phase 4 decision authority
 
-Admiral assembles the Phase 4 evidence (Stage-05 + Stage-06 finding tallies, Engineer velocity measurement, inbox-noise count) and files an `admiral-status-*-phase-4-evidence.md` beacon to CIC. CIC ratifies the amendment as permanent OR rules retirement OR orders retrofit. Per ADR 0069 §"ADR amendment authority," the ratification ruling is recorded as Revision 2 of this ADR (amendment row with date + summary).
+Admiral assembles the Phase 4 evidence (Stage-05 + Stage-06 finding tallies, Engineer velocity measurement, inbox-noise count, reshape-evidence taxonomy) and files an `admiral-status-*-phase-4-evidence.md` beacon to CIC. CIC ratifies the amendment as permanent (Phase 4-A or Phase 4-B per the staged ratification above) OR rules retirement OR orders retrofit. Per ADR 0069 §"ADR amendment authority," the ratification ruling is recorded as Revision 3 of this ADR (amendment row with date + summary).
 
 ---
 
@@ -412,7 +476,7 @@ Admiral assembles the Phase 4 evidence (Stage-05 + Stage-06 finding tallies, Eng
 - **+30-45 min Stage-05 authoring time per hand-off.** Bounded; integrated into existing hand-off authoring flow per the worked-example template.
 - **+20% sec-eng-council volume.** Within current dispatch capacity (Evidence #3: 0 SLA violations at present load); marginal token cost.
 - **+3-5 inbox beacons/week.** Marginal contribution; inbox is already 300+ beacons.
-- **New subagent type (test-eng-council).** One new agent definition file (~150-200 lines) ships as Phase 2 deliverable; existing council subagent precedents minimize authoring cost.
+- **New subagent type (test-eng-council).** One new agent definition file ships as Phase 2 deliverable. **Per .NET-architect SPOT-CHECK AMBER 2 + Rev 2 §A0 reclassification:** this is the first written council subagent definition file in the fleet (sec-eng-council and .NET-architect-council are dispatched as ad-hoc Admiral `Agent()` calls today with no on-disk definition file). The implicit precedent (Admiral's ad-hoc dispatch convention) does not constrain the file's shape, but the role-agent definitions at `/Users/christopherwood/Projects/Harborline-Software/.claude/agents/<role>.md` provide a structural template. Phase 2 sizing is precedent-setting authoring rather than precedent-following: the original 150-200 line estimate may grow to ~300 lines as a result; this is expected, not surprising.
 - **Risk: Adversarial Brief becomes boilerplate.** Mitigated by kill trigger in §"Phase 4 decision gate" (2 consecutive cohorts with zero substantive findings → retire).
 - **Risk: Engineer pushback on additional Stage-05 toil.** Mitigated by framing the brief as a Stage-05 deliverable (not a separate gate); +30-45 min authoring cost is acceptable per Phase 0 evidence base (1-2 findings caught per cohort).
 
@@ -420,15 +484,29 @@ Admiral assembles the Phase 4 evidence (Stage-05 + Stage-06 finding tallies, Eng
 
 ## Reversibility
 
-**Zero-cost reversible.** This ADR is a protocol amendment + one new subagent definition file. No in-flight code dependencies. Revert path:
+**Almost-zero-cost reversible** (Rev 2: the prior Rev 1 "zero-cost" claim is refined to acknowledge the half-state mid-cohort risk identified by sec-eng SPOT-CHECK Check 5 + .NET-architect AMBER 4). This ADR is a protocol amendment + one new subagent definition file. No in-flight code dependencies. Revert path:
 
-1. File `admiral-ruling-*-retire-stage-05-adversarial-review.md` recording the retirement decision + reasoning.
-2. Remove `.claude/agents/test-eng-council.md` (the new subagent definition file).
-3. Update `_shared/engineering/standing-approved-patterns.md` to remove Stage-05 council dispatch trigger (if cataloged there).
-4. Update `.claude/rules/fleet-conventions.md` § "SPOT-CHECK dispatch SLA" to revert to Stage-06-only trigger.
+1. File `admiral-ruling-*-retire-stage-05-adversarial-review.md` recording the retirement decision + reasoning. Cheap.
+2. Remove `.claude/agents/test-eng-council.md` (the new subagent definition file, if it has shipped per Phase 2). Cheap (single file delete).
+3. Update `_shared/engineering/standing-approved-patterns.md` to remove Stage-05 council dispatch trigger (if cataloged there). Cheap.
+4. Update `.claude/rules/fleet-conventions.md` § "SPOT-CHECK dispatch SLA" to revert to Stage-06-only trigger (remove SLA-extension paragraph). Cheap.
 5. Future Stage-05 hand-offs omit the Adversarial Brief section.
+5b. **Update fleet-conventions.md § "SPOT-CHECK dispatch SLA" — Stage-06 lightening rollback.** Under this ADR, Stage-06 SPOT-CHECK is lightened to "verification-of-application + runtime-evidence review" (§"Stage-06 SPOT-CHECK relationship"). On retirement, Stage-06 SPOT-CHECK responsibilities EXPAND back to full adversarial review; the lightening clause must be removed from fleet-conventions. Without this step, retirement leaves Stage-06 in a half-state (lightened per ADR 0093 but no Stage-05 to compensate).
+6. **Disposition of in-flight Stage-05 verdict beacons.** Existing Stage-05 verdict beacons (`council-verdict-*-stage-05.md`) are NOT deleted; they remain in archive as historical advisory artifacts. Cohort hand-offs already filed under the amended protocol remain as-is; their Adversarial Briefs become advisory historical artifacts (the work product carries forward).
+7. **Disposition of mid-execution cohorts.** For cohorts whose Stage-05 dispatch is in-flight at the retirement-ruling moment: pending Stage-05 verdicts are allowed to complete (the council subagent has already been dispatched; cancelling mid-flight is wasteful). Engineer proceeds when verdicts return OR after 30 min if the council subagent did not produce a verdict in-window. The retirement ruling does not interrupt in-flight verdicts.
 
-Cohort hand-offs already filed under the amended protocol remain as-is; their Adversarial Briefs become advisory historical artifacts. No data loss, no migration, no architectural debt.
+### Mid-cohort retirement transition rule (sec-eng SPOT-CHECK Check 5 amendment)
+
+For cohorts that are in-flight (Stage-05 hand-off filed; not all Stage-06 PRs merged) at the time of retirement:
+
+- All **Stage-05 verdicts already produced** remain BINDING for the remainder of that cohort. Engineer continues honoring the AMBER amendments ratified pre-retirement; the work product carries.
+- **FED / Engineer authoring subsequent PRs in the cohort** (e.g., FED PRs 1/2/3 in cohort-4 if cohort-4 is mid-execution at retirement) continue to consult the Stage-05 Adversarial Brief as a BINDING reference, not "advisory historical artifact." Mid-cohort, the briefs' mitigations are load-bearing on the in-flight work.
+- **Stage-06 SPOT-CHECK on subsequent PRs in that cohort** uses the lightened (verification-of-application) protocol for the remainder of that cohort. The transition to original (full-weight) Stage-06 SPOT-CHECK applies to the NEXT cohort's first PR.
+- The retirement ruling identifies the cohort transition boundary explicitly: "Cohort-N is the final cohort under the amended protocol; cohort-(N+1) onward uses Stage-06-only SPOT-CHECK."
+
+This makes the reversibility claim more truthful — it's not literally "zero-cost" mid-cohort, but the cost is small and predictable when the transition rule is in place.
+
+No data loss, no migration, no architectural debt. Mid-cohort retirement adds bounded transition complexity but no irreversible state.
 
 ---
 
@@ -436,10 +514,24 @@ Cohort hand-offs already filed under the amended protocol remain as-is; their Ad
 
 Per ADR 0069 (ADR Authoring Discipline):
 
-- **Council attestation requirement.** This ADR carries `requires-council: [dotnet-architect, security-engineering]` per the substrate/governance-tier discipline. Promotion to Accepted requires dual-council GREEN attestation. Dispatch fires on this ADR's PR-open per the existing Stage-06 SPOT-CHECK protocol; this ADR's own attestation cycle is the LAST exercise under the pre-amendment protocol. From the next Stage-05 hand-off forward (cohort-4 audit-trail viewer pilot), the amended protocol applies.
+- **Council attestation requirement.** This ADR carries `requires-council: [dotnet-architect, security-engineering]` per the substrate/governance-tier discipline. Promotion to Accepted requires dual-council GREEN attestation on Rev 2 (or AMBER-with-amendments folded). Dispatch fires on this ADR's PR-open per the existing Stage-06 SPOT-CHECK protocol; this ADR's own attestation cycle is the LAST exercise under the pre-amendment protocol. From the next Stage-05 hand-off forward (cohort-4 audit-trail viewer pilot), the amended protocol applies.
 - **Pipeline variant.** `fleet-protocol-amendment` (custom variant for governance-tier amendments; documentation-only; no code generation).
-- **§A0 cited-symbol audit complete** (see above).
+- **§A0 cited-symbol audit complete** (see above; Rev 2 restructured per dual-council Rev 1 verdict).
 - **Composes ADR 0069 + ADR 0091 + ADR 0092 + ADR 0094.** Cross-references explicit; precedent inheritance documented in §"Decision drivers."
+
+### Merge-order dependency (sec-eng SPOT-CHECK Check 6.3 amendment)
+
+**ADR 0093 promotion to Accepted is contingent on the following precedent PRs landing on `shipyard/main` first:**
+
+| Precedent PR | Branch / worktree | Contents | Role in ADR 0093 |
+|---|---|---|---|
+| **shipyard#78** | `onr/v3-4-adversarial-brief` | `icm/02_architecture/adversarial-brief-template-prototype.md` | Adversarial Brief template + 8-bullet worked example for cohort-4 audit-trail viewer; the artifact this ADR's §"Adversarial Brief — template" references |
+| **shipyard#81** | `onr/v3-1-cohort-4-handoff` | `icm/_state/handoffs/cohort-4-c3-audit-trail-viewer-stage06-handoff.md` | First canonical Stage-05 hand-off carrying an Adversarial Brief; the artifact this ADR's §"Pilot — cohort-4 audit-trail viewer" references |
+| **shipyard#90** | `onr/v5-3-test-eng-council` | `icm/02_architecture/test-eng-council-subagent-definition-research.md` | Test-eng-council role definition feeding this ADR's §"Test-eng-council subagent" section. **NOTE:** shipyard#90 may require an alignment commit before merge to bring its tentative `-spot-check` beacon-shape claims into alignment with this ADR's authoritative `-stage-05` convention (per BLOCKER 3 resolution); alternatively, the alignment is documented in this ADR's §A0 supersedes note and shipyard#90 merges as-is. |
+
+If any of shipyard#78 / #81 / #90 is NOT yet on `shipyard/main` at the time of ADR 0093 ratification, this ADR's load-bearing references point to files that don't exist on main; the §A0 "In-worktree, pending merge" classifications make the dependency explicit until that condition is met. Admiral coordinates the merge sequence (typically: precedent PRs first; then ADR 0093 promotion to Accepted).
+
+### Beacon naming amendments (Phase 2 deliverable; .NET-architect BLOCKER 3 sub-amendment 2)
 
 Per fleet-conventions §"Beacon naming":
 
@@ -447,13 +539,15 @@ Per fleet-conventions §"Beacon naming":
 - Council verdict beacons under the amended protocol use `council-verdict-<ts>-<council>-<workstream>-stage-05.md` filename pattern (new); existing `council-verdict-<ts>-<council>-<workstream>-spot-check.md` filename pattern continues for Stage-06.
 - Inbox triage discipline (cerebrum 2026-05-20 admiral-background-subagents) applies: Stage-05 council dispatch goes to background subagents; main Admiral session continues to triage inbox + answer questions.
 
+**Phase 2 deliverable: fleet-conventions §"Beacon naming" table addition.** Per .NET-architect SPOT-CHECK BLOCKER 3 sub-amendment 2, fleet-conventions currently lists only role-prefixed beacons (admiral, engineer, fed, etc.); `council-verdict-*` is an implicit-but-conventional surface not in the table. Phase 2 adds `council-verdict-*` entries to the beacon-prefix table with the per-stage filename convention (`-stage-05.md` vs `-spot-check.md`) documented for fresh-session legibility.
+
 Per fleet-conventions §"SPOT-CHECK dispatch SLA":
 
 - 30-minute dispatch SLA extends to the Stage-05 trigger event by analogy. QM daemon's `spot-check-backstop` check extends to catch missed Stage-05 dispatches.
 
 Per `.claude/rules/effort-policy.md`:
 
-- sec-eng-council + .NET-architect-council retain Opus 4.7 + xhigh per existing discipline.
+- sec-eng-council + .NET-architect-council retain Opus 4.7 + xhigh per existing dispatch convention (no on-disk definition file pins this; the convention lives in this ADR + fleet-conventions).
 - test-eng-council is Sonnet 4.6 + medium per UPF audit recommendation (lower-cost test review; coverage-model lens does not require Opus xhigh's threat-model depth).
 - Subagent dispatch effort profile per the canonical table in effort-policy.md §"Subagent dispatch."
 
@@ -461,24 +555,28 @@ Per `.claude/rules/effort-policy.md`:
 
 ## Open questions
 
-These are intentionally left for council review and Phase 4 evidence to resolve.
+These are intentionally left for council review and Phase 4 evidence to resolve. Rev 2 retired Q2 and Q3 (both resolved by amendments folded above); Q1 and Q4 remain open.
 
 ### Q1 — Stage-05 verdict gating semantics
 
 GREEN verdicts allow Stage-06 to proceed. AMBER-with-amendments allows Stage-06 to proceed IF the amendments are addressable in the Stage-06 PR scope. RED halts Stage-06 and forces Stage-05 redraft. Open: how is AMBER-with-amendments adjudicated when amendments are substantial? Council judgment + Admiral confirmation, OR explicit AMBER-amendment-application checklist in the Stage-06 PR? Defer to Phase 4 evidence; refine in amendment if pattern emerges.
 
-### Q2 — test-eng-council overlap with sec-eng-council on security-adjacent test coverage
+### Q2 — *(retired in Rev 2)* test-eng-council overlap with sec-eng-council on security-adjacent test coverage
 
-Per ONR V5 #3 research, sec-eng-council's "audit-emission integration test" item (W#68 PR 3 verdict precedent) sits at the boundary. Open: is this sec-eng territory (security-emission semantics) OR test-eng territory (coverage enumeration)? Resolution: both councils review per their respective lenses; security-emission semantics is sec-eng's call; the coverage-enumeration completeness is test-eng's call. Refine in amendment if the boundary proves ambiguous in practice.
+**Resolved in Rev 2** by the dual-council adjudication interim rule (§"Council dispatch — trigger matrix"). sec-eng is authoritative on whether the scenario exists and what it covers (threat-model intent); test-eng is authoritative on whether the enumeration is complete relative to acceptance criteria (coverage-model completeness). Both verdicts must reach GREEN-or-AMBER-with-amendments for Stage-06 to begin. The boundary case stays open for emergent edge cases not covered by this rule; refinement deferred to Phase 4 evidence.
 
-### Q3 — Stage-05 review of ADR-text-only hand-offs
+### Q3 — *(retired in Rev 2)* Stage-05 review of ADR-text-only hand-offs
 
-This ADR is itself an ADR-text-only deliverable. ADR-text hand-offs (no implementation; no test scaffold; no cross-cluster integration) do not trigger test-eng-council per the matrix (no test cases as acceptance criteria). Open: should sec-eng-council still dispatch at Stage-05 for ADR-text deliverables, or is the existing Stage-06 ADR-text SPOT-CHECK (precedent: shipyard#86 dual-council attestation on ADR 0094) sufficient? Tentative answer: Stage-05 dispatch applies only if the ADR proposes a new substrate primitive or protocol change (this ADR qualifies); pure ADR-text amendments without new substrate impact may continue to use Stage-06-only attestation. Refine in amendment.
+**Resolved in Rev 2** by promotion into the trigger matrix proper (§"Council dispatch — trigger matrix" edge case 3c). ADR-text hand-offs trigger Stage-05 sec-eng + .NET-architect dispatch ONLY IF the ADR introduces a new substrate primitive, protocol amendment, or kernel-tier marker; pure-amendment ADRs (Revision-N folds, mechanical-fix amendments, doc-only typo fixes) use Stage-06 SPOT-CHECK only.
 
 ### Q4 — Adversarial Brief format under iteration
 
-The 5-8 bullet cap is a first-pass guess. Open: does the cap need tightening (3-5 bullets to avoid bloat) or loosening (8-12 bullets for substrate-shaping hand-offs)? Phase 4 evidence will inform; refine in amendment.
+The 5-8 bullet cap is a first-pass guess. **Rev 2 partial resolution:** the 5-12 bullet escape-hatch for substrate-shaping hand-offs (§"Adversarial Brief — template") relaxes the upper bound for 4+ load-bearing-decisions cohorts. Open: across cohort-4 and the first write-side substrate cohort, does the cap require further adjustment (tightening to 3-5 bullets to avoid bloat OR loosening past 12 bullets)? Phase 4 evidence will inform; refine in amendment if a distribution pattern emerges.
+
+### Q5 — *(new, Rev 2 — informational)* ADR 0091 retroactive `requires-council` frontmatter amendment
+
+ADR 0091 R2 was originally cited in this ADR's §"Decision drivers" as a precedent for dual-council attestation, but its frontmatter does NOT carry `requires-council`. Per .NET-architect SPOT-CHECK AMBER 1, retroactive frontmatter parity with ADR 0092 + ADR 0094 is recommended via a follow-on Admiral ruling. Open: scope of the retroactive amendment (frontmatter-only vs full re-attestation cycle)? Recommend: frontmatter-only amendment (the ratification cycle on ADR 0091 R2 already occurred via dispatch convention; retroactive attestation cycle is disproportionate). Defer to Admiral discretion.
 
 ---
 
-*Filed by Admiral at 2026-05-21 per CIC ratification 12:20Z. Status: Proposed pending dual-council attestation. Reversibility: zero-cost; documentation-only.*
+*Filed by Admiral at 2026-05-21 per CIC ratification 12:20Z. Rev 2 folded dual-council SPOT-CHECK verdicts (both AMBER) at 2026-05-21T15:04Z. Status: Proposed pending CIC ratification + re-attestation by both councils on Rev 2. Reversibility: almost-zero-cost (mid-cohort transition rule added Rev 2); documentation-only.*
