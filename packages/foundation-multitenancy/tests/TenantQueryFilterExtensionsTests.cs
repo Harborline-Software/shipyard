@@ -180,4 +180,38 @@ public class TenantQueryFilterExtensionsTests
 
         Assert.Empty(results);
     }
+
+    // ---------------------------------------------------------------------------
+    // Tests 8 / 9 / 10: sec-eng amendment C1 — sentinel TenantId rejection
+    // ---------------------------------------------------------------------------
+    //
+    // The TenantId overload throws ArgumentException when given a sentinel
+    // (default, TenantId.System, or any __-prefixed sentinel) so a silently
+    // unscoped "all-tenants" predicate is structurally impossible. Cross-tenant
+    // reads must go through the IgnoreQueryFilters attestation path per
+    // ADR 0092 §A4/§B4.
+
+    [Fact]
+    public void WhereTenant_OnDefaultTenantId_ThrowsArgumentException()
+    {
+        var query = MixedTenantQuery();
+        var ex = Assert.Throws<ArgumentException>(() => query.WhereTenant(default(TenantId)));
+        Assert.Contains("sentinel", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void WhereTenant_OnSystemSentinel_ThrowsArgumentException()
+    {
+        var query = MixedTenantQuery();
+        var ex = Assert.Throws<ArgumentException>(() => query.WhereTenant(TenantId.System));
+        Assert.Contains("sentinel", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void WhereTenant_OnDoubleUnderscoreSentinel_ThrowsArgumentException()
+    {
+        var query = MixedTenantQuery();
+        var ex = Assert.Throws<ArgumentException>(() => query.WhereTenant(new TenantId("__staging__")));
+        Assert.Contains("sentinel", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
 }

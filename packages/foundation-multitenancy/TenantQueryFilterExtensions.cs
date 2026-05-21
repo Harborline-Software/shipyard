@@ -149,6 +149,22 @@ public static class TenantQueryFilterExtensions
         where T : IMustHaveTenant
     {
         ArgumentNullException.ThrowIfNull(query);
+
+        // sec-eng SPOT-CHECK amendment C1 (2026-05-21T14:10Z): reject sentinel
+        // TenantId values at the call site so a default(TenantId), TenantId.System,
+        // or any __-prefixed sentinel can never silently turn the query into
+        // an "all-tenants" predicate. The substrate-canonical bypass mechanism
+        // for cross-tenant reads is `IgnoreQueryFilters` (ADR 0092 §A4/§B4
+        // attestation path), NOT WhereTenant with a sentinel.
+        if (tenantId.IsSystemSentinel)
+        {
+            throw new ArgumentException(
+                "WhereTenant rejects default / system / sentinel TenantId values. " +
+                "Cross-tenant reads must go through the IgnoreQueryFilters attestation " +
+                "path per ADR 0092 §A4/§B4 (sec-eng SPOT-CHECK amendment C1 on the sibling shipyard PR).",
+                nameof(tenantId));
+        }
+
         return query.Where(e => e.TenantId == tenantId);
     }
 }
