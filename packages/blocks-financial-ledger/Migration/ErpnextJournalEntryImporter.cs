@@ -29,8 +29,8 @@ public sealed class ErpnextJournalEntryImporter : IErpnextJournalEntryImporter
 
     /// <inheritdoc />
     public async Task<ImportOutcome<JournalEntry>> UpsertFromErpnextAsync(
-        ErpnextJournalEntrySource source,
         TenantId tenantId,
+        ErpnextJournalEntrySource source,
         ChartOfAccountsId targetChart,
         CancellationToken cancellationToken = default)
     {
