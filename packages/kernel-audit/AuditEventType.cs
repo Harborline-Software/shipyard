@@ -76,6 +76,14 @@ public readonly record struct AuditEventType(string Value)
     /// <summary>A captured payment was refunded.</summary>
     public static readonly AuditEventType PaymentRefunded = new("PaymentRefunded");
 
+    /// <summary>
+    /// A journal entry was successfully posted to the ledger (pattern-012
+    /// canonical 5-field payload: entry_id, chart_id, posting_date,
+    /// line_count, total_debits / total_credits / idempotency_key extras).
+    /// Emitted by the Bridge journal-entry POST handler on the happy path.
+    /// </summary>
+    public static readonly AuditEventType JournalEntryPosted = new("JournalEntryPosted");
+
     /// <summary>A bookkeeper delegate accessed financial records.</summary>
     public static readonly AuditEventType BookkeeperAccess = new("BookkeeperAccess");
 
