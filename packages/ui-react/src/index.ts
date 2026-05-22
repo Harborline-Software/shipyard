@@ -4,3 +4,5 @@ export { OfflineIndicator, type OfflineIndicatorProps } from './components/Offli
 export { FreshnessBadge, type FreshnessBadgeProps } from './components/FreshnessBadge'
 export { PropertyCard, type PropertyCardProps } from './components/PropertyCard'
 export { RoleGate, type RoleGateProps } from './components/RoleGate'
+export { ErrorCard, type ErrorCardProps } from './components/ErrorCard'
+export { LoadingState, type LoadingStateProps } from './components/LoadingState'
