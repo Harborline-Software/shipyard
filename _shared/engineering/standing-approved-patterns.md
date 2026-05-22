@@ -309,6 +309,8 @@ Lifted from W#23.3 P1 sec-eng amendment A2 (2026-05-19).
 
 **Status:** **Formal — promoted 2026-05-17** after cohort-1 PRs 1+2+3 shipped clean. Per `admiral-status-2026-05-17T23-30Z-pattern-009-promoted.md`.
 
+**Sub-patterns:** [`pattern-009-tenant-keying-retrofit`](#pattern-009-tenant-keying-retrofit--tenant-keying-retrofit-pass-on-pre-existing-handlers) — formal sub-pattern promoted 2026-05-21 per ADR 0092 §A2 dual-gate satisfaction.
+
 **Council requirement:** MANDATORY **security-engineering + .NET-architect dual SPOT-CHECK** on EVERY instance. SLA: Admiral dispatches within 30 min of DRAFT PR opening (per `fleet-conventions.md` § SPOT-CHECK dispatch SLA added 2026-05-18).
 
 **Revoke if:**
@@ -317,10 +319,45 @@ Lifted from W#23.3 P1 sec-eng amendment A2 (2026-05-19).
 
 ---
 
+### `pattern-009-tenant-keying-retrofit` — Tenant-keying retrofit pass on pre-existing handlers
+
+**Definition:** A PR that retrofits the tenant cross-check sub-step (fetch entity → verify tenant match → return uniform 404 on mismatch) onto handlers that shipped before the sub-step was codified in `pattern-009`. The handler already has a Bridge endpoint; this PR adds the security sub-step to bring it into conformance.
+
+**Matches when:**
+- PR adds the tenant-identity cross-check to existing `pattern-009`-eligible handlers in `Sunfish.Bridge/Cockpit/`
+- PR does NOT add new routes or change endpoint signatures — retrofit-only
+- `@standing-pattern: pattern-009-tenant-keying-retrofit` appears in the PR description
+
+**Does NOT match if:**
+- New endpoints are added (falls back to `pattern-009`)
+- Any identity or auth surface is touched
+- Diff exceeds 400 lines net
+
+**Shipping history (cohort-2 instances — the 4 gates that ratified this sub-pattern):**
+1. PR 0a — Financial cluster LeaseDetailPage (shipyard, amended-GREEN; sec-eng verdict `council-verdict-2026-05-20T12-25Z-security-engineering-cohort-2-pr-0a-spot-check`)
+2. PR 0b — AccountingPage (sec-eng verdict `council-verdict-2026-05-20T19-10Z-security-engineering-cohort-2-pr-0b-spot-check`)
+3. PR 0c — RentCollectionPage (sec-eng verdict `council-verdict-2026-05-20T19-10Z-security-engineering-cohort-2-pr-0c-spot-check`)
+4. PR 0d — JournalEntryImporter (sec-eng `council-verdict-2026-05-21T0045Z-security-engineering`; .NET-architect `council-verdict-2026-05-21T0010Z-net-architect`; both GREEN)
+
+**Status:** **Formal — promoted 2026-05-21.** ADR 0092 §A2 dual-gate satisfied: (1) 4 clean shippings with sec-eng + .NET-architect dual SPOT-CHECK; (2) ADR 0092 Accepted (Rev 2 dual GREEN 2026-05-19T05:45Z). Admiral attestation: `admiral-attest-2026-05-21T01-10Z-shipyard-64-pr-0d-dual-green-promote`.
+
+**Council requirement:** MANDATORY **security-engineering + .NET-architect dual SPOT-CHECK** on every instance (inherited from parent `pattern-009`). Retrofit-only PRs matching this sub-pattern may share the parent pattern's SPOT-CHECK dispatch if filed as a cohort.
+
+**Revoke if:**
+- Post-merge incident on any retrofit PR
+- Sec-eng or .NET-architect finds a systematic gap across ≥2 instances
+
+**Forward-watch items** (from .NET-architect cohort-2 verdict; non-blocking):**
+1. **Entity-shape divergence doc** — capture `required init` positional-ctor (PR 0d Journal) vs named-property (PR 0a/b/c) as the two canonical entity shapes. ADR 0092 Rev 3 could note both variants explicitly.
+2. **Ctor-guard backport** — `auditTenant != default` check in audit-aware ctor (PR 0d line 76 pattern) is a hygiene improvement for PR 0a/b/c stores; route to a future hygiene PR.
+3. **`IErpnextJournalEntryImporter.UpsertFromErpnextAsync` signature** — TenantId as 2nd positional arg diverges from convention (1st positional or ambient `ITenantContext`). Non-blocking; route to a future signature-alignment PR.
+4. **ADR 0092 Rev 3 clarification** — explicitly document the two valid entity-shape variants; no change to ratification status.
+
+---
+
 ## Patterns proposed but not yet ratified
 
 - **`pattern-004` (Cluster aging service)** — needs 1 more shipping to reach 3-PR ratification minimum
-- **`pattern-009-tenant-keying-retrofit` (Tenant-keying retrofit pass on pre-existing handlers)** — candidate sub-pattern under `pattern-009`. Covers PRs that retrofit the tenant cross-check sub-step (fetch entity → verify tenant → uniform 404 on mismatch) onto handlers that shipped before the sub-step was codified in the formal pattern. Introduced by ADR 0092 §A2; ratification trigger is 4 clean shippings in cohort-2 PRs 0a–0d (sec-eng + .NET-architect dual SPOT-CHECK; per W#76 hand-off). See `coordination/inbox/onr-cohort-2-stage06-handoff.md`.
 - **`pattern-010` (`apps/docs/blocks/<cluster>/toc.yml` entry)** — usually bundled with `pattern-006`; not a standalone pattern yet
 - **`pattern-011` (Cross-cluster event publisher wiring)** — was `pattern-009` candidate; renumbered after pattern-009 slot taken by Bridge endpoint + companion frontend binding. Needs 3 shippings for ratification.
 
