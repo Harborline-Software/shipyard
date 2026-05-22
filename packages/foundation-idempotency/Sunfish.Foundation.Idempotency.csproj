@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Foundation.Idempotency</PackageId>
+    <RootNamespace>Sunfish.Foundation.Idempotency</RootNamespace>
+    <Description>Idempotency-key primitive for write-path Bridge endpoints. Per cross-cluster idempotency design (pattern-012-financial-write-path). Provides IIdempotencyKeyStore (TTL-scoped key + body-hash store), IdempotencyEntry / IdempotencyEntryWithKey records, and the in-memory test/dev impl. 24-hour TTL is the canonical default per the pattern-012 ratification spec.</Description>
+    <PackageTags>sunfish;foundation;idempotency;write-path;bridge</PackageTags>
+    <!-- NU1510 suppressed: direct PackageReference for
+         Microsoft.Extensions.DependencyInjection.Abstractions is required
+         (IServiceCollection, TryAddSingleton/TryAddScoped) but NuGet
+         preview.4 pruning may flag it as unnecessary due to transitive
+         availability via foundation-multitenancy. Per fleet-conventions
+         "NU1510 — keep the PackageRef, suppress the warning"; reference
+         template shipyard commit b4475df. -->
+    <NoWarn>CS1591;NU1510</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
+    <ProjectReference Include="..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Foundation.Idempotency.Tests" />
+  </ItemGroup>
+</Project>
