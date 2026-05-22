@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Sunfish.Blocks.Subscriptions.Models;
 using Sunfish.Foundation.Assets.Common;
-using Sunfish.Foundation.Authorization;
+using Sunfish.Foundation.MultiTenancy;
 
 namespace Sunfish.Blocks.Subscriptions.Services;
 
@@ -15,7 +15,7 @@ namespace Sunfish.Blocks.Subscriptions.Services;
 /// <remarks>
 /// <para>
 /// The in-memory service scopes reads and writes to the current
-/// <see cref="ITenantContext.TenantId"/>. An <see cref="ITenantContext"/> is
+/// <see cref="ITenantContext.Tenant"/>. An <see cref="ITenantContext"/> is
 /// REQUIRED at first tenant-scoped operation; the service throws
 /// <see cref="InvalidOperationException"/> otherwise (W#1 WS-A security
 /// follow-up MF-2 — silent fallback to <see cref="TenantId.System"/>
@@ -81,13 +81,12 @@ public sealed class InMemorySubscriptionService : ISubscriptionService
     }
 
     private TenantId CurrentTenant =>
-        _tenantContext is null
-            ? throw new InvalidOperationException(
-                "InMemorySubscriptionService requires an ITenantContext. "
-                + "Register one in DI before resolving the service. "
+        _tenantContext?.Tenant?.Id
+            ?? throw new InvalidOperationException(
+                "InMemorySubscriptionService requires a resolved ITenantContext. "
+                + "Register one in DI and ensure Tenant is resolved before resolving the service. "
                 + "Per W#1 WS-A security follow-up MF-2 — silent fallback to "
-                + "TenantId.System is forbidden.")
-            : new TenantId(_tenantContext.TenantId);
+                + "TenantId.System is forbidden.");
 
     /// <inheritdoc />
     public async IAsyncEnumerable<Plan> ListPlansAsync(
