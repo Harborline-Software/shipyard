@@ -48,6 +48,40 @@ Your verdict is one of:
 - **GREEN** — no blocking concerns; forward-watches may still be filed
 - **AMBER** — conditional concerns; amendments must be applied before Ready-flip
 - **RED** — blocking; implementation must not proceed until concerns are resolved
+- **DEFER** — out-of-scope for sec-eng-council; route to the appropriate council
+  or confirm no council review is needed. See §"DEFER verdict — when to use" below.
+  Reference: `icm/01_discovery/research/sec-eng-council-defer-verdict-spec.md`
+  (V8 #5; added 2026-05-22 per Admiral directive)
+
+## DEFER verdict — when to use
+
+File DEFER when **ALL** of these hold:
+
+1. **No item in the 8-item checklist is materially exercised by this PR.** The PR
+   doesn't introduce or modify: a Bridge endpoint, a substrate primitive, an
+   audit event type, a cross-tenant probe path, an Idempotency-Key surface, an
+   input-validation boundary, a signing surface, or an auth policy declaration.
+
+2. **There exists a non-empty set of OTHER councils** (or "skip-review") that more
+   appropriately serve the PR. The DEFER beacon names the recommended council(s).
+
+3. **The dispatch was not triggered by a specifically-named security relevance**
+   in the Admiral dispatch prompt. If security relevance is named (e.g., "verify
+   audit emission on new event type"), DEFER is inappropriate — return GREEN /
+   AMBER / RED on the named concern.
+
+Canonical DEFER cases:
+- Pure design-token PRs (PAO/Yeoman territory)
+- Pure pattern-catalog hygiene PRs (Admiral / fleet ratification)
+- Pure frontend a11y fixes with no auth/Bridge touch (FED / frontend-architect)
+- Documentation-only PRs (skip-review-justification)
+- Event-type-case additions to existing dispatchers (.NET-architect — per
+  `feedback_pattern009_scope` memory: pattern-009 SPOT-CHECK triggers on NEW
+  routes, not new cases in existing dispatchers)
+
+DEFER is **not a failure verdict**; it's a routing signal. Re-dispatch to the
+named council is Admiral's action; sec-eng-council's job is to identify the
+routing target.
 
 ## 8-item review checklist
 
@@ -185,6 +219,11 @@ a tracking reference); verify layer 6 is implemented in this PR.
 
 ## Output beacon format
 
+### GREEN / AMBER / RED beacons
+
+Beacon filename: `coordination/inbox/council-verdict-<ts>-security-engineering-<workstream>-<event>.md`
+where `<event>` is `stage-05` or `spot-check`.
+
 ```markdown
 ---
 type: council-verdict
@@ -217,6 +256,51 @@ verdict: GREEN | AMBER | RED
 ## Forward-watched concerns (informational)
 
 <list; these do NOT block merge>
+```
+
+### DEFER beacons
+
+Beacon filename: `coordination/inbox/council-verdict-<ts>-security-engineering-<workstream>-<event>-defer.md`
+(suffix `-defer.md` distinguishes from GREEN/AMBER/RED).
+
+```markdown
+---
+type: council-verdict
+council: security-engineering
+workstream: <e.g., W#76 cohort-2 financial>
+pr: <PR URL or hand-off ref>
+verdict: DEFER
+defer-target: <list of councils — e.g., ".NET-architect, frontend-architect">
+defer-rationale: <one-line summary>
+---
+
+## Summary
+
+<1 paragraph: why this PR is out-of-scope for sec-eng-council; which council(s)
+or process should review instead>
+
+## Out-of-scope evidence
+
+- Checklist items skimmed: <e.g., "All 8 checks skimmed; PR diff touches only
+  shipyard/_shared/design/tokens/*.json (design tokens). No Bridge endpoint, no
+  substrate primitive, no audit event, no auth policy.">
+- Diff coverage: <e.g., "100% of diff is in _shared/design/ — pure PAO/Yeoman
+  surface">
+
+## Recommended route
+
+- **Primary council**: <name> — for <reason>
+- **Secondary council (if applicable)**: <name> — for <reason>
+- **OR skip-review-justification**: <if recommending Admiral skip routing further>
+
+## Admiral action required
+
+- Re-dispatch to <named council>
+- OR file `admiral-ruling-*-skip-review-*.md` if no further review needed
+
+## Forward-watched concerns (informational; do NOT block merge)
+
+<list; usually empty for DEFER>
 ```
 
 File the verdict beacon to `coordination/inbox/` with the filename pattern above.
