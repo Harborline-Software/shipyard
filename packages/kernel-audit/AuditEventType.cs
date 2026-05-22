@@ -76,14 +76,6 @@ public readonly record struct AuditEventType(string Value)
     /// <summary>A captured payment was refunded.</summary>
     public static readonly AuditEventType PaymentRefunded = new("PaymentRefunded");
 
-    /// <summary>
-    /// A journal entry was successfully posted to the ledger (pattern-012
-    /// canonical 5-field payload: entry_id, chart_id, posting_date,
-    /// line_count, total_debits / total_credits / idempotency_key extras).
-    /// Emitted by the Bridge journal-entry POST handler on the happy path.
-    /// </summary>
-    public static readonly AuditEventType JournalEntryPosted = new("JournalEntryPosted");
-
     /// <summary>A bookkeeper delegate accessed financial records.</summary>
     public static readonly AuditEventType BookkeeperAccess = new("BookkeeperAccess");
 
@@ -92,6 +84,16 @@ public readonly record struct AuditEventType(string Value)
 
     /// <summary>An IRS-format export was generated for a tax period.</summary>
     public static readonly AuditEventType IrsExportGenerated = new("IrsExportGenerated");
+
+    /// <summary>
+    /// A double-entry journal entry was posted to the general ledger.
+    /// Emitted by the Bridge financial endpoint on
+    /// <c>POST /api/v1/financial/journal-entries</c> (W#60 P4 PR 2;
+    /// pattern-012-financial-write-path 3rd-instance ratification candidate).
+    /// Audit payload shape: entry_id, chart_id, posting_date, memo,
+    /// line_count, total_debits, total_credits, idempotency_key.
+    /// </summary>
+    public static readonly AuditEventType JournalEntryPosted = new("JournalEntryPosted");
 
     // ===== ADR 0056 — Foundation.Taxonomy substrate =====
 
