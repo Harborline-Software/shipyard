@@ -4,7 +4,7 @@
 **PR:** W#77 PR 2
 **Cartridge:** `RentRoll`
 **Endpoint:** `POST /api/v1/reports/rent-roll`
-**Pattern:** `@standing-pattern: pattern-009` (Bridge endpoint + frontend rebind pair) + `@candidate-pattern: pattern-011` (provisional report surface), `pattern-012` (run-on-demand report), `pattern-013` (CSV export affordance)
+**Pattern:** `@standing-pattern: pattern-009` (Bridge endpoint + frontend rebind pair) + `@candidate-pattern: pattern-015` (provisional report surface), `pattern-016` (run-on-demand report), `pattern-017` (CSV export affordance)
 **Replaces:** `sunfish/apps/web/src/pages/RentRoll.tsx` — retired, no deprecation shim, route rebound to the new page
 
 ## Scope
@@ -16,14 +16,14 @@
 | Concern | `RentRoll.tsx` (current) | `RentRollPage.tsx` (cohort-3) |
 |---|---|---|
 | Data source | `getRentRoll` against ERPNext direct | `POST /api/v1/reports/rent-roll` cartridge via `useRentRoll(submittedParams)` |
-| Auto-run | Yes — fires on mount via `useQuery` | **No** — run-on-demand per pattern-012; IDLE until user clicks Run |
+| Auto-run | Yes — fires on mount via `useQuery` | **No** — run-on-demand per pattern-016; IDLE until user clicks Run |
 | Layout | Flat single table, one row per unit | Property-blocked — `<PortfolioSummaryBar>` + `<PropertyBlock>` × N (header + table per property) |
 | Columns | 9 (Property / Unit / Tenant / Start / End / Rent / Last Pmt / Balance / Status) | 7 (Unit / Tenant / Lease End / Monthly Rent / Open Balance / Delinquency / Status) — 4 columns hidden or repositioned per Known Gaps below |
 | Status enum | 3 states (`Current` / `Overdue` / `Vacant`) inline `<StatusBadge>` | 4 `OccupancyStatus` values (`Occupied` / `NoticeGiven` / `Vacant` / `OffMarket`) via `<StatusPill kind="occupancyStatus" …>` |
 | Delinquency | Single `Overdue` boolean folded into Status | **Separate** `<StatusPill kind="agingBucket" …>` cell with 6 buckets (`Current` / `Days0To30` / `Days31To60` / `Days61To90` / `Days90Plus` / `NoBalance`) |
 | Portfolio summary | None | `<PortfolioSummaryBar>` — 5 tiles (Occupancy Rate / Properties / Units / Monthly Rent / Open Balance) |
-| Provisionality | Not surfaced | `<ProvisionalityBanner>` per pattern-011 (AR data crosses open periods routinely) |
-| CSV export | Not available | `<ExportCsvButton>` per pattern-013; filename `rent-roll-{asOfDate}.csv` |
+| Provisionality | Not surfaced | `<ProvisionalityBanner>` per pattern-015 (AR data crosses open periods routinely) |
+| CSV export | Not available | `<ExportCsvButton>` per pattern-017; filename `rent-roll-{asOfDate}.csv` |
 | Balance field | `balanceDue` from ERPNext | `openBalance` from cartridge (renamed; same concept, cartridge-canonical) |
 | Sort order | Status (`Overdue` → `Current` → `Vacant`) then property | Property name ascending; within each property, unit label ascending (no client-side cross-property sort) |
 | Loading state | Single line of `Loading…` text | 8-row skeleton (`SkeletonRows ×8`) |
@@ -31,21 +31,21 @@
 
 ## Component hierarchy
 
-Lifted from FED spec lines 532–553 and lightly refined to make the pattern-011/012/013 surfaces explicit and to name the per-property block container.
+Lifted from FED spec lines 532–553 and lightly refined to make the pattern-015/012/013 surfaces explicit and to name the per-property block container.
 
 ```
 RentRollPage
   PageHeader
     h1: "Rent Roll"
     subtitle: "Run on demand against any chart of accounts"
-  ReportFilterBar (pattern-012 layout)
-    ChartSelector            — required; pattern-012 §"Filter-by-filter conventions"
+  ReportFilterBar (pattern-016 layout)
+    ChartSelector            — required; pattern-016 §"Filter-by-filter conventions"
     AsOfDatePicker           — optional; defaults to today
     ExpiringWindowDaysInput  — number, min=1 max=730, default 90; label "Flag leases expiring within N days"
     IncludeVacantToggle      — checkbox, default ON
     RunButton                — primary; aria-busy when LOADING
     ExportCsvButton          — secondary; disabled until SUCCESS
-  ProvisionalityBanner       — visible only on SUCCESS && isProvisional (pattern-011)
+  ProvisionalityBanner       — visible only on SUCCESS && isProvisional (pattern-015)
   ResultPanel (state-driven)
     [IDLE / READY_TO_RUN]    → empty slot with helper copy (or nothing visible above filter bar)
     [LOADING]                → SkeletonRows × 8 within a single placeholder table card
@@ -275,11 +275,11 @@ Centered helper copy in a `border border-gray-200 rounded-lg bg-white px-6 py-12
 +------------------------------------------------------------------------------+
 ```
 
-Standard `<ErrorSurface variant="retryable">` from PR 1 — red surface (`border-red-200 bg-red-50 text-red-700 rounded-lg p-4`), exclamation icon, title + body copy, Retry button that re-fires the mutation with the same `submittedParams`. The Retry button is scoped to this surface and is NOT the same identity as the filter bar's Run button (per pattern-012 §"Run button copy + visual states").
+Standard `<ErrorSurface variant="retryable">` from PR 1 — red surface (`border-red-200 bg-red-50 text-red-700 rounded-lg p-4`), exclamation icon, title + body copy, Retry button that re-fires the mutation with the same `submittedParams`. The Retry button is scoped to this surface and is NOT the same identity as the filter bar's Run button (per pattern-016 §"Run button copy + visual states").
 
 ## State machine summary
 
-Identical to pattern-012's canonical state machine:
+Identical to pattern-016's canonical state machine:
 
 ```
 IDLE → READY_TO_RUN → LOADING → { SUCCESS | ERROR }
@@ -287,7 +287,7 @@ IDLE → READY_TO_RUN → LOADING → { SUCCESS | ERROR }
                               └── filter change resets to IDLE ──┘
 ```
 
-See `run-on-demand-pattern.md` for the canonical machine; this page does not add any page-specific states. The `includeVacant` toggle is part of `formParams` like every other filter and triggers the IDLE reset on change (per pattern-012 invariant 3).
+See `run-on-demand-pattern.md` for the canonical machine; this page does not add any page-specific states. The `includeVacant` toggle is part of `formParams` like every other filter and triggers the IDLE reset on change (per pattern-016 invariant 3).
 
 ## Provisionality banner placement
 
@@ -535,9 +535,9 @@ The `<PropertyHeader>` `flex justify-between` may need to wrap on the narrowest 
 ## Pattern alignment
 
 - `@standing-pattern: pattern-009` — Bridge endpoint + frontend rebind pair. `POST /api/v1/reports/rent-roll` is the new Bridge endpoint; `RentRollPage.tsx` is the frontend rebind. Triggers the standard SPOT-CHECK dispatch SLA per fleet conventions.
-- `@candidate-pattern: pattern-011` — provisional report surface. `<ProvisionalityBanner>` consumption is the first-instance signature.
-- `@candidate-pattern: pattern-012` — run-on-demand report. IDLE → READY_TO_RUN → LOADING → SUCCESS state machine is the first-instance signature.
-- `@candidate-pattern: pattern-013` — CSV export affordance. `<ExportCsvButton>` consumption is the first-instance signature.
+- `@candidate-pattern: pattern-015` — provisional report surface. `<ProvisionalityBanner>` consumption is the first-instance signature.
+- `@candidate-pattern: pattern-016` — run-on-demand report. IDLE → READY_TO_RUN → LOADING → SUCCESS state machine is the first-instance signature.
+- `@candidate-pattern: pattern-017` — CSV export affordance. `<ExportCsvButton>` consumption is the first-instance signature.
 
 All three candidates ratify together on the next cohort that consumes them consistently (most likely cohort-4 AP Aging).
 

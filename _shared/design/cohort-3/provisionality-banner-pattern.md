@@ -1,6 +1,6 @@
-# Provisionality Banner Pattern — pattern-011 Candidate
+# Provisionality Banner Pattern — pattern-015 Candidate
 
-This document captures the canonical UX for surfacing `ReportRunResult.IsProvisional = true` across cohort-3's 4 reports. It is the **visible signature** of pattern-011-provisional-report-surface.
+This document captures the canonical UX for surfacing `ReportRunResult.IsProvisional = true` across cohort-3's 4 reports. It is the **visible signature** of pattern-015-provisional-report-surface.
 
 ## The pattern (single sentence)
 
@@ -163,12 +163,12 @@ This is a deliberate choice — a dismissable provisional warning would let user
 ## Ratification timeline
 
 - **First instance:** cohort-3 PR 1 ships `<ProvisionalityBanner>` + cohort-3 pages PR 2–5 each consume it
-- **Ratification trigger:** second cohort using `IsProvisional` semantics ships clean carrying `@candidate-pattern: pattern-011` claim
+- **Ratification trigger:** second cohort using `IsProvisional` semantics ships clean carrying `@candidate-pattern: pattern-015` claim
 - **Likely second instance:** cohort-4 AP Aging (which inherits the same `IsProvisional` semantics from cartridge substrate) or a forward report (Cash Flow, Balance Sheet)
 
 ## Cross-references
 
 - Pattern-009 (Bridge endpoint + frontend rebind pair) — cohort-3 PRs all carry this; provisionality is a **layer on top of** the read-rebind, not a replacement
-- Pattern-011 ratifies independently of pattern-012 (run-on-demand) and pattern-013 (CSV export). A future surface could use provisionality without being run-on-demand (e.g., a dashboard tile auto-refreshing every 5min that still shows `isProvisional`).
+- Pattern-011 ratifies independently of pattern-016 (run-on-demand) and pattern-017 (CSV export). A future surface could use provisionality without being run-on-demand (e.g., a dashboard tile auto-refreshing every 5min that still shows `isProvisional`).
 
 — PAO, 2026-05-22

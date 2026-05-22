@@ -4,11 +4,11 @@
 **PR:** W#77 PR 4
 **Cartridge:** `TrialBalance` (`shipyard/packages/blocks-reports/.../TrialBalanceCartridge.cs`)
 **Endpoint:** `POST /api/v1/reports/trial-balance`
-**Patterns:** `@standing-pattern: pattern-009` + `@candidate-pattern: pattern-011, pattern-012, pattern-013`
+**Patterns:** `@standing-pattern: pattern-009` + `@candidate-pattern: pattern-015, pattern-016, pattern-017`
 
 ## Scope
 
-TrialBalancePage is a **new** page (no prior file replaces it; no migration shim) presenting a classic accounting trial balance — every GL account in a chart with its debit and credit balance as of a date or fiscal period, plus a totals row and a balance-state diagnostic. It is the canonical introduction of the cartridge-backed report surface: the page does not auto-fetch on mount, the user explicitly clicks Run after selecting required parameters, and the result envelope's `IsProvisional` flag drives an amber banner when the chosen period is open. As the first of the four cohort-3 pages, it is also the canonical exercise of `pattern-012` (run-on-demand), `pattern-011` (provisionality banner), and `pattern-013` (CSV export) — every visible UX choice here ratifies for the other three.
+TrialBalancePage is a **new** page (no prior file replaces it; no migration shim) presenting a classic accounting trial balance — every GL account in a chart with its debit and credit balance as of a date or fiscal period, plus a totals row and a balance-state diagnostic. It is the canonical introduction of the cartridge-backed report surface: the page does not auto-fetch on mount, the user explicitly clicks Run after selecting required parameters, and the result envelope's `IsProvisional` flag drives an amber banner when the chosen period is open. As the first of the four cohort-3 pages, it is also the canonical exercise of `pattern-016` (run-on-demand), `pattern-015` (provisionality banner), and `pattern-017` (CSV export) — every visible UX choice here ratifies for the other three.
 
 ## Component hierarchy
 
@@ -19,8 +19,8 @@ TrialBalancePage
   PageHeader
     h1: "Trial Balance"
     subtitle: "Account balances as of a date, with debit and credit totals"
-  ProvisionalityBanner (when result.isProvisional)            // pattern-011
-  ReportFilterBar                                             // pattern-012
+  ProvisionalityBanner (when result.isProvisional)            // pattern-015
+  ReportFilterBar                                             // pattern-016
     ChartSelector              (required; Q2-canonical behavior)
     PeriodModeToggle           ([Date] | [Fiscal period] tabs; mutually exclusive)
       ↳ AsOfDatePicker         (mode = Date; default = today)
@@ -28,7 +28,7 @@ TrialBalancePage
     ToggleFilter               (IncludeZeroBalanceAccounts; default OFF)
     ToggleFilter               (IncludeInactiveAccounts;    default OFF)
     RunButton                  (aria-busy on LOADING; "Run report" / "Running…")
-    ExportCsvButton            (disabled until SUCCESS)      // pattern-013
+    ExportCsvButton            (disabled until SUCCESS)      // pattern-017
   [state-dependent content]
     IDLE              → empty hero: "Select a chart and date, then click Run report."
     READY_TO_RUN      → same hero copy; Run button now active
@@ -68,7 +68,7 @@ The page is a thin composition over `ReportFilterBar`, `ProvisionalityBanner`, `
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-ChartSelector is the only required filter without a default. The `As of` picker pre-fills today (operator local date) per `pattern-012` filter-bar conventions. Both toggles default OFF (conservative — fewer rows, faster scan; matches `pattern-012` boolean-toggle convention).
+ChartSelector is the only required filter without a default. The `As of` picker pre-fills today (operator local date) per `pattern-016` filter-bar conventions. Both toggles default OFF (conservative — fewer rows, faster scan; matches `pattern-016` boolean-toggle convention).
 
 ### READY_TO_RUN state (Chart selected; Run enabled)
 
@@ -91,7 +91,7 @@ ChartSelector is the only required filter without a default. The `As of` picker 
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Hero copy is unchanged from IDLE — the only state change is Run-button enablement. Export CSV stays disabled until SUCCESS (gating per `pattern-013`).
+Hero copy is unchanged from IDLE — the only state change is Run-button enablement. Export CSV stays disabled until SUCCESS (gating per `pattern-017`).
 
 ### LOADING state (Run clicked; mutation in flight)
 
@@ -146,7 +146,7 @@ Five skeleton rows (`bg-gray-100 animate-pulse h-8 rounded`), column widths matc
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Provisionality banner sits above the filter bar (per `pattern-011` fixed position). Zero values render as `—` (Q-D resolved below). Type column uses the gl-account-chip canonical token (Q6 from INDEX). BalanceBadge sits directly below the tfoot total row, right-aligned to match the numeric columns.
+Provisionality banner sits above the filter bar (per `pattern-015` fixed position). Zero values render as `—` (Q-D resolved below). Type column uses the gl-account-chip canonical token (Q6 from INDEX). BalanceBadge sits directly below the tfoot total row, right-aligned to match the numeric columns.
 
 ### SUCCESS state — out-of-balance variant
 
@@ -197,7 +197,7 @@ Empty copy is helpful (suggests two concrete remediations) but not pushy — no 
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Standard `<ErrorSurface variant="retryable">` token (red-200 border / red-50 bg / red-700 text). Retry is scoped to the surface; it re-runs the last submitted params. The page's main Run button remains in its normal state — Retry inside the surface is the canonical retry, not a Run-button color swap (per `pattern-012` Run-button copy convention).
+Standard `<ErrorSurface variant="retryable">` token (red-200 border / red-50 bg / red-700 text). Retry is scoped to the surface; it re-runs the last submitted params. The page's main Run button remains in its normal state — Retry inside the surface is the canonical retry, not a Run-button color swap (per `pattern-016` Run-button copy convention).
 
 ## State machine summary
 
@@ -381,11 +381,11 @@ No new Tailwind palette stops are introduced. No new color tokens are introduced
 
 **From `apps/web/src/components/` (cohort-3 PR 1 ships these):**
 
-- `<ProvisionalityBanner>` — pattern-011 surface; consumed as-is
-- `<ExportCsvButton>` — pattern-013 surface; consumed as-is
-- `<ReportFilterBar>` — pattern-012 surface; the page passes its filter children
-- `<ChartSelector>` — pattern-012 shared filter; the page passes the current selection up via callback
-- `<RunButton>` — pattern-012 surface; consumed via `<ReportFilterBar>`
+- `<ProvisionalityBanner>` — pattern-015 surface; consumed as-is
+- `<ExportCsvButton>` — pattern-017 surface; consumed as-is
+- `<ReportFilterBar>` — pattern-016 surface; the page passes its filter children
+- `<ChartSelector>` — pattern-016 shared filter; the page passes the current selection up via callback
+- `<RunButton>` — pattern-016 surface; consumed via `<ReportFilterBar>`
 - `<ErrorSurface variant="retryable">` — shared error surface; promoted from cohort-2 candidate per [`tokens.md`](./tokens.md)
 
 **Page-specific (new in PR 4):**
@@ -425,11 +425,11 @@ Seven canonical states — IDLE / READY_TO_RUN / LOADING / SUCCESS / SUCCESS+pro
 
 - **`@standing-pattern: pattern-009`** (Bridge endpoint + frontend rebind pair) — `POST /api/v1/reports/trial-balance` is the new Bridge endpoint; this page is the frontend rebind. Standard security-engineering SPOT-CHECK applies on PR-open. The rebind layers the run-on-demand UX on top, but the pattern-009 baseline still applies (route exists; frontend consumes it; security review confirms the contract).
 
-- **`@candidate-pattern: pattern-011`** (provisional report surface) — first instance of `<ProvisionalityBanner>` consumption. The page renders the banner only when `result.isProvisional === true`; placement, copy, and disclosure interaction are fixed by the pattern doc. Ratification happens when a second cohort using `IsProvisional` semantics ships (likely cohort-4 AP Aging).
+- **`@candidate-pattern: pattern-015`** (provisional report surface) — first instance of `<ProvisionalityBanner>` consumption. The page renders the banner only when `result.isProvisional === true`; placement, copy, and disclosure interaction are fixed by the pattern doc. Ratification happens when a second cohort using `IsProvisional` semantics ships (likely cohort-4 AP Aging).
 
-- **`@candidate-pattern: pattern-012`** (run-on-demand report) — first instance of the IDLE → READY_TO_RUN → LOADING → SUCCESS state machine. The page implements the pattern's submitted-params vs form-params separation literally — no optimistic state, no auto-fetch on mount, filter changes reset the result. Ratification happens with the next user-triggered report.
+- **`@candidate-pattern: pattern-016`** (run-on-demand report) — first instance of the IDLE → READY_TO_RUN → LOADING → SUCCESS state machine. The page implements the pattern's submitted-params vs form-params separation literally — no optimistic state, no auto-fetch on mount, filter changes reset the result. Ratification happens with the next user-triggered report.
 
-- **`@candidate-pattern: pattern-013`** (CSV export affordance) — first instance of `<ExportCsvButton>` consumption. Filename `trial-balance-{asOfDate}.csv` (+ `-provisional` suffix when applicable) per the pattern doc. Ratification happens with the next non-report CSV export surface (e.g., a future Lease list export).
+- **`@candidate-pattern: pattern-017`** (CSV export affordance) — first instance of `<ExportCsvButton>` consumption. Filename `trial-balance-{asOfDate}.csv` (+ `-provisional` suffix when applicable) per the pattern doc. Ratification happens with the next non-report CSV export surface (e.g., a future Lease list export).
 
 All three candidate-patterns share this single cohort-of-instance — they ratify together if cohort-4 (or a later cohort) picks them up consistently. TrialBalancePage is the most canonical of the four cohort-3 pages because every visible surface here exercises every pattern at once: a clean run-on-demand machine, a provisional banner on open-period runs, a CSV export of the result, all wrapped over a single-table report read.
 

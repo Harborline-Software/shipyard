@@ -32,16 +32,16 @@ Plus the cross-cutting deliverables:
 
 - [`tokens.md`](./tokens.md) — design tokens used + new cohort-3 additions (`GLAccountType` palette, `OccupancyStatus` badges, aging-bucket header tints made canonical)
 - [`component-reuse-audit.md`](./component-reuse-audit.md) — `@sunfish/ui-react` v0.2 reuse + new shared components needed (`<ProvisionalityBanner>`, `<ExportCsvButton>`, `<ReportFilterBar>`, `<ChartSelector>`, `<AgingBucketPill>`)
-- [`provisionality-banner-pattern.md`](./provisionality-banner-pattern.md) — canonical UX for `IsProvisional` reports (pattern-011 candidate)
-- [`run-on-demand-pattern.md`](./run-on-demand-pattern.md) — canonical UX for user-triggered runs (pattern-012 candidate)
-- [`csv-export-pattern.md`](./csv-export-pattern.md) — canonical CSV export UX (pattern-013 candidate)
+- [`provisionality-banner-pattern.md`](./provisionality-banner-pattern.md) — canonical UX for `IsProvisional` reports (pattern-015 candidate)
+- [`run-on-demand-pattern.md`](./run-on-demand-pattern.md) — canonical UX for user-triggered runs (pattern-016 candidate)
+- [`csv-export-pattern.md`](./csv-export-pattern.md) — canonical CSV export UX (pattern-017 candidate)
 - [`states-matrix.md`](./states-matrix.md) — empty/loading/success/error variants per page (extended for the IDLE / READY_TO_RUN report state)
 
 ## Reference inputs
 
 1. **FED cohort-3 collaboration spec** — `coordination/inbox/fed-status-2026-05-19T2400Z-cohort-3-design-collaboration.md` (711 lines; source-of-truth for component hierarchy, wire types, state machine, "PAO design direction needed" requests)
 2. **W#77 blocks-reports substrate** — `shipyard/packages/blocks-reports/` (cartridge runner + 5 Phase 1 cartridges; `ReportRunResult<TResult>` envelope contract)
-3. **Cohort-2 baseline** — `shipyard/_shared/design/cohort-2/` (structural template; pattern-010 candidate informs pattern-011/012/013 shape)
+3. **Cohort-2 baseline** — `shipyard/_shared/design/cohort-2/` (structural template; pattern-010 candidate informs pattern-015/012/013 shape)
 4. **`@sunfish/ui-react` v0.2** — just shipped via FED queue item #5 (shipyard#48); primitive set available (`<Card>`, `<Badge>`, `<CurrencyAmount>`, `<AgingBucketPill>`)
 5. **Cohort-1 visual baseline** — `sunfish/apps/web/src/pages/MaintenancePage.tsx` (`STATUS_COLORS` convention for badge palettes)
 6. **Framework design docs** — `shipyard/_shared/design/{design-language,tokens-guidelines,component-principles,accessibility,internationalization}.md`
@@ -49,9 +49,9 @@ Plus the cross-cutting deliverables:
 ## Standing-pattern alignment
 
 - **pattern-009** (Bridge endpoint + frontend rebind pair) — formal post-cohort-1; applies to all 5 cohort-3 PRs.
-- **pattern-011-provisional-report-surface** — CANDIDATE; first instance is the `<ProvisionalityBanner>` shared across all 4 cohort-3 pages. Ratifies on second cohort using `IsProvisional` semantics (likely cohort-4 AP Aging or a forward report).
-- **pattern-012-run-on-demand-report** — CANDIDATE; first instance is the IDLE → READY_TO_RUN state machine shared across all 4 cohort-3 pages. Ratifies on next user-triggered report (cohort-4 AP Aging).
-- **pattern-013-csv-export-affordance** — CANDIDATE; first instance is the `<ExportCsvButton>` shared across all 4 cohort-3 pages. Ratifies on next non-report CSV surface (e.g., a future Lease export, Tenant export).
+- **pattern-015-provisional-report-surface** — CANDIDATE; first instance is the `<ProvisionalityBanner>` shared across all 4 cohort-3 pages. Ratifies on second cohort using `IsProvisional` semantics (likely cohort-4 AP Aging or a forward report).
+- **pattern-016-run-on-demand-report** — CANDIDATE; first instance is the IDLE → READY_TO_RUN state machine shared across all 4 cohort-3 pages. Ratifies on next user-triggered report (cohort-4 AP Aging).
+- **pattern-017-csv-export-affordance** — CANDIDATE; first instance is the `<ExportCsvButton>` shared across all 4 cohort-3 pages. Ratifies on next non-report CSV surface (e.g., a future Lease export, Tenant export).
 
 All three candidates share a single cohort-of-instance — they ratify together if cohort-4 picks them up consistently.
 

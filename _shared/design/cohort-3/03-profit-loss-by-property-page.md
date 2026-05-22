@@ -4,7 +4,7 @@
 **PR:** W#77 PR 3
 **Cartridge:** `ProfitAndLossByProperty` (`shipyard/packages/blocks-reports/`)
 **Endpoint:** `POST /api/v1/reports/profit-loss`
-**Patterns:** `@standing-pattern: pattern-009` + `@candidate-pattern: pattern-011, pattern-012, pattern-013`
+**Patterns:** `@standing-pattern: pattern-009` + `@candidate-pattern: pattern-015, pattern-016, pattern-017`
 **Replaces:** `PLReport.tsx` — retired in this PR. No deprecation shim. The `/reports/profit-loss` route is rebound to the new component file; the old file is deleted in the same PR.
 
 ## Scope
@@ -234,7 +234,7 @@ Centered (`text-center text-gray-500 py-12`). Two-line copy: a stated fact ("No 
 +--------------------------------------------------------------------+
 ```
 
-`border border-red-200 bg-red-50 text-red-700 rounded-lg p-4`. Retry button re-issues the same `submittedParams` mutation. The provisionality banner is hidden during ERROR (the error surface owns the screen, per pattern-011).
+`border border-red-200 bg-red-50 text-red-700 rounded-lg p-4`. Retry button re-issues the same `submittedParams` mutation. The provisionality banner is hidden during ERROR (the error surface owns the screen, per pattern-015).
 
 ### PortfolioSummaryTiles — positive Net Income
 
@@ -374,7 +374,7 @@ The auto-expand fires once on the initial render of a new `SUCCESS` state. If th
 
 ## Token usage
 
-See [`tokens.md`](./tokens.md) for the canonical inventory. This page introduces no new canonical tokens beyond what `pattern-011` adds (`provisional-surface`). All other tokens are existing:
+See [`tokens.md`](./tokens.md) for the canonical inventory. This page introduces no new canonical tokens beyond what `pattern-015` adds (`provisional-surface`). All other tokens are existing:
 
 - `<CurrencyAmount>` color tokens (`text-green-700` / `text-red-700` / `text-gray-700`)
 - Card / tile shell (`rounded-lg border border-gray-200 bg-white px-4 py-3`)
@@ -453,9 +453,9 @@ Page-local components (this PR only):
 ## Pattern alignment
 
 - `@standing-pattern: pattern-009` (Bridge endpoint + frontend rebind pair) — formal post-cohort-1; applies to this PR as a write-coupled-to-read substrate change (cartridge replaces ERPNext direct fetch). The `POST /api/v1/reports/profit-loss` endpoint is the new bridge surface; the page is its frontend rebind.
-- `@candidate-pattern: pattern-011-provisional-report-surface` — first instance, via `<ProvisionalityBanner>` consumed in this page. P&L will be the most-frequently-provisional report (the most recent month is usually open).
-- `@candidate-pattern: pattern-012-run-on-demand-report` — first instance, via the IDLE → READY_TO_RUN → LOADING → SUCCESS / ERROR machine.
-- `@candidate-pattern: pattern-013-csv-export-affordance` — first instance, via `<ExportCsvButton>` adjacent to Run in the filter bar.
+- `@candidate-pattern: pattern-015-provisional-report-surface` — first instance, via `<ProvisionalityBanner>` consumed in this page. P&L will be the most-frequently-provisional report (the most recent month is usually open).
+- `@candidate-pattern: pattern-016-run-on-demand-report` — first instance, via the IDLE → READY_TO_RUN → LOADING → SUCCESS / ERROR machine.
+- `@candidate-pattern: pattern-017-csv-export-affordance` — first instance, via `<ExportCsvButton>` adjacent to Run in the filter bar.
 
 All three candidates carry forward into PRs 2, 4, 5 (RentRoll, TrialBalance, ArAging) — they ratify together if cohort-4 picks them up consistently.
 

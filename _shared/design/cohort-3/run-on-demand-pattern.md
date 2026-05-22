@@ -1,6 +1,6 @@
-# Run-on-Demand Pattern — pattern-012 Candidate
+# Run-on-Demand Pattern — pattern-016 Candidate
 
-This document captures the canonical UX for user-triggered report runs across cohort-3's 4 pages. It is the **visible signature** of pattern-012-run-on-demand-report.
+This document captures the canonical UX for user-triggered report runs across cohort-3's 4 pages. It is the **visible signature** of pattern-016-run-on-demand-report.
 
 ## The pattern (single sentence)
 
@@ -171,20 +171,20 @@ See [`csv-export-pattern.md`](./csv-export-pattern.md) for export UX detail.
 
 ## What this pattern does NOT cover
 
-- **Auto-refresh / polling reports** — pattern-012 is explicitly opt-in-only. If a future dashboard tile needs auto-refresh of a report, it uses a different surface (the tile lives in a dashboard pattern, not a report-page pattern).
-- **Saved parameter presets** — the form does not persist params across visits or expose a "saved filters" feature in cohort-3. A future cohort could add this without invalidating pattern-012; persistence is orthogonal to the run-on-demand discipline.
+- **Auto-refresh / polling reports** — pattern-016 is explicitly opt-in-only. If a future dashboard tile needs auto-refresh of a report, it uses a different surface (the tile lives in a dashboard pattern, not a report-page pattern).
+- **Saved parameter presets** — the form does not persist params across visits or expose a "saved filters" feature in cohort-3. A future cohort could add this without invalidating pattern-016; persistence is orthogonal to the run-on-demand discipline.
 - **Server-side scheduling** — "run this report nightly and email me the CSV" is a forward feature, not in cohort-3. The pattern applies to the interactive page surface only.
-- **Optimistic snapshot replay** — pattern-012 does NOT support showing the previous result while a new run is in flight. Some patterns (real-time dashboards) do; reports do not.
+- **Optimistic snapshot replay** — pattern-016 does NOT support showing the previous result while a new run is in flight. Some patterns (real-time dashboards) do; reports do not.
 
 ## Ratification timeline
 
 - **First instance:** cohort-3 PRs 2–5 each implement the IDLE → READY_TO_RUN → LOADING → SUCCESS state machine consistently
-- **Ratification trigger:** second user-triggered report ships clean carrying `@candidate-pattern: pattern-012` claim
+- **Ratification trigger:** second user-triggered report ships clean carrying `@candidate-pattern: pattern-016` claim
 - **Likely second instance:** cohort-4 AP Aging (same state machine; identical filter bar pattern)
 
 ## Cross-references
 
-- Pattern-011 (provisionality banner) — appears only in SUCCESS state; complements pattern-012 but ratifies independently
+- Pattern-011 (provisionality banner) — appears only in SUCCESS state; complements pattern-016 but ratifies independently
 - Pattern-013 (CSV export) — Export CSV button gating is defined here; full export UX in [`csv-export-pattern.md`](./csv-export-pattern.md)
 - Pattern-009 (Bridge endpoint + frontend rebind pair) — cohort-3 PRs all carry this baseline pattern; run-on-demand is the report-specific *layer* above the read-rebind
 

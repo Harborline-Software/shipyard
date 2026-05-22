@@ -4,7 +4,7 @@
 **PR:** W#77 PR 5
 **Cartridge:** `ArAgingSummary` (`shipyard/packages/blocks-reports/`)
 **Endpoint:** `POST /api/v1/reports/ar-aging`
-**Patterns:** `@standing-pattern: pattern-009` + `@candidate-pattern: pattern-011, pattern-012, pattern-013`
+**Patterns:** `@standing-pattern: pattern-009` + `@candidate-pattern: pattern-015, pattern-016, pattern-017`
 
 ## Scope
 
@@ -62,7 +62,7 @@ ArAgingPage
 (no content below filter bar — page is IDLE)
 ```
 
-`Run report` is disabled (gray, `opacity-50`) until a chart is selected. `Export CSV` is disabled. No skeleton, no empty placeholder — the page is **silent** until the user runs it. This is the run-on-demand discipline from pattern-012.
+`Run report` is disabled (gray, `opacity-50`) until a chart is selected. `Export CSV` is disabled. No skeleton, no empty placeholder — the page is **silent** until the user runs it. This is the run-on-demand discipline from pattern-016.
 
 ### 2. READY_TO_RUN — chart picked, ready to fire
 
@@ -85,7 +85,7 @@ ArAgingPage
 │  Open receivables by customer and by property as of a chosen date │
 └──────────────────────────────────────────────────────────────────┘
 
-(ProvisionalityBanner here when result.isProvisional — see pattern-011 doc)
+(ProvisionalityBanner here when result.isProvisional — see pattern-015 doc)
 
 ┌──────────────────────────────────────────────────────────────────┐
 │ Chart: [Operating accounts ▾]   As of: [2026-05-22]               │
@@ -246,7 +246,7 @@ Standard `<ErrorSurface variant="retryable">` (the cohort-3 PR 1 primitive). Red
 
 ## State machine summary
 
-This page uses [pattern-012 run-on-demand](./run-on-demand-pattern.md) **as-is, with no deviations**. The state machine:
+This page uses [pattern-016 run-on-demand](./run-on-demand-pattern.md) **as-is, with no deviations**. The state machine:
 
 ```
 IDLE → READY_TO_RUN → LOADING → SUCCESS (or ERROR)
@@ -258,13 +258,13 @@ Required params: `chartId` (any non-empty selection). All other params are optio
 
 ## Provisionality banner placement
 
-This page uses [pattern-011 provisional report surface](./provisionality-banner-pattern.md) **as-is, with no deviations**. Position: below page header, above filter bar, full content-width.
+This page uses [pattern-015 provisional report surface](./provisionality-banner-pattern.md) **as-is, with no deviations**. Position: below page header, above filter bar, full content-width.
 
 **Note for FED and PAO planning:** AR aging crosses open accounting periods routinely — open invoices, in-flight collections, posted-but-unmatched receipts all live in the open period. Expect `isProvisional === true` to be the **common case** for this page, not the edge case. The banner UX is unchanged, but operationally this means most users will see it most of the time — which is fine; it accurately describes reality.
 
 ## CSV export
 
-This page uses [pattern-013 CSV export](./csv-export-pattern.md) **as-is, with no deviations**.
+This page uses [pattern-017 CSV export](./csv-export-pattern.md) **as-is, with no deviations**.
 
 Filename: `ar-aging-summary-{asOfDate}.csv` (e.g., `ar-aging-summary-2026-05-22.csv`).
 Provisional suffix: `ar-aging-summary-2026-05-22-provisional.csv` when `isProvisional === true`.
@@ -401,7 +401,7 @@ This keeps the cohort-3 PR 1 surface area tight: shared infrastructure is exactl
 - TotalsBar tile values use `tabular-nums` + right-aligned for visual rhythm and screen-reader parity (the order of value announcement matches the visual order).
 - Empty state heading: `<h2>No outstanding receivables.</h2>` — semantic heading even for the positive state, so it appears in the document outline.
 - Error state: `<ErrorSurface>` sets `role="alert"` per cohort-3 PR 1 primitive; on appearance it announces to screen-reader users without interrupting in-progress speech (the surface itself uses `aria-live="polite"`; `role="alert"` is for the headline).
-- Filter bar inputs: all required inputs get `aria-required="true"` + visible `*` in label; the Run button is the form's `<button type="submit">` per pattern-012.
+- Filter bar inputs: all required inputs get `aria-required="true"` + visible `*` in label; the Run button is the form's `<button type="submit">` per pattern-016.
 
 ## States summary table
 
@@ -422,9 +422,9 @@ The `EMPTY` state is triggered by the **aggregate total being zero**, not by `by
 This page exercises one standing pattern + three candidates:
 
 - **`@standing-pattern: pattern-009`** (Bridge endpoint + frontend rebind pair, formal post-cohort-1) — the page reads `POST /api/v1/reports/ar-aging` and rebinds the typed result envelope to UI. This is the baseline pattern; every cohort-3 PR carries it.
-- **`@candidate-pattern: pattern-011`** (provisional report surface) — the page surfaces `<ProvisionalityBanner>` when `result.isProvisional === true`. AR aging is expected to be provisional in the common case (open-period transactions are the norm for receivables); this is the highest-frequency exerciser of pattern-011 in cohort-3.
-- **`@candidate-pattern: pattern-012`** (run-on-demand report) — the page implements the IDLE → READY_TO_RUN → LOADING → SUCCESS state machine with no auto-fetch on mount; the user explicitly clicks Run.
-- **`@candidate-pattern: pattern-013`** (CSV export affordance) — the page surfaces `<ExportCsvButton>` adjacent to Run, disabled until SUCCESS, with canonical filename `ar-aging-summary-{asOfDate}.csv` (`-provisional` suffix when applicable).
+- **`@candidate-pattern: pattern-015`** (provisional report surface) — the page surfaces `<ProvisionalityBanner>` when `result.isProvisional === true`. AR aging is expected to be provisional in the common case (open-period transactions are the norm for receivables); this is the highest-frequency exerciser of pattern-015 in cohort-3.
+- **`@candidate-pattern: pattern-016`** (run-on-demand report) — the page implements the IDLE → READY_TO_RUN → LOADING → SUCCESS state machine with no auto-fetch on mount; the user explicitly clicks Run.
+- **`@candidate-pattern: pattern-017`** (CSV export affordance) — the page surfaces `<ExportCsvButton>` adjacent to Run, disabled until SUCCESS, with canonical filename `ar-aging-summary-{asOfDate}.csv` (`-provisional` suffix when applicable).
 
 All four pattern claims live in the **PR description**, not in commit bodies — per fleet commitlint trap (the `@standing-pattern:` line at start of a commit body line trips the footer parser).
 

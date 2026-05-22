@@ -1,6 +1,6 @@
-# CSV Export Pattern — pattern-013 Candidate
+# CSV Export Pattern — pattern-017 Candidate
 
-This document captures the canonical CSV export UX for cohort-3's 4 reports. It is the **visible signature** of pattern-013-csv-export-affordance.
+This document captures the canonical CSV export UX for cohort-3's 4 reports. It is the **visible signature** of pattern-017-csv-export-affordance.
 
 ## The pattern (single sentence)
 
@@ -148,7 +148,7 @@ These are cartridge-side responsibilities documented in `shipyard/packages/block
 
 ## What this pattern does NOT cover
 
-- **Other export formats** (PDF, XLSX, JSON) — pattern-013 is CSV-only. Future formats would each get their own canonical pattern (or the button could become a split-button with format choice; PAO designs that when the use case arrives).
+- **Other export formats** (PDF, XLSX, JSON) — pattern-017 is CSV-only. Future formats would each get their own canonical pattern (or the button could become a split-button with format choice; PAO designs that when the use case arrives).
 - **Bulk export** ("export all 4 reports for this period") — out of scope. Cohort-3 ships per-report exports only.
 - **Scheduled export** ("email me this CSV nightly") — forward feature; not in cohort-3 scope.
 - **Per-row / per-column export selection** — the export is always the full result. Filtering belongs in the Run-on-demand filter bar (re-run with narrower params, then export).
@@ -156,7 +156,7 @@ These are cartridge-side responsibilities documented in `shipyard/packages/block
 ## Ratification timeline
 
 - **First instance:** cohort-3 PR 1 ships `<ExportCsvButton>` + cohort-3 pages PR 2–5 each consume it
-- **Ratification trigger:** next non-report CSV export surface ships clean carrying `@candidate-pattern: pattern-013` claim
+- **Ratification trigger:** next non-report CSV export surface ships clean carrying `@candidate-pattern: pattern-017` claim
 - **Likely second instance:** future Lease list export, Tenant directory export, or Maintenance work-order export (any list-surface gets natural CSV export ask)
 
 ## Cross-references

@@ -39,7 +39,7 @@ These compose existing Tailwind utilities; promoting them to components would ov
 
 Cohort-3 PR 1 is the **shared infrastructure PR**. It introduces these 5 new components, plus 2 component primitives promoted from cohort-2's "promote-candidate" list:
 
-### 1. `<ProvisionalityBanner>` — pattern-011 visible surface
+### 1. `<ProvisionalityBanner>` — pattern-015 visible surface
 
 **Location:** `apps/web/src/components/ProvisionalityBanner.tsx`
 
@@ -59,7 +59,7 @@ When `isProvisional === false` the component renders `null` (caller doesn't need
 
 **Canonical visual:** see [`provisionality-banner-pattern.md`](./provisionality-banner-pattern.md). Token: `provisional-surface` from [`tokens.md`](./tokens.md).
 
-### 2. `<ExportCsvButton>` — pattern-013 visible surface
+### 2. `<ExportCsvButton>` — pattern-017 visible surface
 
 **Location:** `apps/web/src/components/ExportCsvButton.tsx`
 
@@ -79,7 +79,7 @@ Component handles its own loading state (`Exporting…` text + spinner + `aria-b
 
 **Canonical visual + interaction:** see [`csv-export-pattern.md`](./csv-export-pattern.md).
 
-### 3. `<ReportFilterBar>` — pattern-012 visible surface
+### 3. `<ReportFilterBar>` — pattern-016 visible surface
 
 **Location:** `apps/web/src/components/ReportFilterBar.tsx`
 
@@ -101,7 +101,7 @@ Provides the filter-bar chrome: the wrapper layout, the `[Run report]` primary b
 
 Caller passes filter controls as `children` (ChartSelector + page-specific date/toggle/multiselect inputs); component owns the layout + the Run button + the export slot.
 
-### 4. `<ChartSelector>` — pattern-012 ChartId acquisition surface
+### 4. `<ChartSelector>` — pattern-016 ChartId acquisition surface
 
 **Location:** `apps/web/src/components/ChartSelector.tsx`
 
@@ -124,7 +124,7 @@ Behavior canonical to INDEX Q2:
 
 Fetches the chart list internally via `useCharts()` hook (which hits the Bridge chart-list endpoint — exact path TBD per pending halt condition in INDEX).
 
-### 5. `<RunButton>` — pattern-012 primary action surface
+### 5. `<RunButton>` — pattern-016 primary action surface
 
 **Location:** `apps/web/src/components/RunButton.tsx`
 
@@ -142,7 +142,7 @@ interface RunButtonProps {
 
 Renders the canonical Run-button text + visual transitions per [`run-on-demand-pattern.md`](./run-on-demand-pattern.md) (`Run report` / `Running…` / disabled state / aria-busy).
 
-Reasoning for breaking this out of `<ReportFilterBar>` despite being internal: it's the load-bearing UI element of pattern-012; extracting it makes future pattern-012 surfaces (a dashboard tile, a quick-action menu) reuse the same button without dragging the whole filter bar along.
+Reasoning for breaking this out of `<ReportFilterBar>` despite being internal: it's the load-bearing UI element of pattern-016; extracting it makes future pattern-016 surfaces (a dashboard tile, a quick-action menu) reuse the same button without dragging the whole filter bar along.
 
 ### 6. `<StatusPill>` — promoted from cohort-2 candidate
 

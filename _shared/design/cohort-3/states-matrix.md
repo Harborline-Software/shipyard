@@ -108,7 +108,7 @@ The ArAging case is the only **positive** empty state in cohort-3 (a zero-AR sit
 
 Across all 4 pages, the SUCCESS + provisional state is **not a separate branch** of the state machine. It's a SUCCESS state with one additional visible element (`<ProvisionalityBanner>`). The `isProvisional` flag from the cartridge envelope doesn't change which surfaces render; it only adds the banner above the existing surfaces. All other affordances (Export CSV enabled, filter changes reset to IDLE, etc.) behave identically.
 
-This is deliberate — pattern-011 (provisionality banner) is a **layer on top of** the SUCCESS state, not a replacement for it. The user's mental model is "this is a successful report with a caveat," not "this is some new third kind of result."
+This is deliberate — pattern-015 (provisionality banner) is a **layer on top of** the SUCCESS state, not a replacement for it. The user's mental model is "this is a successful report with a caveat," not "this is some new third kind of result."
 
 ## What this matrix does NOT cover
 
