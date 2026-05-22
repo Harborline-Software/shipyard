@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AssemblyName>Sunfish.Foundation.Idempotency.Tests</AssemblyName>
+    <RootNamespace>Sunfish.Foundation.Idempotency.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sunfish.Foundation.Idempotency.csproj" />
+    <ProjectReference Include="..\..\foundation\Sunfish.Foundation.csproj" />
+    <ProjectReference Include="..\..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
+  </ItemGroup>
+
+</Project>

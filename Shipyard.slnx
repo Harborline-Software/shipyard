@@ -100,6 +100,10 @@
     <Project Path="packages/foundation-events/Sunfish.Foundation.Events.csproj" />
     <Project Path="packages/foundation-events/tests/Sunfish.Foundation.Events.Tests.csproj" />
   </Folder>
+  <Folder Name="/foundation/idempotency/">
+    <Project Path="packages/foundation-idempotency/Sunfish.Foundation.Idempotency.csproj" />
+    <Project Path="packages/foundation-idempotency/tests/tests.csproj" />
+  </Folder>
   <Folder Name="/foundation/identity-atlas/">
     <Project Path="packages/foundation-identity-atlas/Sunfish.Foundation.IdentityAtlas.csproj" />
     <Project Path="packages/foundation-identity-atlas/tests/tests.csproj" />
