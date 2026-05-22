@@ -355,11 +355,47 @@ Lifted from W#23.3 P1 sec-eng amendment A2 (2026-05-19).
 
 ---
 
+### `pattern-014` — Bridge cross-tenant audit emission (class-private helper)
+
+**Definition:** A Bridge endpoint that emits a cross-tenant audit event via a class-private helper method encapsulating the canonical 5-field audit payload. Applies to cockpit endpoints that operate across tenant boundaries and must record the discrepancy between the requesting tenant and the actual entity tenant.
+
+**Matches when:**
+- PR adds or extends a cockpit Bridge endpoint in `signal-bridge/` (or equivalent Bridge host repo)
+- Endpoint contains a class-private helper method (e.g., `EmitCrossTenantAudit`) that emits an audit event
+- Audit payload includes all 5 canonical fields: `entity_type`, `entity_id`, `requested_tenant`, `actual_tenant`, `correlation_id`
+- Helper is class-private (not exposed as a service or extension method)
+- `@standing-pattern: pattern-014` appears in the PR description
+
+**Does NOT match if:**
+- Audit helper is promoted to a shared service or injected dependency (different pattern boundary)
+- Payload omits any of the 5 canonical fields or adds non-standard fields without Admiral ruling
+- Endpoint is on an identity or auth surface (`/api/v1/cockpit/identity/**`, `/api/v1/cockpit/auth/**`)
+
+**Shipping history (ratification basis — 4 endpoint files, endpoint-file counting basis per admiral-ruling-2026-05-22T13-00Z):**
+1. FinancialEndpoints — signal-bridge PR 29 (cohort-2 tranche 1 anchor)
+2. LeasesEndpoints — signal-bridge PR 31 (cohort-2 tranche 1)
+3. WorkOrdersEndpoint — signal-bridge PR 31 (cohort-2 tranche 1)
+4. VendorsEndpoint — signal-bridge PR 33 (cohort-2 tranche 2)
+
+Counting basis: distinct endpoint files with independent audit-emission helpers, not PR count. 4 independent emergences from the same architectural pressure satisfy the 3-shipping empirical-validation threshold. Per admiral-ruling-2026-05-22T13-00Z and .NET-architect verdict shipyard PR 71.
+
+**Council requirement:** SKIP for new endpoint files matching the exact 5-field payload shape. If payload shape deviates or helper is promoted to a shared service, falls back to full pipeline.
+
+**Revoke if:**
+- Post-merge incident on a pattern-matched PR
+- A cross-tenant audit incident reveals the 5-field payload is systematically insufficient
+
+**Status:** **Formal — promoted 2026-05-22** per admiral-ruling-2026-05-22T13-00Z (pattern-014 counting + QM cleanup follow-ups).
+
+---
+
 ## Patterns proposed but not yet ratified
 
-- **`pattern-004` (Cluster aging service)** — needs 1 more shipping to reach 3-PR ratification minimum
 - **`pattern-010` (`apps/docs/blocks/<cluster>/toc.yml` entry)** — usually bundled with `pattern-006`; not a standalone pattern yet
 - **`pattern-011` (Cross-cluster event publisher wiring)** — was `pattern-009` candidate; renumbered after pattern-009 slot taken by Bridge endpoint + companion frontend binding. Needs 3 shippings for ratification.
+- **`pattern-012a-tenant-scoped-write-path`** — Bridge write endpoint with separated CSRF, ITenantContext server-derived, no mandatory Idempotency-Key, substrate audit emission, AuthenticatedTenantPolicy, 4-surface error envelope. 2 shipping instances (sunfish PR 19 cohort-2 PR 3 RentCollectionPage; signal-bridge PR 29 cohort-2 PR 1 Bridge financial endpoint family). Needs 1 more shipping for ratification. Per admiral-ruling-2026-05-22T18-25Z (pattern-012 split).
+- **`pattern-012b-accountant-grade-write-path`** — Bridge write endpoint with separated CSRF, ITenantContext server-derived, mandatory Idempotency-Key (three-way scope: key + tenantId + bodyHash; charset `[A-Za-z0-9\-_=]`; max 256 chars), canonical N-field Bridge audit (8-field transactional; 5-field TenantBoundaryViolation), role-gated authorization (e.g. `RequireRole("Accountant")`), 6+ surface error envelope, exact decimal balance arithmetic. 2 shipping instances (signal-bridge PR 36 W60 P4 PR 2 JournalEntry POST; signal-bridge PR 37 W60 P4 PR 2 v2 with foundation-idempotency substrate). Needs 1 more shipping for ratification. Per admiral-ruling-2026-05-22T18-25Z (pattern-012 split).
+- **`pattern-013-cartridge-read-via-post`** — Report cartridge read endpoint implemented as POST to carry payload (query-by-body pattern). Declared per ONR V4 research. Needs 3 shippings for ratification.
 
 ## What's explicitly NOT a standing pattern (always needs full pipeline)
 
