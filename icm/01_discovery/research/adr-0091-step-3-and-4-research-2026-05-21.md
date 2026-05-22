@@ -122,7 +122,21 @@ Reading the directive's bullet text:
 - Step 3 (test migration) per ADR + Step 3.0 (consumption sweep across repos) per directive
 - Step 4 (analyzer + `[Obsolete]`) per ADR + Step 4.0 (runtime propagation verification) per directive
 
-Open question 1 in §6 routes the disambiguation to .NET-architect council.
+> **Fold A (.NET-architect verdict 2026-05-21T1228Z — Hidden Concern #2 resolution):**
+> This research **implicitly settles the canonical-vs-directive framing as a single
+> deliverable**. Step 2.1+ encompasses BOTH endpoint signature narrowing (canonical
+> spec) AND repository-internal consumption narrowing (directive's "consumption
+> sweep across all repository implementations"). The narrowing decision at each
+> consumer site (endpoint or repository) is the single unit of work; whichever
+> framing motivates the decision, the deliverable shape is identical:
+> 1. Identify which interface variant (facade / `Foundation.MultiTenancy.ITenantContext` / `ICurrentUser` / `IAuthorizationContext`) the consumer actually reads
+> 2. Narrow the injected interface to that variant
+> 3. Update the corresponding test fixtures (Step 3) to mock the narrowed variant
+> 4. The compile-time analyzer (Step 4) enforces non-mixing across data-plane vs control-plane variants regardless of consumer layer
+>
+> Engineer can treat the canonical and directive framings as equivalent for purposes of work decomposition.
+
+Open question 1 in §6 (Step 3.0 canonical vs directive framing) is therefore **RESOLVED via fold**; remaining open questions in §6 are unaffected.
 
 ---
 
@@ -209,6 +223,27 @@ Fails when ANY of:
 
 ### 4.4 Implementation pseudo-code
 
+> **Fold B (.NET-architect verdict 2026-05-21T1228Z — Hidden Concern #1 resolution):**
+> The analyzer detection mechanism MUST use **symbol resolution** via the
+> `SemanticModel` (`SemanticModel.GetSymbolInfo(typeSyntax).Symbol` resolved to
+> `INamedTypeSymbol`), NOT syntax-only walking of `IdentifierNameSyntax` or
+> `QualifiedNameSyntax` nodes.
+>
+> **Why:** the syntax-only approach false-negatives on consumers that import
+> via `using Sunfish.Foundation.Authorization;` (the dominant style in the
+> existing consumer base) — only the unqualified identifier `ITenantContext`
+> appears at the use site, with no syntactic signal of which `ITenantContext`
+> namespace it resolves to. Symbol resolution against `SemanticModel`
+> deterministically yields the full type (`Sunfish.Foundation.Authorization.ITenantContext`
+> vs `Sunfish.Foundation.MultiTenancy.ITenantContext` vs
+> `Sunfish.Bridge.Middleware.IBrowserTenantContext`) regardless of `using`
+> directive shape.
+>
+> The pseudo-code below is illustrative; Engineer's analyzer implementation
+> MUST resolve `INamedTypeSymbol` per-parameter-type before applying the
+> mix-detection invariant. See `foundation-wayfinder-analyzers` for the
+> canonical symbol-resolution pattern.
+
 ```csharp
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class RequestContextMixingAnalyzer : DiagnosticAnalyzer
@@ -280,13 +315,45 @@ public async Task DoesNotFire_ControlPlaneOnly() {
 }
 
 [Fact]
-public async Task DetectsMixing_InDIRegistration() {
-    // services.AddScoped<IBrowserTenantContext, ...>() + services.AddScoped<ITenantContext, ...>()
-    // (both registered to same composition root — flag as warning?)
+public async Task DoesNotFire_SeparateClassesSameCompositionRoot() {
+    // CANONICAL Bridge wiring per fold C (see below):
+    // services.AddScoped<IBrowserTenantContext, BrowserTenantContext>();
+    // services.AddScoped<Foundation.Authorization.ITenantContext, DemoTenantContext>();
+    // Two SEPARATE concrete classes registered side-by-side in Program.cs is the
+    // canonical Bridge pattern and MUST NOT fire SUNFISH_AUTH_001.
+    var source = """
+        public class BrowserTenantContext : IBrowserTenantContext { /* impl */ }
+        public class DemoTenantContext : Foundation.Authorization.ITenantContext { /* impl */ }
+        // In Program.cs:
+        // services.AddScoped<IBrowserTenantContext, BrowserTenantContext>();
+        // services.AddScoped<Foundation.Authorization.ITenantContext, DemoTenantContext>();
+    """;
+    var diagnostics = await GetDiagnosticsAsync(source);
+    Assert.Empty(diagnostics);  // analyzer must NOT false-positive
 }
 ```
 
-Minimum: 6 analyzer tests. The "DI registration mixing" case is subtler — may be a warning rather than error if the same class doesn't bind both (i.e., separate concrete impls for browser-side vs control-plane is the canonical Bridge pattern).
+> **Fold C (.NET-architect verdict 2026-05-21T1228Z — Q2 verdict refinement):**
+> The previous draft included a sixth test `DetectsMixing_InDIRegistration`
+> that fired when both `IBrowserTenantContext` and a control-plane
+> `ITenantContext` variant were registered in the same `services` container.
+> Per the .NET-architect council Q2 verdict, this test is **REPURPOSED as a
+> NEGATIVE-case test** (`DoesNotFire_SeparateClassesSameCompositionRoot`).
+>
+> **Why:** the canonical Bridge wiring (per `signal-bridge/Program.cs` + the
+> cohort-1/2 endpoint composition pattern) registers two SEPARATE concrete
+> classes side-by-side: a `BrowserTenantContext : IBrowserTenantContext`
+> (data-plane) and a `DemoTenantContext : Foundation.Authorization.ITenantContext`
+> (control-plane). Both contexts coexisting in the same DI container is
+> structurally correct — the invariant violation only occurs when a SINGLE
+> class binds BOTH interfaces (which the constructor/method/field tests
+> already cover).
+>
+> An analyzer that fires on side-by-side registration would false-positive on
+> EVERY Bridge composition root, blocking all builds. The repurposed negative
+> test pins this behavior.
+
+Minimum: 6 analyzer tests (3 positive: constructor / narrowed-interface / method-signature; 3 negative: data-plane-only / control-plane-only / separate-classes-same-composition-root).
 
 ### 4.6 `[Obsolete]` attribute placement
 
@@ -376,9 +443,14 @@ For Admiral routing per `feedback_onr_questions_via_inbox`:
 
 ### For .NET-architect council
 
-1. **Step 3.0 framing — canonical (test migration only) vs directive (consumption sweep across all repository implementations)?** ONR's read: directive's framing is the broader scope; Engineer's actual Step 3.0 work likely includes both the audit + the test migration. Confirm.
-2. **Analyzer detection scope — DI registration mixing as Error vs Warning?** Strict reading: same-class binding both Browser + control-plane is Error; same-composition-root registering separate classes for each is acceptable. Confirm.
-3. **`[Obsolete]` severity — Warning (gradual migration; ONR recommended) vs Error (force migration in Step 4 PR)?** ONR recommends Warning; allows the grace window to actually serve as a window.
+1. ~~**Step 3.0 framing — canonical (test migration only) vs directive (consumption sweep across all repository implementations)?**~~ **RESOLVED via fold A** (§2.3): canonical and directive frame the same deliverable; treat as single unit of work.
+2. ~~**Analyzer detection scope — DI registration mixing as Error vs Warning?**~~ **RESOLVED via fold C** (§4.5): separate-classes-same-composition-root is canonical Bridge wiring; analyzer must NOT fire (negative test pins this). Only same-class binding both is Error.
+3. **`[Obsolete]` severity — Warning (gradual migration; ONR recommended) vs Error (force migration in Step 4 PR)?** ONR recommends Warning; allows the grace window to actually serve as a window. **(Still open; routes to .NET-architect re-attest)**
+
+Folds applied per .NET-architect council verdict 2026-05-21T1228Z:
+- **Fold A** — Hidden Concern #2 (canonical-vs-directive framing as single deliverable) — applied to §2.3
+- **Fold B** — Hidden Concern #1 (analyzer must use semantic-model symbol resolution, not syntax-only walking) — applied to §4.4
+- **Fold C** — Q2 verdict refinement (§4.5 test #6 repurposed as negative case) — applied to §4.5
 
 ### For security-engineering council
 
