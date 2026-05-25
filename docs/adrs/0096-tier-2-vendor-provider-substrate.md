@@ -366,24 +366,337 @@ flight-deck surface).
 
 ## Implementation roadmap
 
-TBD
+Four Step PRs. Step 1 is the substrate-package extension (the load-bearing surface);
+Steps 2 + 3 are the vendor adapters and run in parallel; Step 4 is W79 sub-cohort
+composition-root wiring (cited as forward-link, not delivered by this ADR).
+
+### Step 1 — Substrate-package extension PR
+
+Branch shape: `feat/adr-0096-step-1-tier-2-vendor-substrate` (Engineer-authored
+post-ADR Acceptance).
+
+Scope:
+
+- `packages/foundation-integrations/` (extend):
+  - `IMockVendorProvider.cs` — marker interface; empty (no members);
+    xmldoc documents the `IXProvider` naming convention + grandfathered
+    `ICaptchaVerifier` asymmetry.
+  - `Email/IEmailProvider.cs` — contract: `Task<EmailDispatchResult> SendAsync(EmailMessage message, CancellationToken cancellationToken)`.
+  - `Email/EmailMessage.cs` — record carrying `From`, `To[]`, `Subject`, `BodyHtml`,
+    `BodyText`, `MessageStream` (free-form string per Halt 6), `IdempotencyKey`,
+    `EmailDispatchId`.
+  - `Email/EmailDispatchResult.cs` — discriminated-union: `Accepted(MessageId)` |
+    `RateLimited(RetryAfter)` | `Rejected(Reason)` | `TransportError(Detail)`.
+  - `Email/MockEmailProvider.cs` — `: IEmailProvider, IMockVendorProvider`; writes
+    to in-memory store + console log + optional dev inbox UI route (W79 endpoint
+    territory, not implemented here).
+  - `Captcha/InMemoryCaptchaVerifier.cs` (retrofit) — adds `IMockVendorProvider`
+    marker membership; preserves existing `AlwaysPass()` / `AlwaysFail()` /
+    `WithMagicToken(token)` static factories (or adds them if not yet present per
+    ONR audit).
+  - `DependencyInjection/VendorProviderServiceCollectionExtensions.cs`:
+    - `AddSunfishVendorProvider<TContract, TConcrete>(this IServiceCollection)`
+      registers the mock concrete unconditionally + registers a
+      `ProviderDescriptor` against `IProviderRegistry`.
+    - `UseVendorProviderIfConfigured<TContract, TConcrete>(this IServiceCollection, string envVarKey)`
+      checks `Environment.GetEnvironmentVariable(envVarKey)`; when truthy, calls
+      `services.Replace(ServiceDescriptor.Scoped<TContract, TConcrete>())` AND
+      updates the `IProviderRegistry` `ProviderDescriptor`. Otherwise no-op.
+  - `DependencyInjection/MockProviderProductionGuardAssertion.cs` —
+    `: IHostedService`. On `StartAsync`:
+    - If `ASPNETCORE_ENVIRONMENT != "Production"`, return immediately.
+    - If `Environment.GetEnvironmentVariable("SUNFISH_ALLOW_MOCK_PROVIDERS") == "true"`,
+      return immediately.
+    - Else: resolve every registered `IMockVendorProvider`-implementing service
+      from the IServiceProvider; if any are present, throw
+      `MockInProductionException` enumerating the offending contracts. Startup
+      fails.
+  - `MockInProductionException.cs` — typed exception carrying the list of
+    offending contract type names.
+
+- `packages/foundation-catalog/` (extend):
+  - `Bundles/ProviderCategory.cs`: add `Captcha = 10` and `TransactionalEmail = 11`
+    (or next-available stable slots — Engineer picks at authoring time).
+
+- Unit tests in `packages/foundation-integrations.tests/`:
+  - `MockProviderProductionGuardAssertionTests` — covers all branches: non-prod
+    bypass, opt-out env-var bypass, prod-with-mock-no-opt-out throws, prod-with-no-
+    mocks passes. **Note** — per the ADR 0095 R2 .NET-architect A3 amendment, the
+    test resolves marker-implementing services from a stub `IServiceCollection`
+    fixture; it does NOT exercise the production `IHttpContextAccessor`-dependent
+    surfaces (which are null at `IHostedService.StartAsync`).
+  - `VendorProviderServiceCollectionExtensionsTests` — registration-presence
+    contract + conditional-swap behavior under env-var presence/absence.
+  - `InMemoryCaptchaVerifierTests` — marker-membership assertion + factory-method
+    behavior.
+  - `MockEmailProviderTests` — send-to-memory + idempotency-key honoring.
+
+- Documentation:
+  - xmldoc on every introduced type per ADR 0069 §A0 discipline.
+  - `IMockVendorProvider` xmldoc explicitly names the `IXProvider` naming
+    convention and the `ICaptchaVerifier` grandfathered exception (per D5).
+
+**Council review (Halt 3 OVERRIDE): MANDATORY dual-council at PR-open.**
+.NET-architect council reviews the DI helper shape, the IHostedService assertion
+mechanism, and the conditional-swap semantics. Security-engineering council
+reviews the production-guard invariants, the env-var opt-out semantics, and the
+silent-typo foot-gun closure.
+
+### Step 2 — Postmark adapter PR (parallel with Step 3)
+
+Branch shape: `feat/adr-0096-step-2-providers-postmark`.
+
+Scope:
+
+- New package `packages/providers-postmark/`:
+  - `PostmarkEmailProvider.cs` — `: IEmailProvider`. HttpClient-based (no SDK per
+    ADR 0013 supply-chain discipline; SDK question forwarded to council per
+    Open Question 2). Resolves `POSTMARK_API_KEY` via `IHostSecretResolver` (or
+    direct env var if `IHostSecretResolver` not yet ratified by council per Open
+    Question 3).
+  - `PostmarkProviderDescriptor.cs` — registers `ProviderCategory.TransactionalEmail`
+    descriptor with `IProviderRegistry`.
+  - DI extension: `AddPostmarkEmailProvider(this IServiceCollection)` which calls
+    `UseVendorProviderIfConfigured<IEmailProvider, PostmarkEmailProvider>("POSTMARK_API_KEY")`.
+  - Maps `EmailMessage` to Postmark's `/email` payload; honors `IdempotencyKey`
+    as Postmark's `Headers["X-PM-Tag"]` or equivalent (council to ratify exact
+    field per Open Question 4).
+  - HttpClient registration with retry policy (Polly or `IHttpClientFactory`
+    transient handler); council to ratify exact retry geometry.
+
+- Tests: integration tests against Postmark sandbox stamp; unit tests against an
+  `IHttpMessageHandler` fake covering 200 / 4xx / 5xx / timeout branches.
+
+**Council review (Halt 3 OVERRIDE): MANDATORY dual-council SPOT-CHECK at PR-open.**
+Sec-eng reviews credential handling (API key resolution path + transport security
++ idempotency-key shape against replay-attack concerns). .NET-architect reviews
+the HttpClient + Polly geometry + the `ProviderDescriptor` registration coherence.
+
+### Step 3 — Turnstile adapter PR (parallel with Step 2)
+
+Branch shape: `feat/adr-0096-step-3-providers-turnstile`.
+
+Scope:
+
+- New package `packages/providers-turnstile/`:
+  - `TurnstileCaptchaVerifier.cs` — `: ICaptchaVerifier`. HttpClient-based.
+    Resolves `TURNSTILE_SECRET_KEY` via `IHostSecretResolver` (or direct env var
+    pending council ratification).
+  - `TurnstileProviderDescriptor.cs` — registers `ProviderCategory.Captcha`
+    descriptor with `IProviderRegistry`.
+  - DI extension: `AddTurnstileCaptchaVerifier(this IServiceCollection)` which
+    calls `UseVendorProviderIfConfigured<ICaptchaVerifier, TurnstileCaptchaVerifier>("TURNSTILE_SECRET_KEY")`.
+  - Maps to Cloudflare's `/turnstile/v0/siteverify` endpoint. Action parameter
+    handling deferred per Open Question 5 (Admiral prior: defer to
+    `IExtendedCaptchaVerifier` if-and-when wanted).
+
+- Tests: integration tests against Cloudflare's documented test secrets
+  (`1x0000000000000000000000000000000AA` always passes; `2x0000000000000000000000000000000AA`
+  always fails); unit tests against `IHttpMessageHandler` fake.
+
+**Council review (Halt 3 OVERRIDE): MANDATORY dual-council SPOT-CHECK at PR-open.**
+Sec-eng reviews the verify-call payload shape (`secret` field MUST NOT log;
+`remoteip` field handling; response-validation semantics). .NET-architect reviews
+the HttpClient geometry and the `ProviderDescriptor` registration coherence.
+
+### Step 4 — W79 composition-root wiring (NOT directly delivered by this ADR)
+
+W79 sub-cohort 1 Stage-05 hand-off territory. signal-bridge `Program.cs` calls:
+
+```csharp
+services.AddSunfishVendorProvider<IEmailProvider, MockEmailProvider>();
+services.UseVendorProviderIfConfigured<IEmailProvider, PostmarkEmailProvider>("POSTMARK_API_KEY");
+
+services.AddSunfishVendorProvider<ICaptchaVerifier, InMemoryCaptchaVerifier>();
+services.UseVendorProviderIfConfigured<ICaptchaVerifier, TurnstileCaptchaVerifier>("TURNSTILE_SECRET_KEY");
+
+services.AddHostedService<MockProviderProductionGuardAssertion>();
+```
+
+Plus the four new signup endpoint routes (`POST /api/signup`,
+`POST /api/signup/verify-email`, `POST /api/signup/resend-verification`,
+`POST /api/signup/check-availability`). **pattern-009 SPOT-CHECK applies** at the
+W79 PR-open per fleet conventions (Bridge endpoint + frontend rebind pair —
+4 new routes).
 
 ## Alternatives considered (rejections)
 
-TBD
+**Alt A — Fold transactional email into `IMessagingGateway`.** REJECTED per D2.
+`IMessagingGateway` is bidirectional thread messaging; transactional email is
+unidirectional pre-tenant fire-and-forget. Folding them would conflate two
+structurally distinct surfaces (interface conflation; same anti-pattern ADR 0091
+R2 fixed in the tenant-context layer).
+
+**Alt B — Separate `*-mocks` package layout** (e.g.,
+`packages/foundation-integrations-mocks/`). REJECTED per Halt 1. The existing
+`InMemoryCaptchaVerifier` already co-locates with `ICaptchaVerifier`; relocating
+it would be a small breaking change without benefit. The `IMockVendorProvider`
+marker + production-guard IHostedService provides the production-safety guarantee
+that a separate `*-mocks` package boundary would otherwise enforce via Roslyn
+analyzer — and does so at runtime in every deployment rather than only at build
+time.
+
+**Alt C — Compile-time mock-vs-production selection** (e.g., `#if MOCK_PROVIDERS`
+preprocessor directives or two NuGet package targets — `Sunfish.Providers.Postmark`
+vs `Sunfish.Providers.Postmark.Mock`). REJECTED per D4. The substrate value
+proposition is deploy-time vendor swap; compile-time selection requires two
+builds, breaks the single-binary deployment story, and prevents the env-var
+escape hatch.
+
+**Alt D — Single-ADR-per-vendor (Option A).** REJECTED per Admiral ruling
+2026-05-25T19:53Z. The discipline IS the substrate; codifying it once captures
+the mock-first directive once and applies to every future Tier-2 vendor. Per
+`feedback_prefer_cleanest_long_term_option` the +1.5-2× ADR text cost is correct.
+
+**Alt E — `MockProviderProductionGuardAssertion` as a Roslyn analyzer instead of
+IHostedService.** REJECTED — Roslyn analyzers run at compile time and cannot
+observe the runtime DI registration tree; the analyzer would have to model the
+composition-root config statically (which is fragile across multi-environment
+deployments). IHostedService at process start observes the actual resolved
+registrations and fails the deployment, not the build. Future amendment may add
+a complementary Roslyn analyzer for an additional static-check layer (analog to
+ADR 0091 R2 Step 3 analyzer), but the IHostedService is the load-bearing
+mechanism.
+
+**Alt F — Rename `ICaptchaVerifier` to `ICaptchaProvider` for naming uniformity.**
+REJECTED per Halt 5 RATIFY. Existing consumers (`RecaptchaV3CaptchaVerifier` +
+`InMemoryCaptchaVerifier`) churn for negligible benefit; .NET BCL precedent allows
+descriptive asymmetry (role-nouns vs action-nouns); the substrate pattern is
+identified by `IMockVendorProvider` membership + `ProviderCategory` participation,
+not by naming convention.
 
 ## Consequences
 
-TBD
+**Positive:**
+
+- Mock-first production-safety property is **codified at substrate tier**, not
+  documentation discipline. The silent-typo foot-gun (`POSTMRK_API_KEY` instead of
+  `POSTMARK_API_KEY`) fails loudly at startup; no silent-bypass shipping path.
+- Tier-2 vendor categories follow **one canonical pattern**. Adding a new vendor
+  (storage, identity, OIDC) requires (a) a new `IXProvider` contract + mock in
+  `foundation-integrations/X/`, (b) a new `providers-{vendor}/` package, (c) a
+  new `ProviderCategory.X` enum value, (d) one `UseVendorProviderIfConfigured`
+  call in composition root. No new ADR per vendor.
+- Existing `Foundation.Integrations` substrate (ADR 0013) is **extended, not
+  refactored**. The retrofit cost is one new marker interface added to
+  `InMemoryCaptchaVerifier` and `MockProviderProductionGuardAssertion` IHostedService
+  registration.
+- Composition-tier swap means **single-binary deployment** across dev/test/prod;
+  env vars decide. Operations gains: lower image variance, simpler rollouts.
+
+**Negative / costs:**
+
+- Three new packages (`providers-postmark` + `providers-turnstile` + the
+  `foundation-integrations` extension) ship at MVP-phase. Engineering hours
+  pre-MVP: ~3-5 days across the three Step PRs (Step 2 + Step 3 parallel).
+- Mocks ship in the same package as contracts — non-Sunfish consumers (none today,
+  but possible in future) take a ~1-2 KB dependency on mock implementations they
+  may never use. Marginal; not a real cost.
+- Dual-council MANDATORY review on this ADR + each Step PR adds ~30-min dispatch
+  latency per PR. Pre-paid against the Rev-2-with-strengthening churn pattern
+  ADR 0095 demonstrated (one round of council is cheaper than two).
+
+**Risks:**
+
+- **Risk R1 — Step 1 PR scope creep.** Step 1 covers a lot (marker + IHostedService +
+  two DI helpers + `IEmailProvider` + `MockEmailProvider` + `InMemoryCaptchaVerifier`
+  retrofit + enum extension + tests). Engineer may split into two PRs if scope
+  threshold reached (per fleet PR-cap discipline). Mitigation: explicit Step 1a/1b
+  split in the W79 Stage-05 hand-off if Engineer flags.
+
+- **Risk R2 — `IHostSecretResolver` not yet ratified.** Step 2 + Step 3 adapters
+  need to resolve secrets at request time. If `IHostSecretResolver` doesn't yet
+  exist in `foundation-integrations`, council either ratifies its addition in
+  Step 1 OR defers to a follow-up Engineer dispatch. Open Question 3 forwards
+  this to .NET-architect council. Mitigation: Step 2 + Step 3 can ship with
+  direct `Environment.GetEnvironmentVariable` calls if `IHostSecretResolver`
+  defers; refactored to the resolver when ratified.
+
+- **Risk R3 — Postmark SDK vs HttpClient discrepancy.** Admiral's prior is
+  HttpClient-only per ADR 0013; council may override to allow Postmark SDK.
+  Mitigation: Step 2 PR ships HttpClient-only first; if council rules SDK is
+  acceptable, refactor in a follow-up amendment PR.
+
+- **Risk R4 — Production-guard assertion false-positive when load-tests deploy
+  with mocks intentionally.** Mitigation: `SUNFISH_ALLOW_MOCK_PROVIDERS=true`
+  opt-out env var is the documented escape hatch; load-test infrastructure docs
+  must reference it.
 
 ## Open questions (forwarded to council)
 
-TBD
+These five questions are explicitly NOT pre-empted by this Rev 1 draft; they
+route to dual-council attestation at PR-open per Halt 3 OVERRIDE. ONR named them
+in §10 of the scaffold; the Admiral ruling forwarded them in §"5 open questions
+forwarded to dual-council attestation."
+
+**Q1 — Conditional DI registration semantics in `Microsoft.Extensions.DependencyInjection`.**
+Replacing a prior registration via `services.Replace(...)` is well-documented;
+conditional `services.Replace` driven by env-var presence has subtle ordering
+implications around `IServiceCollection` mutation timing. Council
+(.NET-architect) validates the `UseVendorProviderIfConfigured` shape against
+canonical patterns; if the proposed shape needs refinement, council proposes
+amendment for Rev 2.
+
+**Q2 — Postmark `.NET` SDK vs HttpClient-only.** Postmark ships a `Postmark.NET`
+SDK; reCAPTCHA adapter precedent uses HttpClient-only. Admiral's prior on Rev 1:
+HttpClient-only for ADR 0013 supply-chain consistency. Council (.NET-architect)
+may override; if SDK is allowed, Step 2 PR refactors accordingly.
+
+**Q3 — `IHostSecretResolver` shape.** Postmark + Turnstile adapters need secret
+resolution at request time; existing `CredentialsReference` is an opaque handle.
+Council (.NET-architect): either ratify `IHostSecretResolver` addition in Step 1
+OR defer to a follow-up Engineer dispatch. If deferred, Step 2 + Step 3 ship with
+direct env-var lookup as documented in Risk R2.
+
+**Q4 — Email idempotency-key semantics across retries.** If the signup endpoint
+retries an email send (transient network error), is the `EmailDispatchId`
+propagated to Postmark as a vendor idempotency key, or does the substrate
+maintain its own dedup table? Cross-cuts with `foundation-idempotency` package.
+Council (.NET-architect; sec-eng SPOT-CHECK adjacent for replay-attack concerns).
+Resolution pathway: ADR 0096 cites forward-watch; Engineer aligns in W79
+Stage-05 hand-off authoring.
+
+**Q5 — Cloudflare Turnstile per-action support.** Turnstile supports an `action`
+parameter for per-route tagging. Adding a parameter to `ICaptchaVerifier.VerifyAsync`
+is a breaking change. Admiral's prior: defer (action does not affect verification
+correctness, only Cloudflare's analytics dashboard categorization). If wanted
+later, extend via `IExtendedCaptchaVerifier : ICaptchaVerifier`. Council
+(.NET-architect) attestation requested.
 
 ## Revisit triggers
 
-TBD
+This ADR is revisited (Rev 2 or follow-up amendment) when any of:
+
+1. **A third Tier-2 vendor lands** (storage, identity-OIDC, payments-retrofit) and
+   the substrate pattern needs refinement based on the third worked example.
+2. **The Postmark or Turnstile vendor relationship changes** (e.g., switch from
+   Postmark to SendGrid). Vendor swap is the substrate value proposition — but if
+   the swap surfaces a new pattern requirement, the substrate ADR is amended.
+3. **Council rules on any of Q1-Q5** in a way that requires Rev 2 (e.g., approves
+   Postmark SDK + amends ADR 0013 §Enforcement; ratifies `IHostSecretResolver` at
+   substrate-tier; promotes per-action support to mandatory).
+4. **ADR 0052 `IMessagingGateway` retrofit lands** — the marker-interface +
+   production-guard retrofit on `IMessagingGateway` would be a separate ADR 0052
+   amendment, but cross-references back here.
+5. **The mock-first directive is repealed or amended at CIC tier.** Currently
+   load-bearing per the 2026-05-25T18:08Z ratification; any change cascades to
+   ADR 0096.
 
 ## References
 
-TBD
+- Admiral ruling on 8 halt conditions: `coordination/inbox/admiral-ruling-2026-05-25T1953Z-adr-0096-vendor-provider-substrate-8-halt-conditions.md`
+- CIC ratification of Decisions 4 + 5 + mock-first directive: `coordination/inbox/admiral-ruling-2026-05-25T18-10Z-cic-decisions-4-5-vendors-with-mock-first.md`
+- Onboarding-ladder Admiral ruling: `coordination/inbox/admiral-ruling-2026-05-25T1450Z-onboarding-ladder-10-decisions.md`
+- ONR scaffold (predecessor research): `shipyard/icm/01_discovery/research/onr-adr-0096-vendor-provider-substrate-scaffold.md` (1203 lines; via PR `shipyard#154`)
+- ADR 0013 Foundation.Integrations (provider-neutrality precedent): `docs/adrs/0013-foundation-integrations.md`
+- ADR 0052 Bidirectional Messaging Substrate (structurally-distinct sibling): `docs/adrs/0052-bidirectional-messaging-substrate.md`
+- ADR 0091 ITenantContext Divergence Resolution (R2 / A1 startup-assertion precedent): `docs/adrs/0091-itenantcontext-divergence-resolution.md`
+- ADR 0092 Substrate-Tenant-Keyed Repository (Tier-1 sibling): `docs/adrs/0092-substrate-tenant-keyed-repository.md`
+- ADR 0094 IAuditEventReader (read-substrate Tier-1 sibling): `docs/adrs/0094-i-audit-event-reader.md`
+- ADR 0095 Bootstrap Context (sister substrate; first consumer of `IEmailProvider` + `ICaptchaVerifier`): `docs/adrs/0095-bootstrap-context.md`
+- Cerebrum: `feedback_tier2_vendor_mock_first` — canonical Tier-2 substrate discipline (2026-05-25)
+- Cerebrum: `feedback_prefer_cleanest_long_term_option` — Option B layering trade rationale
+- Cerebrum: `project_fleet_ruleset_config` — fleet ruleset posture (auto-merge fires on CI-green)
+- Slotting-architecture recommendation: `shipyard#152` §5 (three-tier slotting; Tier-2 category-provider)
+- Postmark API docs: https://postmarkapp.com/developer (forward-watch — referenced by Step 2 PR)
+- Cloudflare Turnstile docs: https://developers.cloudflare.com/turnstile/ (forward-watch — referenced by Step 3 PR)
