@@ -119,12 +119,21 @@ ONR's scaffold (`shipyard#154`; 1203 lines) surveyed the existing
 `ProviderDescriptor`, `ProviderHealthStatus`, `CredentialsReference`,
 `InMemoryProviderRegistry`, `ICaptchaVerifier`, `InMemoryCaptchaVerifier`,
 `IMessagingGateway`, `IPaymentGateway` all exist as canonical platform contracts;
-`ProviderCategory` enum carries `Billing=0`, `Payments=1`, `Messaging=5`, `Other=99`;
-`Sunfish.Providers.Recaptcha` (W#28 Phase 3) establishes the canonical adapter shape
-(HttpClient-no-SDK + `CredentialsReference` + `ProviderDescriptor` registration).
-The substrate is real and working — what's missing is a codified pattern that
-generalizes it across vendor categories with the production-safety properties the
-mock-first directive demands.
+`ProviderCategory` enum carries **9 existing values** — `Billing=0`, `Payments=1`,
+`BankingFeed=2`, `FeatureFlags=3`, `ChannelManager=4`, `Messaging=5`, `Storage=6`,
+`IdentityProvider=7`, `Other=99` (verified by reading
+`packages/foundation-catalog/Bundles/ProviderCategory.cs`; the Rev 1 draft's
+"4 values" summary was factually incorrect per .NET-architect A6 finding, now
+corrected). The new `Captcha` and `TransactionalEmail` values append at
+next-available stable slots (10 and 11) per Halt 4. **A repository-wide grep**
+(`grep -rn "switch.*ProviderCategory\|case ProviderCategory" packages/ --include="*.cs"`)
+**finds zero exhaustive switches** — adding new enum values is non-breaking by
+construction. `Sunfish.Providers.Recaptcha` (existing reCAPTCHA adapter, W#28
+Phase 3) establishes the canonical adapter shape (HttpClient-no-SDK +
+`CredentialsReference` + `ProviderDescriptor` registration). The substrate is
+real and working — what's missing is a codified pattern that generalizes it
+across vendor categories with the production-safety properties the mock-first
+directive demands.
 
 A naive mock-first implementation introduces a critical foot-gun: a typo'd env var
 (e.g., `POSTMRK_API_KEY` instead of `POSTMARK_API_KEY`) means the real adapter never
@@ -270,16 +279,30 @@ key resolves to a non-empty value. This means a single binary deployment can run
 mock-only (dev/test), opt-in mock (`SUNFISH_ALLOW_MOCK_PROVIDERS=true`), or fully
 real (env vars populated) — composition decides; no rebuild required.
 
-**D5 — `ICaptchaVerifier` naming asymmetry is preserved, not retrofitted.** The
-existing `ICaptchaVerifier` (ADR 0059, W#28 Phase 3) is an action-noun (the thing
-that verifies CAPTCHA tokens); the new `IEmailProvider` is a role-noun (the thing
-that provides email egress capability). Both .NET BCL precedents exist
-(`IConfigurationProvider` is role; `IClock` and `IRandomNumberGenerator` are
-action). The Tier-2 substrate pattern identifies its members via
-`IMockVendorProvider` marker membership and `ProviderCategory` enum participation,
-NOT via `IXProvider` naming convention. Future Tier-2 contracts adopt `IXProvider`
-naming; `ICaptchaVerifier` is grandfathered in and documented as such in the
-`IMockVendorProvider` xmldoc.
+**D5 — `IXProvider` naming convention is partially applied today; `ICaptchaVerifier`
+is the grandfathered egress-surface exception.** By convention, Tier-2 **egress-
+surface contracts** are named `IXProvider` (e.g., `IEmailProvider`, future
+`IBlobStorageProvider`, future `IExternalIdpProvider`). Tier-2 **configuration /
+option-binding types** follow `IXProviderConfig` (e.g., the existing
+`ICaptchaProviderConfig` in `packages/foundation-integrations/Captcha/ICaptchaVerifier.cs`
+lines 47–66 — the convention is half-applied in the substrate today; .NET-architect
+A3 correctly identified that Rev 1's "ICaptchaVerifier is the ONLY existing
+exception" claim was inaccurate, now corrected). The existing `ICaptchaVerifier`
+(ADR 0059, W#28 Phase 3) is an action-noun precedent that predates the
+`IXProvider` egress-surface convention and is kept for backward compatibility;
+the action-noun naming (Verifier vs Provider) is grandfathered. Both .NET BCL
+precedents exist (`IConfigurationProvider` is role-noun; `IClock` and
+`IRandomNumberGenerator` are action-nouns). The discriminating principle:
+**Verifier = stateless one-call ack-only** (a `Task<VerificationResult>` or
+similar; no transport state across calls); **Provider = stateful or
+multi-call** (caches, retries, batches, idempotency-keyed dispatch). Future
+Tier-2 egress contracts that follow the Verifier shape MAY retain action-noun
+naming with explicit xmldoc rationale; the Provider shape is the default.
+The Tier-2 substrate pattern identifies its members via `IMockVendorProvider`
+marker membership and `ProviderCategory` enum participation, NOT via
+`IXProvider` naming convention. `IMockVendorProvider` xmldoc documents both
+the convention AND the `ICaptchaProviderConfig` precedent showing it is
+half-applied today.
 
 ## Considered options
 
@@ -506,8 +529,12 @@ Scope:
 
 - `packages/foundation-integrations/` (extend):
   - `IMockVendorProvider.cs` — marker interface; empty (no members);
-    xmldoc documents the `IXProvider` naming convention + grandfathered
-    `ICaptchaVerifier` asymmetry.
+    xmldoc documents (a) the `IXProvider` egress-surface naming convention
+    for Tier-2 contracts; (b) the `IXProviderConfig` configuration-binding
+    naming convention (which `ICaptchaProviderConfig` already follows today,
+    demonstrating the convention is half-applied in the substrate); (c) the
+    grandfathered `ICaptchaVerifier` egress-surface action-noun exception per
+    ADR 0059 / W#28 Phase 3.
   - `Email/IEmailProvider.cs` — contract: `Task<EmailDispatchResult> SendAsync(EmailMessage message, CancellationToken cancellationToken)`.
   - `Email/EmailMessage.cs` — record carrying `From`, `To[]`, `Subject`, `BodyHtml`,
     `BodyText`, `MessageStream` (free-form string per Halt 6), `IdempotencyKey`,
@@ -637,27 +664,69 @@ Scope:
     diagnostic gives the operator the env-var name to set (or correct a typo on)
     — the load-bearing closer of the silent-typo foot-gun.
 
+- **csproj changes (Rev 2 amendment per .NET-architect A2)** —
+  `packages/foundation-integrations/Sunfish.Foundation.Integrations.csproj`:
+  - Add `<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />`
+    (required for `IHostedService`).
+  - Add `<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />`
+    (required for `ServiceDescriptor`, `IServiceCollection`, `services.Replace`).
+  - Suppress NU1510 with an explanatory comment block per the
+    `foundation-authorization` precedent (reference template `shipyard` commit
+    `b4475df`; see fleet-conventions "NU1510 — keep the PackageRef, suppress
+    the warning").
+  - The existing `Microsoft.Extensions.DependencyInjection` reference is
+    retained alongside the new `.Abstractions` ref because
+    `ServiceCollectionExtensions.AddSunfishIntegrations` uses the full DI
+    package's `AddSingleton` / `AddScoped` extensions.
+
 - `packages/foundation-catalog/` (extend):
   - `Bundles/ProviderCategory.cs`: add `Captcha = 10` and `TransactionalEmail = 11`
     (or next-available stable slots — Engineer picks at authoring time).
 
 - Unit tests in `packages/foundation-integrations.tests/`:
-  - `MockProviderProductionGuardAssertionTests` — covers all branches: non-prod
-    bypass, opt-out env-var bypass, prod-with-mock-no-opt-out throws, prod-with-no-
-    mocks passes. **Note** — per the ADR 0095 R2 .NET-architect A3 amendment, the
-    test resolves marker-implementing services from a stub `IServiceCollection`
-    fixture; it does NOT exercise the production `IHttpContextAccessor`-dependent
-    surfaces (which are null at `IHostedService.StartAsync`).
+  - `MockProviderProductionGuardAssertionTests` (Rev 2 expanded per .NET-architect
+    A5) — covers (i) non-prod bypass; (ii) opt-out env-var bypass — including
+    case-variant probes (`"True"`, `"TRUE"`, `"false"`) verifying `bool.TryParse`
+    semantics, plus non-parseable values (`"1"`, `"yes"`, `"on"`) verifying
+    fail-closed; (iii) prod-with-mock-no-opt-out throws — verified by snapshot-
+    scan of `ServiceDescriptor` list, NOT service resolution; (iv) prod-with-no-
+    mocks passes; (v) **integration test** — `WebApplicationBuilder().Build()`
+    with `AddSunfishVendorProvider<IEmailProvider, MockEmailProvider>()` +
+    `ASPNETCORE_ENVIRONMENT=Production` (no opt-out) asserts `IHost.StartAsync`
+    throws `MockInProductionException` whose message names `IEmailProvider` and
+    the expected env-var key; (vi) **integration test** — same fixture but
+    with `SUNFISH_ALLOW_MOCK_PROVIDERS=true` env-var, asserts `IHost.StartAsync`
+    succeeds. **Test isolation discipline:** env-var reads are process-global
+    state and can leak across xUnit test parallelization. Unit tests use
+    either an `IEnvironment` abstraction injected into the assertion OR an
+    `IDisposable` env-restoration helper that captures + restores the
+    `ASPNETCORE_ENVIRONMENT`, `SUNFISH_ALLOW_MOCK_PROVIDERS`, and per-test
+    real-adapter env vars across the test lifecycle (`[Collection]` discipline
+    or constructor/Dispose pair). **Note** — per the ADR 0095 R2 .NET-architect
+    A3 amendment, the test resolves marker-implementing services from a stub
+    `IServiceCollection` fixture; it does NOT exercise the production
+    `IHttpContextAccessor`-dependent surfaces (which are null at
+    `IHostedService.StartAsync`).
   - `VendorProviderServiceCollectionExtensionsTests` — registration-presence
-    contract + conditional-swap behavior under env-var presence/absence.
+    contract; compile-time mock-marker constraint smoke-test (a deliberately
+    non-marker concrete fails to compile in a generated test assembly);
+    conditional-swap behavior under env-var presence/absence; **lifetime-
+    preservation tests** (Singleton-registered mock replaced by Singleton-
+    registered real adapter; Scoped likewise; Transient likewise) per Rev 2
+    amendment.
+  - `MockVendorEnvVarRegistryTests` — registration entries land at composition-
+    root call time; the registry is queryable at assertion-StartAsync time.
   - `InMemoryCaptchaVerifierTests` — marker-membership assertion + factory-method
     behavior.
   - `MockEmailProviderTests` — send-to-memory + idempotency-key honoring.
 
 - Documentation:
   - xmldoc on every introduced type per ADR 0069 §A0 discipline.
-  - `IMockVendorProvider` xmldoc explicitly names the `IXProvider` naming
-    convention and the `ICaptchaVerifier` grandfathered exception (per D5).
+  - `IMockVendorProvider` xmldoc explicitly names (a) the `IXProvider`
+    egress-surface naming convention; (b) the `IXProviderConfig` configuration-
+    binding naming convention (which `ICaptchaProviderConfig` already follows
+    today); (c) the `ICaptchaVerifier` grandfathered egress-surface exception
+    (per D5).
 
 **Council review (Halt 3 OVERRIDE): MANDATORY dual-council at PR-open.**
 .NET-architect council reviews the DI helper shape, the IHostedService assertion
@@ -724,7 +793,42 @@ the HttpClient geometry and the `ProviderDescriptor` registration coherence.
 
 ### Step 4 — W79 composition-root wiring (NOT directly delivered by this ADR)
 
-W79 sub-cohort 1 Stage-05 hand-off territory. signal-bridge `Program.cs` calls:
+W79 sub-cohort 1 Stage-05 hand-off territory. Step 4 ships mocks-first by
+default and progressively enables real adapters as their packages land. Per
+.NET-architect A7 amendment (Rev 2), the composition root has **three viable
+shapes** depending on which adapter packages exist at hand-off time:
+
+**Shape A — Mocks-only (W79 ships before Step 2 + Step 3 land):**
+
+```csharp
+services.AddSunfishVendorProvider<IEmailProvider, MockEmailProvider>();
+services.AddSunfishVendorProvider<ICaptchaVerifier, InMemoryCaptchaVerifier>();
+
+// ADR 0095 assertion registered first per canonical ordering
+services.AddHostedService<BootstrapAndTenantMutualExclusionAssertion>();
+services.AddHostedService<MockProviderProductionGuardAssertion>();
+```
+
+Production deployment requires `SUNFISH_ALLOW_MOCK_PROVIDERS=true` per D1c
+(mocks shipping in production-class environments — load-test, closed-demo).
+
+**Shape B — Postmark live + Turnstile mock (Step 2 landed; Step 3 in flight,
+or vice-versa):**
+
+```csharp
+services.AddSunfishVendorProvider<IEmailProvider, MockEmailProvider>();
+services.UseVendorProviderIfConfigured<IEmailProvider, PostmarkEmailProvider>("POSTMARK_API_KEY");
+
+services.AddSunfishVendorProvider<ICaptchaVerifier, InMemoryCaptchaVerifier>();
+
+services.AddHostedService<BootstrapAndTenantMutualExclusionAssertion>();
+services.AddHostedService<MockProviderProductionGuardAssertion>();
+```
+
+Production requires `POSTMARK_API_KEY` present (real-adapter swap-in) AND
+`SUNFISH_ALLOW_MOCK_PROVIDERS=true` (allowing the Turnstile mock to ship).
+
+**Shape C — Full production (Step 2 + Step 3 both landed):**
 
 ```csharp
 services.AddSunfishVendorProvider<IEmailProvider, MockEmailProvider>();
@@ -733,8 +837,16 @@ services.UseVendorProviderIfConfigured<IEmailProvider, PostmarkEmailProvider>("P
 services.AddSunfishVendorProvider<ICaptchaVerifier, InMemoryCaptchaVerifier>();
 services.UseVendorProviderIfConfigured<ICaptchaVerifier, TurnstileCaptchaVerifier>("TURNSTILE_SECRET_KEY");
 
+services.AddHostedService<BootstrapAndTenantMutualExclusionAssertion>();
 services.AddHostedService<MockProviderProductionGuardAssertion>();
 ```
+
+Production requires both env vars present; no `SUNFISH_ALLOW_MOCK_PROVIDERS`
+opt-out needed.
+
+W79 hand-off authoring picks the shape based on which adapter packages exist
+at hand-off time. Mocks-first is the default — Shape A unblocks W79 PR-open
+even if Step 2 + Step 3 are not yet ACCEPTED.
 
 Plus the four new signup endpoint routes (`POST /api/signup`,
 `POST /api/signup/verify-email`, `POST /api/signup/resend-verification`,
