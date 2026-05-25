@@ -439,6 +439,58 @@ candidate). The substrate scope **is not**: Tier-1 domain blocks (tenant/propert
 lease/invoice/audit; ADR 0092), Tier-3 capability-plugins (TTS/STT/image/LLM;
 flight-deck surface).
 
+## Vendor adapter security floors
+
+All `providers-{vendor}` adapters introduced under ADR 0096 (currently Postmark
+in Step 2, Turnstile in Step 3; forward applicability to storage, identity,
+payments-retrofit) MUST satisfy the following substrate-tier minimum-floors.
+Step 2 + Step 3 PR sec-eng SPOT-CHECK confirms; W79 wiring assumes these
+floors. Each floor is **non-substitutable downward** — implementations MAY
+tighten (e.g., shorter HttpClient timeout, stricter retry geometry) but MUST
+NOT loosen. The analog of ADR 0095 Rev 2's "non-permissive-default minimum-
+floor" subsection applies: ADR text ratifies the floor invariants; PR-level
+sec-eng SPOT-CHECK verifies rather than discovers.
+
+1. **HttpClient timeout floor.** Per-vendor timeout configured at adapter
+   construction time (`HttpClient.Timeout` property or per-request
+   `CancellationToken` linked source), NOT at request time. **Floors:**
+   Turnstile verify ≤5 seconds (Cloudflare's typical p99 is sub-second on
+   healthy paths); Postmark send ≤30 seconds (Postmark accepts large payloads;
+   30s is generous). Future vendors specify their floor at the adapter PR.
+   **NO reliance on `HttpClient.Timeout` default** (100s) — signup-path latency
+   on a degraded vendor balloons unacceptably under default.
+2. **Secret-in-form-body, never URL.** API keys, secret keys, and bearer
+   tokens flow in request body (form-encoded or JSON-encoded per vendor
+   contract), never in query string. Precedent: `RecaptchaV3CaptchaVerifier.cs`
+   places `secret` in form body, not query string. Query-string secrets leak
+   via access logs, referer headers, and APM tracing. Turnstile + Postmark
+   adapters MUST follow the same discipline.
+3. **No-log-secret discipline.** API keys MUST NOT appear in log messages,
+   exception messages, or trace events emitted from the adapter. Adapter
+   exceptions wrapping vendor failures MUST scrub authorization headers and
+   credential payloads before re-throwing.
+4. **Turnstile token-replay floor.** Cloudflare Turnstile tokens are one-shot
+   per documented vendor contract. The adapter MUST NOT retry on 4xx
+   responses (the token is invalidated; a retry returns failure regardless).
+   The adapter MAY retry on 5xx and network-level errors only with a FRESH
+   token (which requires the caller to re-issue, not the adapter to cache).
+   The adapter MUST NOT cache verify results across requests (one token, one
+   verdict). Without this floor a transparent-retry adapter could silently
+   verify the wrong request.
+5. **TLS cert handling.** Default cert store (no pinning) per ADR 0013
+   supply-chain discipline; vendor apex hosts are stable enough that pinning
+   adds operational risk without commensurate security benefit at MVP scale.
+   Future amendment may add per-vendor pinning if a vendor's apex changes
+   frequently.
+6. **Idempotency-key no-log.** Whatever shape Q4 resolves, idempotency keys
+   MUST NOT be logged at substrate tier — they may carry user-derived entropy
+   that becomes a re-identification vector.
+
+These six floors are written assuming Postmark + Turnstile as the first two
+Step 2/3 deliverables; future Tier-2 adapter PRs (storage, identity, payments-
+retrofit) inherit floors 1, 2, 3, 5, 6 directly and adapt floor 4's token-
+replay analog to their vendor contract's documented semantics.
+
 ## Implementation roadmap
 
 Four Step PRs. Step 1 is the substrate-package extension (the load-bearing surface);
@@ -465,6 +517,26 @@ Scope:
   - `Email/MockEmailProvider.cs` — `: IEmailProvider, IMockVendorProvider`; writes
     to in-memory store + console log + optional dev inbox UI route (W79 endpoint
     territory, not implemented here).
+    **Log discipline (substrate-tier floor; Rev 2 amendment per sec-eng #6):**
+    console log MUST capture only `To[]`, `Subject`, `EmailDispatchId`,
+    `IdempotencyKey`, `MessageStream`. MUST NOT log `BodyHtml` or `BodyText` —
+    these may contain signup verification links whose tokens complete
+    authentication; logging the body in load-test or closed-demo deployments
+    running with `SUNFISH_ALLOW_MOCK_PROVIDERS=true` leaks verification tokens
+    via stdout, allowing anyone with log access to complete a signup as anyone.
+    The in-memory store retains the full body for test assertion access — that
+    is the canonical inspection path; developer-tooling reads the store, not
+    the log.
+    **Dev inbox UI mounting floor (substrate-tier floor; Rev 2 amendment per
+    sec-eng #6):** when the dev inbox UI is shipped (W79 Stage-05 territory),
+    its endpoint route MUST be gated by an `IHostedService` that mounts the
+    route only when (a) the active `IEmailProvider` resolves to
+    `MockEmailProvider` (registry-membership check), (b)
+    `ASPNETCORE_ENVIRONMENT != "Production"`, AND (c) request origin matches a
+    configured-dev-host allow-list (no apex-host exposure). Without these
+    gates, a closed-demo deployment with `SUNFISH_ALLOW_MOCK_PROVIDERS=true`
+    ships the inbox UI publicly, exposing every in-flight verification token.
+    ADR ratifies the floor invariants; W79 picks the implementation shape.
   - `Captcha/InMemoryCaptchaVerifier.cs` (retrofit) — adds `IMockVendorProvider`
     marker membership; preserves existing `AlwaysPass()` / `AlwaysFail()` /
     `WithMagicToken(token)` static factories (or adds them if not yet present per
