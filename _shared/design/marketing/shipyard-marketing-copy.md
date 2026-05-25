@@ -19,17 +19,17 @@
 
 ## 1. GitHub repository description (≤160 chars)
 
-**Primary (147 chars):**
+**Primary (122 chars):**
+
+> Property management for small landlords. Track leases, see who owes what, close your books. Self-hosted and open source.
+
+**Alternate A (147 chars):**
 
 > Open-source property management for landlords and small firms. Track leases, rent, and the books — all on your own machine. Self-hosted, MIT.
 
-**Alternate A (139 chars):**
+**Alternate B (139 chars):**
 
 > Self-hosted property management for landlords. Leases, rent roll, and accounting that live on your machine, not someone else's. MIT.
-
-**Alternate B (122 chars):**
-
-> Property management for small landlords. Track leases, see who owes what, close your books. Self-hosted and open source.
 
 ---
 
