@@ -23,17 +23,15 @@ ERP-adjacent, reporting-heavy pages).
 
 For the `shipyard/` repo About field.
 
-> React component library for data-dense apps. Design contracts are pinned
-> before build, so new pages don't re-litigate the design every time. MIT.
-
-(157 characters.)
-
-Alternate, if a shorter form is needed:
+**Primary (102 chars):**
 
 > Open-source React + Tailwind UI for data-dense apps. Pin the design contract,
 > then build against it. MIT.
 
-(102 characters.)
+**Alternate (157 chars):**
+
+> React component library for data-dense apps. Design contracts are pinned
+> before build, so new pages don't re-litigate the design every time. MIT.
 
 ---
 
@@ -174,9 +172,9 @@ A note on what's here and what isn't. Sunfish promotes a component to the shared
 library only after it has shown up in more than one place — a single-use widget
 stays local to its page until a second consumer proves the abstraction. So this
 list is deliberately shorter than a general-purpose kit's, and every item on it
-is load-bearing. If you're looking for a component that isn't here yet, check
-the promotion backlog in the design-system overview; it may be a deferred
-candidate rather than a gap.
+is load-bearing. If you're looking for a component that isn't here yet, it may be queued
+for a future release — components earn a place in the shared library by
+appearing across more than one page, not by being requested.
 
 ---
 
