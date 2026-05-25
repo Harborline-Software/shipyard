@@ -41,14 +41,17 @@ requires-council:
 
 co-pre-authorized: false  # Admiral-scope governance ADR; protocol amendment; ratified by CIC + dual-council attestation before Accepted
 
-amendments: []
+amendments:
+  - rev: 4
+    date: 2026-05-25
+    summary: Cohort-4 first-pilot fold — Amendments I-M (wire-contract reconciliation; ProblemDetails field-name pin; commit-message pre-flight; pair-merge cascade; MSW contract tests). Phase 4-A provisional ratification recorded. Companion retro at icm/07_review/cohort-4-stage-05-first-pilot-retro.md.
 ---
 
 # ADR 0093 — Stage-05 Adversarial Review Protocol Amendment
 
-**Status:** Accepted (Rev 2; promoted 2026-05-21T15:20Z per CIC ratification on dual-council Rev 2 GREEN re-attestation; merge-order dependency satisfied — shipyard#78/#81/#90 all merged 15:17-15:18Z)
-**Date:** 2026-05-21 (Proposed Rev 1); 2026-05-21 (Rev 2 fold of dual-council SPOT-CHECK verdicts); 2026-05-21 (Accepted Rev 3 housekeeping)
-**Resolves:** Cohort-1 R3 retrospective (cerebrum entry 2026-05-21 — "SPOT-CHECK timing race") + UPF audit recommendation in `coordination/inbox/onr-status-2026-05-21T1159Z-upf-audit-security-officer-agent-proposal.md` (AHA candidate: Stage-05 adversarial review extension). Operationalizes "adversarial to happy path" at the gate where the bias forms (Stage-05 planning), not at the gate where it is detected (Stage-06 PR-open).
+**Status:** Accepted (Rev 4 — cohort-4 first-pilot fold; Phase 4-A provisional ratification recorded 2026-05-25 pending CIC final attest + dual-council Rev 4 re-attest on new Amendments I/J/L)
+**Date:** 2026-05-21 (Proposed Rev 1); 2026-05-21 (Rev 2 fold of dual-council SPOT-CHECK verdicts); 2026-05-21 (Accepted Rev 3 housekeeping); 2026-05-25 (Rev 4 cohort-4 first-pilot fold — Amendments I-M)
+**Resolves:** Cohort-1 R3 retrospective (cerebrum entry 2026-05-21 — "SPOT-CHECK timing race") + UPF audit recommendation in `coordination/inbox/onr-status-2026-05-21T1159Z-upf-audit-security-officer-agent-proposal.md` (AHA candidate: Stage-05 adversarial review extension). Operationalizes "adversarial to happy path" at the gate where the bias forms (Stage-05 planning), not at the gate where it is detected (Stage-06 PR-open). Rev 4 closes the wire-contract reconciliation gap and ProblemDetails field-name gap surfaced by the cohort-4 cycle-0 RED verdict; encodes the pair-merge cascade sequencing as a Stage-05 protocol step.
 **Council inputs:** Rev 1 SPOT-CHECK verdicts (both AMBER) folded into Rev 2 — `coordination/inbox/council-verdict-2026-05-21T1504Z-security-engineering-shipyard-104-adr-0093-spot-check.md` (6 amendments) + `coordination/inbox/council-verdict-2026-05-21T1504Z-net-architect-shipyard-104-adr-0093-spot-check.md` (3 BLOCKERS + 4 AMBER). Rev 2 re-attested GREEN by both councils — `coordination/inbox/council-verdict-2026-05-21T1518Z-security-engineering-shipyard-104-adr-0093-rev-2-re-attest.md` + `coordination/inbox/council-verdict-2026-05-21T1519Z-net-architect-shipyard-104-adr-0093-rev-2-re-attest.md`. CIC ratified at 2026-05-21T15:20Z.
 
 ---
@@ -60,6 +63,7 @@ amendments: []
 | 1 | 2026-05-21 | Admiral | Initial draft per `coordination/inbox/admiral-directive-2026-05-21T12-25Z-stage-05-adversarial-review-extension-plan.md` Phase 1. Phase 0 instrumentation complete (3 QM deliverables; see §Context). Adversarial Brief template prototype landed at `icm/02_architecture/adversarial-brief-template-prototype.md` (shipyard#78). Test-eng-council research landed at `icm/02_architecture/test-eng-council-subagent-definition-research.md` (shipyard#90). First canonical Adversarial Brief integrated in cohort-4 audit-trail viewer Stage-05 hand-off (shipyard#81). Status: Proposed pending dual-council attestation. |
 | 2 | 2026-05-21 | Admiral | Folded dual-council SPOT-CHECK verdicts (both AMBER): `coordination/inbox/council-verdict-2026-05-21T1504Z-security-engineering-shipyard-104-adr-0093-spot-check.md` (6 amendments — Checks 1-6) + `coordination/inbox/council-verdict-2026-05-21T1504Z-net-architect-shipyard-104-adr-0093-spot-check.md` (3 BLOCKERS + 4 AMBER amendments). Changes: (a) §A0 cited-symbol audit restructured — three precedent artifacts (shipyard#78/#81/#90) reclassified as "in worktree, pending merge"; `sec-eng-council` + `.NET-architect-council` reclassified as "dispatch convention; no definition file extant"; test-eng-council acknowledged as first-of-kind written council definition. (b) Dispatch trigger matrix amended with edge-case resolutions: 3a all-three-council concurrency budget paragraph; 3b pattern-009 carve-out row; 3c ADR-text-only disposition promoted from §Open questions Q3 into matrix proper. (c) Test-eng-council beacon shape pinned at `-stage-05.md` / `(Stage-05)`; supersedes-prior-research note added; fleet-conventions `council-verdict-*` prefix table addition added as Phase 2 deliverable. (d) Decision drivers' "ADR 0091 R2 + ADR 0092 Rev 2" precedent claim corrected to "ADR 0092 Rev 2 + ADR 0094" (ADR 0091 has no `requires-council`). (e) §Decision adds Q2 dual-council adjudication interim rule. (f) §Phase 4 decision gate reframed — ratify criterion #1 conjoined with criteria (b) and (c) variance allowances; cohort-4 ratification made provisional pending first write-side substrate cohort. (g) §Reversibility expanded with Steps 6 (in-flight verdict beacons), 7 (mid-execution-cohort handling), 5b (Stage-06 lightening rollback), plus Mid-cohort retirement transition rule. (h) §Consequences Phase 2 sizing claim revised (precedent-setting authoring). (i) §ADR-protocol compliance adds Merge-order dependency note (promotion-to-Accepted contingent on shipyard#78/#81/#90 landing). (j) §"Adversarial Brief — template" adds 5-12 bullet escape-hatch sentence (procedural; sec-eng Check 1). (k) Phase 2 deliverables list adds QM daemon extensions (inbox-velocity-by-beacon-type; dispatch-latency p95). (l) Open questions Q3 retired (promoted into matrix); Q2 retired (interim rule adopted); Q1, Q4 retained. Status remains `Proposed`; pending CIC ratification + re-attestation by both councils on Rev 2. |
 | 3 | 2026-05-21 | Admiral | **Accepted 2026-05-21T15:20Z per CIC ratification; dual-council Rev 2 GREEN re-attest.** Re-attest verdicts: `coordination/inbox/council-verdict-2026-05-21T1518Z-security-engineering-shipyard-104-adr-0093-rev-2-re-attest.md` (GREEN; all 6 sec-eng amendments folded; merge-order dependency satisfied de facto) + `coordination/inbox/council-verdict-2026-05-21T1519Z-net-architect-shipyard-104-adr-0093-rev-2-re-attest.md` (GREEN; all 3 BLOCKERS + 4 AMBER amendments folded; two forward-watches filed non-blocking). Merge-order dependency satisfied: shipyard#78 (Adversarial Brief template prototype), shipyard#81 (cohort-4 c3 Stage-05 hand-off with first canonical Adversarial Brief), shipyard#90 (test-eng-council research) all MERGED 15:17-15:18Z. Housekeeping applied per .NET-architect forward-watch #1: §A0 totals corrected from "18 cited references" to "19 cited references" (13 + 3 + 2 + 1 sum). Status flips `Proposed` → `Accepted`. Cohort-4 audit-trail viewer pilot (Engineer's audit-events Bridge endpoint family + FED's AuditEventsPage PR 1) is the first execution under the amended protocol; the Adversarial Brief already integrated in cohort-4 Stage-05 hand-off (shipyard#81) is canonical. Forward-watch retained for Admiral follow-on: ADR 0091 retroactive frontmatter parity amendment (`requires-council: [dotnet-architect, security-engineering]`) recommended within 7 days to close the precedent-citation gap. |
+| 4 | 2026-05-25 | Admiral | **Cohort-4 first-pilot fold — Phase 4-A provisional ratification recorded.** Folds the five S05-N template additions surfaced by the cohort-4 audit-trail viewer pilot (sunfish#59 + sunfish#71 + signal-bridge#38 + signal-bridge#42; final cascade merged 2026-05-25T13:54Z). Companion retrospective: `icm/07_review/cohort-4-stage-05-first-pilot-retro.md`. New amendments: (I) Wire-contract reconciliation step in Stage-05 hand-offs with FED components; (J) RFC 7807 ProblemDetails field-name pin for cross-repo 400-class paths; (K) Commit-message pre-flight checklist (commitlint W#NN body-trap) generated at Stage-05 for Stage-06 implementation; (L) Pair-merge cascade plan when frontend depends on not-yet-shipped substrate fields; (M) MSW contract-test scaffolding (cohort-5+ forward-watch, promoted to mandatory once MSW infrastructure ships). §"Phase 4 decision gate" annotated with the cohort-4 ratify-criteria evaluation (all 5 Phase 4-A criteria MET; provisional ratification stands; Phase 4-B remains gated on first write-side substrate cohort per ADR text). Q4 ("Adversarial Brief format under iteration") receives partial closure from cohort-4 evidence — 8-bullet cap held; no cap adjustment needed yet. Q1 ("Stage-05 verdict gating semantics") gains the cohort-4 cycle pattern (RED → AMBER → GREEN; cycle-1 AMBER permitted by Admiral cleanest-long-term ruling with cycle-2 amendment as the gate to merge cascade) as a worked precedent. Pending dual-council re-attest on Rev 4 (this fold; companion retro is non-substrate documentation — re-attest is non-trivial due to new Stage-05 protocol steps in Amendments I + J + L). Pending CIC ratification of Phase 4-A provisional ratification per single-cohort-override rationale documented in retro §5. |
 
 ---
 
@@ -389,6 +393,140 @@ The cohort-4 C3 audit-trail viewer (`icm/_state/handoffs/cohort-4-c3-audit-trail
 
 ---
 
+## Rev 4 amendments — cohort-4 first-pilot fold
+
+Per the cohort-4 first-pilot retrospective (`icm/07_review/cohort-4-stage-05-first-pilot-retro.md`; companion to this Rev 4 fold), the pilot surfaced five template additions (S05-1 through S05-5). The pilot's defining evidence was the sec-eng RED → AMBER → GREEN cycle pattern on sunfish#71: cycle 0 RED closed structural wire-contract defects (S05-1, S05-2); cycle 1 AMBER deferred semantic defects per Admiral's cleanest-long-term ruling; cycle 2 GREEN closed the defenses-in-depth after the Bridge substrate (signal-bridge#42) shipped supporting wire fields (S05-5 pair-merge cascade).
+
+The amendments below are new explicit Stage-05 authoring steps that, had they been in force at cohort-4 hand-off authoring, would have surfaced the cycle-0 RED items pre-Stage-06.
+
+### Amendment I — Wire-contract reconciliation step (S05-1)
+
+**Trigger.** Stage-05 hand-offs that include a FED component binding to a server endpoint family.
+
+**Step.** The hand-off MUST include a wire-contract reconciliation table that enumerates BOTH positive matches (server DTO field → frontend interface field) AND negative matches (fields the frontend MUST NOT declare). Format:
+
+```markdown
+### Wire-contract reconciliation — `<endpoint name>`
+
+| Server DTO field | Frontend interface field | Source of truth | Reconciliation status |
+|---|---|---|---|
+| `<DTO>.<field>` (`<type>`) | `<Interface>.<field>: <type>` | `<server file path>` | MATCH |
+| (server does not emit `<field>`) | (frontend must not declare `<field>`) | n/a | NEGATIVE-MATCH |
+```
+
+The negative-match rows are load-bearing — they force the hand-off author to enumerate fields the frontend MUST NOT fabricate. Cohort-4 cycle-0 RED A1-FAIL (`tenant_id` / `payload` / `signatures` fictional fields on `AuditEventDetail`) is the canonical trap this amendment prevents.
+
+**Sec-eng + frontend-architect Stage-05 review checks the reconciliation table against the cited server DTO file directly. If the table omits a field the server emits, OR includes a field the server does not emit, sec-eng flags AMBER (or RED on substrate-shaping surfaces).**
+
+### Amendment J — RFC 7807 ProblemDetails field-name pin (S05-2)
+
+**Trigger.** Stage-05 hand-offs whose endpoint family emits 400-class ProblemDetails responses that the frontend must distinguish.
+
+**Step.** The hand-off MUST include an Error-response-shape section that pins the RFC 7807 discriminator field name AND enumerates the 400 discriminators. Format:
+
+```markdown
+### Error response shape — `<endpoint family>`
+
+400-class responses use RFC 7807 ProblemDetails. The Bridge serializer
+emits `title` (not `error`) as the error-discriminator field. Frontend
+error handlers MUST read `body.title === '<discriminator>'`.
+
+Known 400 discriminators:
+- `<discriminator-1>` — <description>
+- `<discriminator-2>` — <description>
+- (enumerate ALL 400 discriminators this endpoint family may emit)
+```
+
+Each 400 discriminator becomes a typed-error contract in the frontend (e.g., `TenantChangedError` for `tenant_changed_reload_page`; `InvalidSeverityError` for `invalid_severity`). Collapsing multiple discriminators into one generic error type is a Stage-05 finding sec-eng surfaces at hand-off review.
+
+Cohort-4 cycle-0 RED G1-3 (frontend reading `body.error` against server emitting `body.title`) is the canonical trap this amendment prevents.
+
+### Amendment K — Commit-message pre-flight checklist (S05-4)
+
+**Trigger.** Any Stage-05 hand-off whose Stage-06 implementation references cross-repo PRs in commit bodies.
+
+**Step.** The hand-off MUST include a commit-message pre-flight line in the Stage-06 implementation-checklist section:
+
+```markdown
+### Commit-message pre-flight (Stage-06 implementation discipline)
+
+Before pushing any commit for this hand-off, run:
+
+```bash
+git log -1 --format=%B | grep -E '[A-Za-z]#[0-9]'
+```
+
+Returns nothing → safe to push. Returns matches → rephrase: use `Refs:
+<repo>#<n>` as a footer (with leading blank line), or "the sibling
+shipyard PR" inline, or strip the inline ref entirely. The wagoid v6
+commitlint footer parser cannot tell a body reference from a footer
+token.
+
+Cross-repo PRs this implementation will likely cite:
+- (enumerate the cross-repo PRs the hand-off references — e.g.,
+  `signal-bridge#42`, `shipyard#94`)
+```
+
+This is mechanical; it does NOT require effort or judgment; it does require remembering to run it. The Stage-05 explicit-step makes the discipline survive across sessions. Cohort-4 witnessed the trap 5× across cycle 2 push + signal-bridge#42 amendment push.
+
+### Amendment L — Pair-merge cascade plan (S05-5)
+
+**Trigger.** Stage-05 hand-offs whose frontend component includes defense-in-depth assertions, server-side filter parameters, or any structural feature requiring substrate fields the server does not yet emit.
+
+**Step.** The hand-off MUST include a pair-merge cascade plan that encodes the Engineer-first / FED-cycle-1-DRAFT / FED-cycle-2-amendment sequencing. Format:
+
+```markdown
+### Pair-merge cascade plan
+
+**Sequencing.**
+
+| Step | Owner | Deliverable | Cycle |
+|---|---|---|---|
+| 1 | Engineer | Substrate extension PR (new DTO fields / endpoint params / whoami fields) | Substrate cycle |
+| 2 | FED | Frontend PR in DRAFT — scaffold + non-substrate-dependent features only | Cycle 1 |
+| 3 | sec-eng | Cycle 1 SPOT-CHECK — expects AMBER (substrate-dependent features deferred, NOT silently-present) | Cycle 1 |
+| 4 | Engineer | Substrate extension PR MERGED | (gate) |
+| 5 | FED | Amendment commit on the frontend DRAFT — fixture realignment + feature restoration | Cycle 2 |
+| 6 | sec-eng | Cycle 2 re-attest — GREEN gate for auto-merge cascade | Cycle 2 |
+
+**Constraint.** Cycle 1's DRAFT MUST NOT silently hide a non-functional
+feature. If the assertion / filter / parameter can't be wired against
+the live substrate, remove it cleanly with a forward-watch comment.
+Cleanly-removed-with-forward-watch is the AMBER posture; silently-
+dead-code is the RED posture.
+```
+
+Cohort-4 sunfish#71 (cycle 0 RED) is the canonical trap this amendment prevents: a frontend PR that ships a structurally-present, functionally-absent defense-in-depth assertion creates a false sense of defense-in-depth and obscures the real gap from future readers. Per CIC standing directive `feedback_prefer_cleanest_long_term_option`, the small +45 min authoring cost of clean dead-code removal beats the maintenance cost of a silent guard.
+
+**Sec-eng cycle-1 verdict posture under Amendment L.** When the FED cycle 1 commit cleanly removes a substrate-dependent feature with a forward-watch comment AND the hand-off has the pair-merge cascade plan in place, sec-eng cycle 1 verdict is AMBER (not RED) — the substrate-dependent feature is acknowledged as deferred-by-design. RED is reserved for cases where the substrate-dependent feature is silently absent or actively broken.
+
+### Amendment M — MSW contract test scaffolding (S05-3; forward-watch promoted with infrastructure ship)
+
+**Trigger.** Stage-05 hand-offs with cross-repo wire-contract surfaces (FED binding to server endpoint family).
+
+**Step.** The hand-off SHOULD (not yet MUST) include an MSW contract-test bullet:
+
+```markdown
+### MSW contract tests — `<endpoint family>`
+
+For each endpoint binding, an MSW handler shaped to the server's canonical
+response is registered. RTL tests exercise the real `fetch(...)` code path
+through the handler. Wire-contract drift between the MSW handler and the
+server DTO is caught at the MSW handler authoring step (and reviewed at
+Stage-05 against the server's `<DTO>.cs` source of truth).
+
+Required handlers for this hand-off:
+- `<endpoint 1>` — list/detail response shape per `<server DTO file>`
+- `<endpoint 2>` — list/detail response shape per `<server DTO file>`
+- 400 ProblemDetails responses for each enumerated discriminator (per Amendment J)
+```
+
+**Promotion criterion.** Amendment M promotes from SHOULD to MUST once MSW infrastructure ships in the sunfish web app (separate ICM workstream — track via cohort-5+ work). Until promotion, RTL hook-level mocks paired with the Amendment I wire-contract reconciliation are the substitute defense.
+
+**Rationale (forward-watch retention).** Cohort-4 cycle 2 verdict N2 retained MSW as a forward-watch (not closed): "Cycle 2 closes the semantic mismatch via fixture realignment + assertion restoration, but the deeper defense — exercising the actual fetch code path through MSW against the real Bridge contract — is still the right cohort-5+ investment." Amendment M makes the forward-watch a Stage-05 protocol step rather than per-cohort-verdict guidance.
+
+---
+
 ## Phase 4 decision gate
 
 Per Admiral directive `coordination/inbox/admiral-directive-2026-05-21T12-25Z`, this ADR's adoption is conditional on Phase 4 evidence after the first cohort under the amended protocol. Decision-gate criteria (Rev 2 — variance-aware per sec-eng SPOT-CHECK Check 3 + representativeness-constrained per sec-eng Check 4 + measurement-tooling specified per .NET-architect AMBER 3):
@@ -413,6 +551,22 @@ Per sec-eng SPOT-CHECK Check 3 amendment (variance-aware reframing): the origina
 5. **Inbox-noise contribution within budget (was criterion #4; retained).** Stage-05 verdict beacons + Stage-05 hand-off status beacons add ≤5 beacons/week relative to pre-amendment baseline.
 
 **Alternative form (escape valve):** Phase 4-A may instead extend to a 2-cohort pilot (cohort-4 + cohort-5) before final ratification, with criteria 1-5 evaluated across both cohorts in aggregate. Admiral chooses the form (single-cohort or two-cohort) based on cohort-5's substrate-write-side status when it activates. **Single-cohort ratification requires explicit CIC override + rationale** if cohort-4 alone is to settle Phase 4; otherwise the two-cohort form is the default. (Per sec-eng Check 3 substantive amendment.)
+
+### Phase 4-A evaluation — cohort-4 first pilot (Rev 4 fold)
+
+Per the cohort-4 first-pilot retrospective (`icm/07_review/cohort-4-stage-05-first-pilot-retro.md` §5), all five Phase 4-A ratify criteria are evaluated as MET:
+
+| Criterion | Evaluation |
+|---|---|
+| 1. Empirical AHA-validation | **MET.** The pilot surfaced template-grade gaps (S05-1 wire-contract reconciliation; S05-2 ProblemDetails pin; S05-5 pair-merge cascade) that Rev 4 codifies as explicit Stage-05 steps (Amendments I + J + L). These would not have surfaced at Stage-06 SPOT-CHECK in protocol-amendment-worthy form. |
+| 2. Combined-rate non-regression | **MET.** Stage-05 (Adversarial Brief; 8 decisions) + Stage-06 (cycle 0/1/2 verdicts) combined findings are not net-additive to baseline; the pilot reshapes when findings surface. Cycle-0 RED items would have surfaced at Stage-06 pre-amendment; under Rev 4 most shift earlier. |
+| 3. Reshape-evidence | **MET.** ≥2 cycle 0 RED items (A1-FAIL fictional-field declaration; G1-3 ProblemDetails shape) are Stage-05-catchable per the Evidence #1 taxonomy — both interface/contract completeness category, the highest-frequency catchable type per Phase 0 audit. |
+| 4. Engineer velocity not measurably hit | **MET, with caveat.** Cohort-4 hand-off → first PR latency was within baseline. The 3-day cycle-1-to-cycle-2 wall-clock was dominated by CIC-availability + inter-cycle substrate-ship-wait, not by Stage-05 protocol friction. Working-hours velocity is on baseline. |
+| 5. Inbox-noise within budget | **MET.** Cohort-4 added ~6 council-verdict beacons across cycle 0/1/2; net ~3-4/week incremental — within the ≤5/week budget. |
+
+**Single-cohort ratification rationale (per Alternative-form escape-valve requirement of explicit CIC override).** The substantive findings produced by cohort-4 (Amendments I-M) ARE the load-bearing evidence; the Rev 4 fold is the artifact that institutionalizes the findings. A two-cohort form (cohort-4 + cohort-5) would re-validate the criteria but not change the Rev 4 amendments — cohort-5 is more useful as the Phase 4-B observation cohort (write-side substrate; new test surfaces; new ratify-criteria 2 + 3 + 4 exercised) than as a Phase 4-A re-pilot. CIC ratification of Phase 4-A provisional pending; the retro recommends single-cohort form for the reason above.
+
+**Phase 4-A provisional ratification — RECORDED.** Pending CIC final attest on this Rev 4 fold. The retire-criteria continue to apply across cohort-5 onward (see §"Retire-protocol-amendment criteria").
 
 ### Phase 4-B ratify-criteria (first write-side substrate cohort; ALL must hold)
 
@@ -556,11 +710,13 @@ Per `.claude/rules/effort-policy.md`:
 
 ## Open questions
 
-These are intentionally left for council review and Phase 4 evidence to resolve. Rev 2 retired Q2 and Q3 (both resolved by amendments folded above); Q1 and Q4 remain open.
+These are intentionally left for council review and Phase 4 evidence to resolve. Rev 2 retired Q2 and Q3 (both resolved by amendments folded above); Q1 and Q4 receive partial closure from cohort-4 evidence per Rev 4 fold; Q5 added Rev 2.
 
 ### Q1 — Stage-05 verdict gating semantics
 
-GREEN verdicts allow Stage-06 to proceed. AMBER-with-amendments allows Stage-06 to proceed IF the amendments are addressable in the Stage-06 PR scope. RED halts Stage-06 and forces Stage-05 redraft. Open: how is AMBER-with-amendments adjudicated when amendments are substantial? Council judgment + Admiral confirmation, OR explicit AMBER-amendment-application checklist in the Stage-06 PR? Defer to Phase 4 evidence; refine in amendment if pattern emerges.
+GREEN verdicts allow Stage-06 to proceed. AMBER-with-amendments allows Stage-06 to proceed IF the amendments are addressable in the Stage-06 PR scope. RED halts Stage-06 and forces Stage-05 redraft. Open: how is AMBER-with-amendments adjudicated when amendments are substantial? Council judgment + Admiral confirmation, OR explicit AMBER-amendment-application checklist in the Stage-06 PR?
+
+**Rev 4 partial closure (cohort-4 worked precedent).** The cohort-4 cycle pattern (RED → AMBER → GREEN) demonstrates a working adjudication path for substantial AMBER amendments: cycle 0 RED → cycle 1 AMBER (with substrate-dependent items deferred per Admiral cleanest-long-term ruling) → cycle 2 GREEN (after substrate ships and FED amendment lands). The Admiral ruling (`admiral-ruling-2026-05-22T22-30Z-cohort-4-client-side-tenant-assertion-cleanest-long-term.md`) plus the cycle-1-AMBER-to-cycle-2-GREEN re-attest sequence provides the adjudication framework. Amendment L (pair-merge cascade) encodes this as the Stage-05 protocol step. Open sub-question: does Q1 close in full, or do non-pair-merge AMBER scenarios still need adjudication guidance? Defer to cohort-5+ evidence; refine in amendment if a distinct pattern emerges.
 
 ### Q2 — *(retired in Rev 2)* test-eng-council overlap with sec-eng-council on security-adjacent test coverage
 
@@ -572,7 +728,7 @@ GREEN verdicts allow Stage-06 to proceed. AMBER-with-amendments allows Stage-06 
 
 ### Q4 — Adversarial Brief format under iteration
 
-The 5-8 bullet cap is a first-pass guess. **Rev 2 partial resolution:** the 5-12 bullet escape-hatch for substrate-shaping hand-offs (§"Adversarial Brief — template") relaxes the upper bound for 4+ load-bearing-decisions cohorts. Open: across cohort-4 and the first write-side substrate cohort, does the cap require further adjustment (tightening to 3-5 bullets to avoid bloat OR loosening past 12 bullets)? Phase 4 evidence will inform; refine in amendment if a distribution pattern emerges.
+The 5-8 bullet cap is a first-pass guess. **Rev 2 partial resolution:** the 5-12 bullet escape-hatch for substrate-shaping hand-offs (§"Adversarial Brief — template") relaxes the upper bound for 4+ load-bearing-decisions cohorts. **Rev 4 partial closure (cohort-4 evidence):** cohort-4 held the 8-bullet cap at the upper end of the standard range; sec-eng cycle 0 did not flag bullet-count as a gap (the gaps were structural — fictional fields, missing reconciliation — not bullet-count). The 5-8 cap holds for read-only cohorts; the 5-12 escape-hatch remains available for substrate-shaping cohorts. Open sub-question: does the cap require further adjustment after the first write-side substrate cohort (Phase 4-B)? Defer to Phase 4-B evidence; refine in amendment if a distribution pattern emerges.
 
 ### Q5 — *(new, Rev 2 — informational)* ADR 0091 retroactive `requires-council` frontmatter amendment
 
@@ -580,4 +736,4 @@ ADR 0091 R2 was originally cited in this ADR's §"Decision drivers" as a precede
 
 ---
 
-*Filed by Admiral at 2026-05-21 per CIC ratification 12:20Z. Rev 2 folded dual-council SPOT-CHECK verdicts (both AMBER) at 2026-05-21T15:04Z. Status: Proposed pending CIC ratification + re-attestation by both councils on Rev 2. Reversibility: almost-zero-cost (mid-cohort transition rule added Rev 2); documentation-only.*
+*Filed by Admiral at 2026-05-21 per CIC ratification 12:20Z. Rev 2 folded dual-council SPOT-CHECK verdicts (both AMBER) at 2026-05-21T15:04Z. Rev 3 housekeeping promotion to Accepted at 2026-05-21T15:20Z. Rev 4 folded cohort-4 first-pilot findings (Amendments I-M) at 2026-05-25; Phase 4-A provisional ratification recorded; companion retrospective at `icm/07_review/cohort-4-stage-05-first-pilot-retro.md`. Status: Accepted (Rev 4) pending CIC final attest + dual-council re-attest on new Amendments I/J/L. Reversibility: almost-zero-cost (mid-cohort transition rule added Rev 2); documentation-only.*
