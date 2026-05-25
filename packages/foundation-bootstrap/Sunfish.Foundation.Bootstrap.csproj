@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Foundation.Bootstrap</PackageId>
+    <Description>Pre-tenant bootstrap-context substrate (signup / invitation-accept / verify-email window). Introduced in ADR 0095 Step 1. Structurally disjoint from the post-tenant cluster (foundation-authorization / foundation-multitenancy) per ADR 0095 layering notes.</Description>
+    <PackageTags>sunfish;foundation;bootstrap;pre-tenant;signup;saas</PackageTags>
+    <!-- NU1510 suppressed: direct PackageReferences for
+         Microsoft.Extensions.DependencyInjection.Abstractions +
+         Microsoft.Extensions.Hosting.Abstractions are required (IServiceCollection,
+         ServiceDescriptor, IServiceScopeFactory, IHostedService) but NuGet
+         preview.4 pruning may flag them as unnecessary. Per fleet-conventions
+         §"NU1510 — keep the PackageRef, suppress the warning"; reference
+         template shipyard commit b4475df + foundation-authorization precedent. -->
+    <NoWarn>CS1591;NU1510</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Foundation.Bootstrap.Tests" />
+  </ItemGroup>
+</Project>
