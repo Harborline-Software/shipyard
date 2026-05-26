@@ -446,3 +446,107 @@ Per-step rollback is trivial because each Step PR is mechanical-rename-only:
 
 Rollback is mechanical because each Step preserves the old package (shim) for the entire deprecation window — no destructive operations until shim archive (which is its own PR, separate from this ADR; not in the ADR 0098 critical path).
 
+## Alternatives considered (rejection summary)
+
+The §"Considered options" section above enumerated eight design alternatives (Options A-H) with per-option rationale + disposition. This section consolidates the rejections for quick reference + names the CIC-ratification + halt-ruling provenance for each REJECT.
+
+| Option | Description | Disposition | Provenance |
+|---|---|---|---|
+| A | Status quo (no rename) | **REJECTED** | CIC ratification of PAO UPF 2026-05-26T03:42Z; Admiral routing ruling 2026-05-26T0345Z. Per D1 (open-source adoption lock-in irreversibility) + D2 (cross-vertical reuse thesis). |
+| B | Per-vertical foundation packages (`foundation-property-contracts` + `foundation-media-contracts`) | **REJECTED** | Defeats cross-vertical substrate reuse premise; per D2. |
+| C | In-place renames without re-export wrappers (hard-break) | **REJECTED** | Hostile breaking-change experience for downstream consumers; per D5 + D1 governance posture. |
+| D | Rename `kernel-lease` → `kernel-agreement` (PAO UPF Rename 1) | **REJECTED — BLOCKING** | Halt 2 OVERRIDE-PAO; RATIFY-ONR-COUNTER-FINDING. CIC override of PAO UPF ratified 2026-05-26T04:55Z. Per Admiral 10-halt ruling: kernel-lease is the Flease distributed-lock coordinator (Lamport / Chubby / Flease lineage), NOT a property-domain abstraction. Already domain-free in the relevant sense; rename would destroy the distributed-systems-literature semantic anchor + collide with the new `foundation-agreements` substrate. |
+| E | Rename `blocks-tenant-admin` → `blocks-party-portal` (PAO UPF Rename 7) | **REJECTED — BLOCKING** | Halt 4 OVERRIDE-PAO; RATIFY-ONR-COUNTER-FINDING. CIC override of PAO UPF ratified 2026-05-26T04:55Z. Per Admiral 10-halt ruling: blocks-tenant-admin is the SaaS-tenant admin surface (GitHub-org-settings analog), NOT a counterparty portal. Renaming would destroy correct-for-purpose meaning + imply a self-service surface this block does NOT ship. If counterparty-portal needed, author a NEW block. |
+| F | Name new substrate `foundation-contracts` (with `IContract` interface) — PAO UPF naming | **REJECTED** | Halt 5 RATIFY-ONR. Cross-language collision with TypeScript `@sunfish/contracts` package + `System.Diagnostics.Contracts` BCL namespace overlap + .NET "contract-first programming" community convention three-way ambiguity. The recommended `foundation-agreements` substrate avoids all three collisions. |
+| G | Entity-shape generalization within ADR 0098 scope | **REJECTED** | Halt 6 RATIFY-ONR (Option α — name-only renames). Pre-emptive entity-shape generalization risks over-abstracting for hypothetical needs (premature abstraction). Entity-shape divergence deferred until a 2nd-vertical consumer surfaces with concrete divergence requirements. |
+| H | Carve kernel-codename README additions into ADR 0098 scope | **REJECTED** | Halt 9 RATIFY-ONR. ADR 0098 is substrate-tier rename scope; codename-README is docs-only hygiene. Carved out as Step 9 separate docs-only PR post-Accept. |
+
+**Bonus alternative — Roslyn analyzer optional, not mandatory.** Halt 7 ratified MANDATORY (analyzer ships at Step 7). The "optional" alternative was REJECTED per `feedback_prefer_cleanest_long_term_option` + ADR 0091 R2 amendment A2 + ADR 0095 R2 Step 3 analyzer precedent. The compile-time warning is louder + CI-enforceable + closes the silent-uses-of-deprecated-namespace foot-gun that `[Obsolete]` alone cannot.
+
+**Bonus alternative — Option β vertical-block parallel implementation policy.** Halt 8 ratified Option α (cross-vertical reuse via substrate inheritance). The "Option β — name-rename-only, vertical-parallel-blocks-later" alternative was REJECTED. Option α captures the cross-vertical-reuse value proposition immediately; Option β would force Flight Deck Phase 1+ to author parallel blocks (`blocks-media-recurring-billing`, etc.) duplicating substrate-tier mechanics. Option α defers only the entity-shape divergence work, not the structural substrate-tier shape.
+
+## Consequences
+
+**Positive:**
+
+- **Open-source adoption lock-in pre-empted at low cost.** The rename wave completes BEFORE community downstream consumption locks the property-vertical-specific names. ~1-2 Engineer-day cost; saved cost grows monotonically with downstream adoption depth. Per D1.
+- **Cross-vertical substrate reuse is codified at substrate tier**, not documentation discipline. The new `foundation-agreements` package gives Flight Deck Phase 1+ a concrete substrate to consume + future verticals (rights-licensing, employment-pipeline) a substrate to extend. Per D2.
+- **Two PAO-proposed renames REJECTED with semantic grounds**, preserving `kernel-lease` (Flease coordinator) + `blocks-tenant-admin` (SaaS-tenant admin) at their correct-for-purpose names. ~7+ Engineer-days of wasted rename work averted per the Admiral 10-halt ruling Process Win section. Per D4.
+- **Substrate-tier ADR cadence (Halt 10 MANDATORY dual-council + Step 1 dual-council)** prevents the Rev-1-too-narrow → Rev-2-with-strengthening churn pattern ADR 0095 + 0096 both demonstrated. Pre-paid council attestation against ratification-shape coherence.
+- **Roslyn deprecation analyzer (Step 7 MANDATORY per Halt 7)** closes the silent-uses-of-deprecated-namespace foot-gun. Compile-warning is louder than `[Obsolete]` alone + CI-enforceable in `WarningsAsErrors` mode. Per D5 cleanest-long-term-option + ADR 0091 R2 amendment A2 + ADR 0095 R2 Step 3 analyzer precedent.
+- **Composition-tier non-disruption.** `TypeForwardedTo` re-export shims mean downstream repos (sunfish desktop + signal-bridge + future flight-deck) update at their own pace WITHIN the deprecation window. Hard-break risk window is one release cycle per `.NET` binary-compat-rename mechanics. Per D5.
+
+**Negative / costs:**
+
+- **5 new csprojs + 5 retained shim csprojs ship in the same release cycle.** Engineering hours pre-MVP: ~13-19 hours across Steps 1-7 (per §Implementation roadmap §Parallelism + total scope). Downstream consumer-update lift: ~10-15 hours across sunfish desktop + signal-bridge (per ONR scaffold §5.1; happens at downstream's own pace within deprecation window). Total ~23-34 Engineer-hours across Shipyard + downstream consumers.
+- **Dual-council MANDATORY on ADR text + Step 1 PR + Step 7 analyzer PR** adds ~30-min dispatch latency per. Pre-paid against the Rev-2-with-strengthening churn pattern.
+- **Cross-language naming guidance burden.** `foundation-agreements` (`.NET`) + `@sunfish/contracts` (TypeScript) live in the same monorepo at distinct sub-packages; new developers must orient on which is which. The naming choice (Halt 5) minimizes the disambiguation cost but does not eliminate it.
+
+**Risks:**
+
+- **Risk R1 — Step 1 PR scope creep.** Step 1 covers the new substrate package + 4 interface types + 1 enum + xmldoc + tests. Engineer may split into two PRs if scope threshold reached (per fleet PR-cap discipline). Mitigation: explicit Step 1a/1b split call at Step 1 authoring if Engineer flags.
+
+- **Risk R2 — `LeaseOffer` → `OfferTerms` ADR 0057 amendment trigger.** ADR 0057 (Leasing Pipeline + Fair Housing) references `LeaseOffer` by name; the Step 6 rename to `OfferTerms` MAY require an ADR 0057 amendment side-letter. Mitigation: flagged in §"Open questions" below; Admiral-judgment at Step 6 authoring time.
+
+- **Risk R3 — Deprecation-cycle calendar slippage.** "One release cycle" is implicit cadence (per ADR 0011); Shipyard release-on-readiness has no fixed schedule yet. The shim packages remain on nuget.org indefinitely if no release cycle ships before MVP launch. Mitigation: Admiral pins a calendar date at Step 6 PR closing time (e.g., "shim packages archived 2026-08-01") rather than leaving "next release cycle" as the trigger.
+
+- **Risk R4 — Roslyn analyzer false-positive cost.** The Step 7 analyzer warns on every `using <DeprecatedNamespace>;` and every fully-qualified-name use. In a long-tailed downstream codebase (signal-bridge has ~60 consumption sites across the 5 renamed namespaces per the ONR scaffold §5.1 audit), the analyzer noise during the migration window is real. Mitigation: shim-then-deprecation-window discipline gives downstream time to migrate before the analyzer fires; downstream consumers may opt the warning out via per-project `<NoWarn>SUNFISH_ADR_0098_DEPRECATED_BLOCK_NAME</NoWarn>` while they migrate.
+
+- **Risk R5 — Cross-vertical substrate IAgreement shape mismatch when Step 8 adopts.** The `IAgreement` shape pinned at Step 1 may not exactly match `Sunfish.Blocks.Leases.Lease`'s actual entity geometry; Step 8 adoption may surface refinement needs. Mitigation: Step 1 interface shape is INTENTIONALLY thin (6 properties on `IAgreement`; 3 on `IContractTerm`; 3 on `IParty`) to minimize implementation friction; any refinement is a Step 8-time amendment, not an ADR 0098 amendment.
+
+## Open questions (forwarded)
+
+These open questions are explicitly NOT pre-empted by this Rev 1 draft; they route to dual-council attestation at PR-open per Halt 10 OR to Step-PR authoring time per the step's council cadence. ONR scaffold §9 named the questions; this section forwards them at ADR-tier so council attestation can dispose.
+
+**Q1 — `Agreement` typed-marker for substrate invariant.** Per the `IMustHaveTenant` precedent in `Foundation.MultiTenancy` (ADR 0008), a typed marker enforces invariants at compile time. A `Foundation.Agreements.IAgreementMustHaveParties` marker could enforce "an Agreement must have at least 2 Parties" at compile + runtime. Decided OUT of ADR 0098 scope; forwarded to .NET-architect council at Step 1 PR review for Engineer-judgment. If ratified at Step 1, Engineer adds the marker; otherwise deferred to Step 8 or beyond.
+
+**Q2 — `LeaseId` ↔ `AgreementId` strongly-typed reconciliation.** When `blocks-leases.Lease` implements `Foundation.Agreements.IAgreement` (Step 8 deferred), does the existing `LeaseId`-as-`string` strongly-typed wrapper collapse to the substrate's `AgreementId`-as-`string` plain-string? Or stay separate strongly-typed? Decided OUT of ADR 0098 scope; forwarded to .NET-architect council at Step 8 PR authoring time.
+
+**Q3 — ADR 0057 amendment side-letter for `LeaseOffer` → `OfferTerms` rename.** ADR 0057 references `LeaseOffer` by name. Step 6 PR's rename may require an ADR 0057 amendment side-letter (per ADR 0069 §A0 cited-symbol audit discipline). Decided OUT of ADR 0098 scope; flagged for Admiral consideration at Step 6 PR closing time.
+
+**Q4 — Roslyn analyzer scope: `using` vs fully-qualified.** Step 7 analyzer ratified MANDATORY (Halt 7); the analyzer emits warnings on `using <DeprecatedNamespace>;` AND on fully-qualified-name uses (`Sunfish.Blocks.RentCollection.Invoice`). Whether the analyzer ALSO flags type-only renames within the rename targets (`LeaseOffer` → `OfferTerms`, `RentLedgerEntry` → `RecurringLedgerEntry`) is implementation-detail. Decided OUT of ADR 0098 scope; .NET-architect council resolves at Step 7 PR review.
+
+**Q5 — Deprecation cadence pinning.** Per ADR 0011 (Bundle Versioning + Upgrade Policy), Shipyard release cadence is implicit (release-on-readiness; no fixed schedule). "One release cycle" therefore translates to "the next time Shipyard tags a release after Step 6 ships." Admiral may want to commit to a calendar date (e.g., "shim packages archived 2026-08-01") rather than leaving "next release cycle" as the trigger. Decided OUT of ADR 0098 scope; flagged for Admiral at Step 6 PR closing time per Risk R3 mitigation.
+
+## Revisit triggers
+
+This ADR is revisited (Rev 2 or follow-up amendment) when any of:
+
+1. **A third semantic counter-finding emerges** for any of the 5 confirmed renames — i.e., further code-archaeology reveals that one of the renames the Admiral 10-halt ruling RATIFIED should be RE-REJECTED. Unlikely (ONR's pre-Rev-1 audit was thorough; scaffold §2.1 enumerated per-package semantic content) but the contingency exists for completeness.
+2. **Step 8 cross-vertical reuse adoption surfaces substrate-shape refinement needs.** When `blocks-leases.Lease` implements `IAgreement`, the materialization of existing `Lease` properties into `IAgreement.Parties` + `IAgreement.Terms` may surface shape adjustments. If so, ADR 0098 amendment refines the substrate; not an ADR 0091-style full rework.
+3. **A second 2nd-vertical block (`blocks-brand-deals`, `blocks-license-agreements`, etc.) adopts `IAgreement`.** When the second vertical implements the substrate, divergence concerns from Halt 6 forward-watch (Option β) may surface concrete requirements. ADR 0098 amendment refines based on the 2nd-vertical implementation experience.
+4. **The downstream consumer-update lift exceeds the §"Consequences" estimate by >2×.** If sunfish desktop + signal-bridge consumer-update PRs take substantially longer than the ~10-15 hour estimate, the re-export-shim discipline may need amendment (e.g., longer deprecation window; richer code-fix provider in the Step 7 analyzer).
+5. **Open-source community downstream feedback** identifies a substrate-shape concern that warrants amendment. Per ADR 0018 governance posture, community feedback is a first-class input to substrate-tier ADR refinement; an ADR 0098 amendment is the right venue for community-feedback-driven refinement.
+
+## References
+
+- PAO source UPF (cross-vertical-reuse driver): `coordination/inbox/pao-status-2026-05-25T2330Z-flight-deck-media-erp-routing.md`
+- Admiral routing ruling (original Requests A+B authorization; CIC ratified 2026-05-26T03:42Z): `coordination/inbox/admiral-ruling-2026-05-26T0345Z-pao-routing-block-naming-flight-deck-storymodule.md`
+- Admiral 10-halt resolution ruling (CIC ratified 2026-05-26T04:55Z; 2 BLOCKING ONR counter-findings ratified + 8 dispositions): `coordination/inbox/admiral-ruling-2026-05-26T0500Z-adr-0098-block-naming-10-halts-resolved.md`
+- ONR scaffold predecessor research (562 lines): `shipyard/icm/01_discovery/research/onr-adr-0098-block-naming-generalization-scaffold.md` (removed in this ADR's Commit 1 as the canonical text supersedes; archived in git history via the sibling ONR scaffold PR)
+- ONR scaffold-complete status beacon: `coordination/inbox/onr-status-2026-05-26T0445Z-block-naming-generalization-scaffold-complete.md`
+- ADR 0008 Foundation.MultiTenancy (IMustHaveTenant invariant; cited by `IAgreement.TenantId`): `shipyard/docs/adrs/0008-foundation-multitenancy.md`
+- ADR 0011 Bundle Versioning + Upgrade Policy (release cadence driving deprecation-window timing): `shipyard/docs/adrs/0011-bundle-versioning-upgrade-policy.md`
+- ADR 0018 Governance + License Posture (open-source adoption lock-in driver): `shipyard/docs/adrs/0018-governance-and-license-posture.md`
+- ADR 0057 Leasing Pipeline + Fair Housing (implementing-block of rename target #6; amendment side-letter trigger per Q3): `shipyard/docs/adrs/0057-leasing-pipeline-fair-housing.md`
+- ADR 0059 Public-Listing Surface (implementing-block of rename target #5; W#28 capability-tier-promotion surface): `shipyard/docs/adrs/0059-public-listing-surface.md`
+- ADR 0069 ADR Authoring Discipline (governs pre-merge council + §A0 + three-direction): `shipyard/docs/adrs/0069-adr-authoring-discipline.md`
+- ADR 0091 R2 ITenantContext Divergence Resolution (substrate-tier ADR cadence precedent: helper + assertion + analyzer): `shipyard/docs/adrs/0091-itenantcontext-divergence-resolution.md`
+- ADR 0093 Stage-05 Adversarial Review Protocol Amendment (governs Step PR review cadence): `shipyard/docs/adrs/0093-stage-05-adversarial-review-protocol-amendment.md`
+- ADR 0094 IAuditEventReader (read-substrate Tier-1 sibling; audit-emission contract preservation): `shipyard/docs/adrs/0094-i-audit-event-reader.md`
+- ADR 0095 R2 Bootstrap Context substrate (substrate-tier ADR shape mirror; foundation-tier substrate sibling): `shipyard/docs/adrs/0095-bootstrap-context.md`
+- ADR 0096 R2 Tier-2 Vendor-Provider Substrate (substrate-tier ADR shape mirror; Halt-3 OVERRIDE precedent): `shipyard/docs/adrs/0096-tier-2-vendor-provider-substrate.md`
+- Cerebrum: `[[prefer-cleanest-long-term-option]]` (CIC directive 2026-05-21 driving D5)
+- Cerebrum: `[[three-tier-slotting-vocabulary]]` (CIC ratified 2026-05-25 driving D6)
+- Cerebrum: `[[substrate-claim-beacon-protocol]]` (Engineer 2026-05-26T03:14Z; applies to Steps 1 + 2-6 substrate-touching PRs)
+- Cerebrum: `[[itenantcontext-consumption-qualification]]` (2026-05-22 driving §Substrate / layering notes interaction with ADR 0091 R2)
+- Cerebrum: `[[pattern009-scope]]` (driving §Substrate / layering notes interaction with pattern-009 — no trigger on existing-route refactors)
+- Cerebrum: `[[engineer-pr-count-cap]]` (2026-05-21 driving §Implementation roadmap parallelism analysis — 10 in-flight cap accommodates parallel rename wave)
+- Slotting general UPF (the precedent for tier-1 / tier-2 / tier-3 vocabulary; sibling shipyard PR): `shipyard/icm/01_discovery/research/onr-slotting-architecture-7-gap-audit.md`
+- Pattern catalog (pattern-009 scope reference): `shipyard/_shared/engineering/standing-approved-patterns.md`
+- Flease distributed-lock-coordinator literature (Lamport, Chubby, Flease — Halt 2 BLOCKING counter-finding source): general distributed-systems knowledge informing the kernel-lease-is-not-property-domain finding; the canonical Flease paper is "Flease — Lease Coordination Without a Lock Server" (Hupfeld et al., 2008).
+- `.NET` `TypeForwardedTo` attribute for binary-compatibility renames (Steps 2-6 mechanism): general `.NET` framework convention.
+- NuGet semantic-versioning conventions for major-version-bump-on-rename (Step 2-6 versioning discipline): general NuGet packaging convention.
+- `System.Diagnostics.Contracts` namespace + .NET "contract-first programming" community convention (Halt 5 rationale): general `.NET` community knowledge informing the `foundation-contracts` vs `foundation-agreements` recommendation.
+
+
