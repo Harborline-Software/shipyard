@@ -1,4 +1,5 @@
 using System.Net;
+using Sunfish.Foundation.Integrations;
 using Sunfish.Foundation.Integrations.Captcha;
 
 namespace Sunfish.Foundation.Integrations.Tests;
@@ -6,6 +7,51 @@ namespace Sunfish.Foundation.Integrations.Tests;
 public class InMemoryCaptchaVerifierTests
 {
     private static readonly IPAddress TestIp = IPAddress.Parse("198.51.100.42");
+
+    // ADR 0096 Step 1 retrofit — marker + canonical factory methods.
+
+    [Fact]
+    public void CarriesMockMarker()
+    {
+        Assert.IsAssignableFrom<IMockVendorProvider>(new InMemoryCaptchaVerifier());
+    }
+
+    [Fact]
+    public async Task AlwaysPass_Factory_PassesEverything()
+    {
+        var verifier = InMemoryCaptchaVerifier.AlwaysPass();
+        var result = await verifier.VerifyAsync("any-token", TestIp, default);
+        Assert.True(result.Passed);
+        Assert.Equal(1.0, result.Score);
+    }
+
+    [Fact]
+    public async Task AlwaysFail_Factory_FailsEverything()
+    {
+        var verifier = InMemoryCaptchaVerifier.AlwaysFail();
+        var result = await verifier.VerifyAsync("any-token", TestIp, default);
+        Assert.False(result.Passed);
+        Assert.Equal(0.0, result.Score);
+    }
+
+    [Fact]
+    public async Task WithMagicToken_PassesOnlyTheMagicToken()
+    {
+        var verifier = InMemoryCaptchaVerifier.WithMagicToken("mock-pass");
+
+        var passResult = await verifier.VerifyAsync("mock-pass", TestIp, default);
+        Assert.True(passResult.Passed);
+
+        var failResult = await verifier.VerifyAsync("other-token", TestIp, default);
+        Assert.False(failResult.Passed);
+    }
+
+    [Fact]
+    public void WithMagicToken_RejectsEmpty()
+    {
+        Assert.Throws<ArgumentException>(() => InMemoryCaptchaVerifier.WithMagicToken(""));
+        Assert.Throws<ArgumentException>(() => InMemoryCaptchaVerifier.WithMagicToken("   "));
+    }
 
     [Fact]
     public async Task UnseededToken_FailsWithZeroScore()
