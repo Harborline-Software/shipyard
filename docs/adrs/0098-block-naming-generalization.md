@@ -396,14 +396,27 @@ Branch shape: `feat/adr-0098-step-7-block-name-deprecation-analyzer`.
 
 Scope:
 
-- Extend `packages/foundation-wayfinder-analyzers/` (existing analyzer package per ADR 0095 R2 Step 3 precedent) with a new analyzer `BlockNameDeprecationAnalyzer`. Emits `SUNFISH_ADR_0098_DEPRECATED_BLOCK_NAME` diagnostic at compile time on:
+- Ship a NEW dedicated analyzer host package `packages/foundation-block-naming.analyzers/Sunfish.Foundation.BlockNaming.Analyzers.csproj` (per A3 + Admiral pre-ruling P2 RATIFY — matches the `foundation-ships-office.analyzers` per-substrate-dedicated-analyzer-package convention; netstandard2.0 target; `Microsoft.CodeAnalysis.CSharp@4.8.0` + `Microsoft.CodeAnalysis.CSharp.Workspaces@4.8.0` `PackageReferences` with `PrivateAssets="all"`; `EnforceExtendedAnalyzerRules=true`; `ManagePackageVersionsCentrally=false`; ships into `analyzers/dotnet/cs` via the standard analyzer NuGet packing convention). The new analyzer `BlockNameDeprecationAnalyzer : DiagnosticAnalyzer` lives at `Sunfish.Foundation.BlockNaming.Analyzers.BlockNameDeprecationAnalyzer`. Per the `foundation-wayfinder-analyzers` + `foundation-ships-office.analyzers` precedents, the package ships its own `AnalyzerReleases.Shipped.md` + `AnalyzerReleases.Unshipped.md` release-tracking files. **Why NOT extending `foundation-wayfinder-analyzers`:** verified by `.NET`-architect council via the package's README + `Diagnostics.cs` — `foundation-wayfinder-analyzers` is scoped to Wayfinder/AtlasSchemaDescriptor concerns per ADR 0065 (declares `SUNFISH_WAYFINDER001` with category "SunfishWayfinder"); cross-substrate analyzer conflation is exactly what ADR 0091 R2 + ADR 0095 R2 + the existing `packages/analyzers/` layout AVOID.
+- Diagnostic descriptor per A4 + Admiral pre-ruling P3 RATIFY (fleet `SUNFISH_<AREA>NNN` convention; replaces the verbose `SUNFISH_ADR_0098_DEPRECATED_BLOCK_NAME` form which embedded a non-stable ADR-number identifier):
+  ```csharp
+  id: "SUNFISH_BLOCKDEP001"
+  title: "Block namespace is renamed per ADR 0098"
+  messageFormat: "Namespace '{0}' was renamed to '{1}' per ADR 0098 block-naming generalization. Update the using directive or fully-qualified name to '{1}'."
+  category: "SunfishBlockNaming"
+  defaultSeverity: DiagnosticSeverity.Warning
+  isEnabledByDefault: true
+  helpLinkUri: "https://github.com/Harborline-Software/shipyard/blob/main/docs/adrs/0098-block-naming-generalization.md"
+  ```
+  The `helpLinkUri` pointing to ADR 0098 matches the `SUNFISH_WAYFINDER001` precedent — consumers reading the warning navigate to the canonical motivation. Reserve `SUNFISH_BLOCKDEP002` for a future type-level-deprecation rule (per Q4 forward-watch).
+- `SUNFISH_BLOCKDEP001` fires on:
   - `using Sunfish.Blocks.RentCollection;` (suggests `using Sunfish.Blocks.RecurringBilling;`)
   - `using Sunfish.Blocks.WorkOrders;` (suggests `using Sunfish.Blocks.WorkItems;`)
   - `using Sunfish.Blocks.Inspections;` (suggests `using Sunfish.Blocks.Reviews;`)
   - `using Sunfish.Blocks.PublicListings;` (suggests `using Sunfish.Blocks.Listings;`)
   - `using Sunfish.Blocks.PropertyLeasingPipeline;` (suggests `using Sunfish.Blocks.AcquisitionPipeline;`)
   - Direct fully-qualified-name uses (`Sunfish.Blocks.RentCollection.Invoice` etc.) — same diagnostic.
-  - Type-level renames within the rename targets (`LeaseOffer` → `OfferTerms`, `RentLedgerEntry` → `RecurringLedgerEntry`, etc.) — direct type-name suggestions where applicable.
+  - Type-level renames within the rename targets (`LeaseOffer` → `OfferTerms`, `LeaseOfferId` → `OfferTermsId`, `LeaseOfferStatus` → `OfferTermsStatus`, `RentLedgerEntry` → `RecurringLedgerEntry`, etc.) — direct type-name suggestions where applicable (Q4 forward-watch may extract these into a separate `SUNFISH_BLOCKDEP002` rule).
+- **Cross-language migration scope (Step 7b forward-watch per S4).** Where a renamed `.NET` block has a TypeScript-side counterpart in `packages/contracts/` (`@sunfish/contracts`), the TypeScript counterpart SHALL ship a parallel `@deprecated` JSDoc tag + ESLint rule (`@sunfish/deprecated-block-name`) emitting a warning on TypeScript-side consumption. Implementation deferred to a follow-on Step 7b (TypeScript-side analyzer); Step 7 `.NET` analyzer + Step 7b TypeScript ESLint rule together close the cross-language migration window. Step 7 PR scope includes an audit of `packages/contracts/` for any TypeScript type or interface referencing the renamed `.NET` block names (file names, type names, namespace strings, route paths); the audit produces a deferred Step 7b scope rather than blocking Step 7. **Route-path preservation.** The renamed `blocks-public-listings` → `blocks-listings` may expose HTTP route paths (e.g., `/api/public-listings/...`); the rename SHALL NOT alter route paths without explicit consumer-migration coordination. Route paths emitted by renamed blocks SHALL be preserved verbatim across the rename; URL surface is part of the binary-compat-survivable contract per the `TypeForwardedTo` discipline analog. Any route-path change SHALL be a separate consumer-migration-coordinated PR, not bundled into the Step 2-6 rename PRs.
 
 - Default severity: `Warning`. Per `feedback_prefer_cleanest_long_term_option` + ADR 0091 R2 amendment A2 + ADR 0095 R2 Step 3 analyzer precedent, the analyzer's compile-warning is louder than the `[Obsolete]` warning alone + CI-enforceable in `WarningsAsErrors` mode at consumer projects' discretion.
 
@@ -411,7 +424,7 @@ Scope:
 
 - Unit tests: AnalyzerTestFramework xUnit tests covering each deprecated-name case + non-deprecated control case (must NOT warn on uses of the renamed-target namespaces).
 
-- CI gate addition (optional; Engineer-judgment at Step 7 authoring): add `SUNFISH_ADR_0098_DEPRECATED_BLOCK_NAME` to the `WarningsAsErrors` list in the Shipyard solution Directory.Build.props if council ratifies. Default: warning-only; downstream consumer projects opt in by their own `WarningsAsErrors` configuration.
+- CI gate addition (optional; Engineer-judgment at Step 7 authoring): add `SUNFISH_BLOCKDEP001` to the `WarningsAsErrors` list in the Shipyard solution Directory.Build.props if council ratifies. Default: warning-only; downstream consumer projects opt in by their own `WarningsAsErrors` configuration.
 
 **Council review (Halt 10 MANDATORY): .NET-architect MANDATORY at PR-open.** Reviews analyzer code quality + diagnostic ID assignment + code-fix correctness (if shipped) + severity selection rationale. Sec-eng SPOT-CHECK optional (no security surface).
 
@@ -459,11 +472,83 @@ Effort: ~3-4h Sonnet medium subagent dispatch (delegated work per ONR scaffold s
 For each of the 5 confirmed renames, the migration pattern is:
 
 1. **New package shipped.** New csproj at new path (e.g., `packages/blocks-recurring-billing/Sunfish.Blocks.RecurringBilling.csproj`), new namespace (`Sunfish.Blocks.RecurringBilling`), all source moved + adjusted (file-level namespace declarations updated; type-name renames per §"Cross-reference table — types-per-package" below).
-2. **Old package retained as re-export shim.** Old csproj keeps its name, references the new csproj via ProjectReference, re-exports all public types via `[assembly: TypeForwardedTo(typeof(<NewNamespace>.<Type>))]` declarations (the `.NET`-idiomatic binary-compatibility rename mechanism). Consumers compiled against the old assembly name continue to resolve correctly.
-3. **Old package deprecated.** Package-level assembly attribute: `[Obsolete("<OldNamespace> is renamed to <NewNamespace> per ADR 0098; this package will be removed in the major version following the cross-vertical-reuse rename wave's deprecation cycle.", false /* warning, not error */)]`.
-4. **Major version bump.** Both new and shim packages bump per SemVer to the next major version; renames are binary-compat-survivable but consumer tooling depending on AssemblyName WILL break — major bump is honest.
-5. **Archive after one release cycle.** After one full release cycle of co-shipping new + shim (typically 1-2 months at current Shipyard cadence per ADR 0011 Bundle Versioning + Upgrade Policy), the shim package is archived (csproj removed; published NuGet package marked listed=false on nuget.org).
-6. **Step 7 Roslyn analyzer ships after Steps 2-6 land.** Emits compile-time warnings on `using` of the deprecated namespaces + direct fully-qualified-name uses; suggests the new namespace + new type name where applicable.
+
+2. **Old package retained as re-export shim** (per A5 cookbook completion). Old csproj keeps its name, references the new csproj via ProjectReference, re-exports all public types via `[assembly: TypeForwardedTo(typeof(<NewNamespace>.<Type>))]` declarations (the `.NET`-idiomatic binary-compatibility rename mechanism). Canonical shim shape:
+
+   ```xml
+   <!-- packages/blocks-rent-collection/Sunfish.Blocks.RentCollection.csproj (shim) -->
+   <Project Sdk="Microsoft.NET.Sdk">
+     <PropertyGroup>
+       <TargetFramework>net11.0</TargetFramework>
+       <IsPackable>true</IsPackable>
+       <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+       <Description>Re-export shim for the renamed Sunfish.Blocks.RecurringBilling package. Deprecated per ADR 0098; archived 90 days after MVP launch / Step 7 PR per Risk R3 (S3b).</Description>
+     </PropertyGroup>
+     <ItemGroup>
+       <ProjectReference Include="..\blocks-recurring-billing\Sunfish.Blocks.RecurringBilling.csproj" />
+     </ItemGroup>
+   </Project>
+   ```
+
+   ```csharp
+   // packages/blocks-rent-collection/TypeForwards.cs (single file per shim package; ONE file holds all assembly-level forwards per the kernel/TypeForwards.cs in-repo precedent)
+   using System;
+   using System.Runtime.CompilerServices;
+
+   [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.Invoice))]
+   [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.Payment))]
+   [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.BankAccount))]
+   [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.BillingFrequency))]
+   [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.LateFeePolicy))]
+   [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.RecurringLedgerEntry))]
+   [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.IRecurringLedgerService))]
+   [assembly: Obsolete("Sunfish.Blocks.RentCollection is renamed to Sunfish.Blocks.RecurringBilling per ADR 0098.", false)]
+   ```
+
+   **Public-only forwarding (per A5a).** `TypeForwardedTo` exposes only PUBLIC types across the forwarding boundary; internal types are NOT forwardable. If a shim package's old internal types were consumed across the assembly boundary via `InternalsVisibleTo` (e.g., test projects with internals access), those consumers MUST be updated to consume from the new package directly — the shim cannot bridge internals. Engineer audits each rename source package for `InternalsVisibleTo` consumers + internal type usage before authoring the per-Step PR; the new package's source carries the `InternalsVisibleTo` declaration (now pointing at `Sunfish.Blocks.<NewName>.Tests`). The shim package SHOULD NOT carry `InternalsVisibleTo` — its types are all forwarded (public) and its test project moves to the new package.
+
+   **File-shape convention (per A5b).** ONE `TypeForwards.cs` file per shim package, holding all assembly-level forwards. Matches the in-repo `packages/kernel/TypeForwards.cs` precedent. NOT "every source file gets a `[assembly:...]` declaration" — that mis-reads the original draft text.
+
+   **Duplicate AssemblyInfo avoidance (per A5c).** Shim csproj sets `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>` and explicitly declares `<Description>` (above); without this, both the shim csproj and the new csproj auto-generate `AssemblyTitle`/`AssemblyDescription` attributes and the dual-build produces duplicate-attribute errors.
+
+3. **Old package deprecated.** Package-level assembly attribute: `[Obsolete("<OldNamespace> is renamed to <NewNamespace> per ADR 0098; this package will be removed in the major version following the cross-vertical-reuse rename wave's deprecation cycle.", false /* warning, not error */)]` (sample inline in the `TypeForwards.cs` snippet above).
+
+4. **Extension-method forwarding (per A6 — `TypeForwardedTo` does NOT forward extension methods).** Each renamed block's `DependencyInjection/` folder typically ships `AddSunfishX()` `IServiceCollection` extension methods. `TypeForwardedTo` forwards TYPES; static-class extension methods compile to fully-qualified references in the consumer assembly's IL, NOT via type-resolution-through-forward. Each shim package therefore ships a small stub extension-method class at the old namespace:
+
+   ```csharp
+   // packages/blocks-rent-collection/DependencyInjection/ServiceCollectionExtensions.cs (stub)
+   using System;
+   using System.ComponentModel;
+   using Microsoft.Extensions.DependencyInjection;
+
+   namespace Sunfish.Blocks.RentCollection.DependencyInjection;
+
+   [Obsolete("Sunfish.Blocks.RentCollection.AddSunfishRentCollection is renamed to Sunfish.Blocks.RecurringBilling.AddSunfishRecurringBilling per ADR 0098.", false)]
+   [EditorBrowsable(EditorBrowsableState.Never)]
+   public static class RentCollectionServiceCollectionExtensions
+   {
+       public static IServiceCollection AddSunfishRentCollection(this IServiceCollection services)
+           => Sunfish.Blocks.RecurringBilling.DependencyInjection.RecurringBillingServiceCollectionExtensions.AddSunfishRecurringBilling(services);
+   }
+   ```
+
+   The stub is `[Obsolete]` + `[EditorBrowsable(EditorBrowsableState.Never)]` (hidden in IntelliSense; still callable from existing compiled code). The Step 7 deprecation analyzer also flags calls to deprecated extension methods (per the `SUNFISH_BLOCKDEP001` rule scope; Q4 forward-watch). The ADR's per-rename effort estimate (~1-3h Engineer) is right-sized only when extension-method forwarding is in scope per this bullet.
+
+5. **Major version bump.** Both new and shim packages bump per SemVer to the next major version; renames are binary-compat-survivable but consumer tooling depending on AssemblyName WILL break — major bump is honest.
+
+6. **Archive at 90-day cap (per S3b ADR-ratified at Rev 2).** Shim packages SHALL be archived (csproj removed; published NuGet package marked listed=false on `nuget.org`) no later than 90 days after the latest of (a) MVP launch, (b) Step 7 analyzer PR landing. Admiral pins the specific calendar date at Step 6 PR closing time per Risk R3. The 90-day cap caps the open-ended security-support exposure window per S3.
+
+7. **Shim re-release on security patches (per S3a).** During the deprecation window (between shim ship and 90-day archive), shim packages SHALL be re-released alongside any security patch to the renamed-target package's transitive dependencies. The deprecation window is a **security-support window, not a freeze window**.
+
+8. **Step 7 Roslyn analyzer ships after Steps 2-6 land** (in NEW `packages/foundation-block-naming.analyzers/` per A3; diagnostic ID `SUNFISH_BLOCKDEP001` per A4). Emits compile-time warnings on `using` of the deprecated namespaces + direct fully-qualified-name uses; suggests the new namespace + new type name where applicable. Cross-language scope (TypeScript-side parallel deprecation) per S4 — Step 7b follow-on.
+
+**Per-Step Engineer-spec checklist (each of Steps 2-6):**
+(a) New package authored at new path with new namespace; all public types moved + namespace-adjusted.
+(b) Shim csproj retained with `GenerateAssemblyInfo=false` + `ProjectReference` to new package.
+(c) `TypeForwards.cs` single file with all public-type forwards + `[assembly: Obsolete]`.
+(d) Extension-method stub class authored at old namespace with `[Obsolete]` + `[EditorBrowsable(Never)]` delegating to new package's `AddSunfishX()` helpers.
+(e) Test project relocates to the new package; `InternalsVisibleTo` audit clean on the new package (shim carries no InternalsVisibleTo).
+(f) Major version bump on both new and shim packages.
 
 ### Cross-reference table — types-per-package (Steps 2-6 detailed mapping)
 
@@ -473,16 +558,16 @@ For each of the 5 confirmed renames, the migration pattern is:
 | `blocks-work-orders` (`Sunfish.Blocks.WorkOrders`) | `WorkOrder`, `WorkOrderStatus`, `IWorkOrderService` | `blocks-work-items` (`Sunfish.Blocks.WorkItems`) | `WorkItem`, `WorkItemStatus`, `IWorkItemService` | "Order" → "Item" renames throughout |
 | `blocks-inspections` (`Sunfish.Blocks.Inspections`) | `Inspection`, `InspectionTemplate`, `InspectionResponse`, `Deficiency`, `EquipmentConditionAssessment`, `IInspectionsService` | `blocks-reviews` (`Sunfish.Blocks.Reviews`) | `Review`, `ReviewTemplate`, `ReviewResponse`, `Deficiency`, `EquipmentConditionAssessment`, `IReviewsService` | "Inspection" → "Review" renames; entity-coupling to `blocks-property-equipment` retained but flagged for future generalization (Halt 6 Option α) |
 | `blocks-public-listings` (`Sunfish.Blocks.PublicListings`) | `PublicListing`, `ListingPhotoRef`, `RedactionPolicy`, `ShowingAvailability`, `RenderedListing`, `IListingRepository`, `IListingRenderer`, `ICapabilityPromoter` | `blocks-listings` (`Sunfish.Blocks.Listings`) | `Listing`, `ListingPhotoRef`, `RedactionPolicy`, `ShowingAvailability`, `RenderedListing`, `IListingRepository`, `IListingRenderer`, `ICapabilityPromoter` | "PublicListing" → "Listing" (singular type rename); pipeline-mechanics-types retained |
-| `blocks-property-leasing-pipeline` (`Sunfish.Blocks.PropertyLeasingPipeline`) | `Inquiry`, `Prospect`, `Application`, `DecisioningFacts`, `DemographicProfile`, `BackgroundCheckRequest`, `BackgroundCheckResult`, `AdverseActionNotice`, `LeaseOffer`, `ILeasingPipelineService` | `blocks-acquisition-pipeline` (`Sunfish.Blocks.AcquisitionPipeline`) | `Inquiry`, `Prospect`, `Application`, `DecisioningFacts`, `DemographicProfile`, `BackgroundCheckRequest`, `BackgroundCheckResult`, `AdverseActionNotice`, `OfferTerms` (renamed from `LeaseOffer`), `IAcquisitionPipelineService` | "Lease" appears only in `LeaseOffer` — rename to `OfferTerms`; FHA/FCRA-specific entities retained but flagged for future generalization (Halt 6 Option α) |
+| `blocks-property-leasing-pipeline` (`Sunfish.Blocks.PropertyLeasingPipeline`) | `Inquiry`, `Prospect`, `Application`, `DecisioningFacts`, `DemographicProfile`, `BackgroundCheckRequest`, `BackgroundCheckResult`, `AdverseActionNotice`, `LeaseOffer`, `LeaseOfferId`, `LeaseOfferStatus`, `ILeasingPipelineService` | `blocks-acquisition-pipeline` (`Sunfish.Blocks.AcquisitionPipeline`) | `Inquiry`, `Prospect`, `Application`, `DecisioningFacts`, `DemographicProfile`, `BackgroundCheckRequest`, `BackgroundCheckResult`, `AdverseActionNotice`, `OfferTerms` (renamed from `LeaseOffer`), `OfferTermsId` (renamed from `LeaseOfferId`), `OfferTermsStatus` (renamed from `LeaseOfferStatus`), `IAcquisitionPipelineService` | Per A2: "Lease" prefix appears in 3 co-declared types (record + Id record struct + Status enum); all rename to "OfferTerms" + "OfferTermsId" + "OfferTermsStatus" in lockstep. FHA/FCRA-specific entities retained but flagged for future generalization (Halt 6 Option α). Per S5: Step 6 carries sec-eng + .NET-architect dual SPOT-CHECK because the rename touches the FHA + FCRA compliance surface. |
 
 ### Parallelism + total scope
 
-- **Step 1 is gating** for Steps 2-6 because Steps 2-6 do not depend on the substrate (the renamed blocks do NOT implement `IAgreement` at this time per Halt 8 Option α — that is Step 8 deferred work). Step 1 can therefore land **in parallel** with Steps 2-6 if desired; Engineer-judgment on sequencing.
+- **Step 1 is gating** for Steps 2-6 because Steps 2-6 do not depend on the substrate (the renamed blocks do NOT implement `IAgreement` at this time per Halt 8 Option α — that is Step 8 deferred work). Step 1 can therefore land **in parallel** with Steps 2-6 if desired; Engineer-judgment on sequencing. Per A12 sentence-level tightening: Step 1's only inbound dependency is `Sunfish.Foundation.MultiTenancy` (the `foundation-agreements` `ProjectReference` per A1's `IMustHaveTenant` extension); restore graph is shallow. Steps 2-6 each consume the new package only via the renamed namespace; they do not `ProjectReference` `foundation-agreements` until Step 8 deferred work.
 - **Steps 2-6 are pure mechanical renames + shims**; they can run in **parallel** as separate PRs once each branches from main (no inter-PR dependencies; each touches a disjoint subset of `packages/`). Engineer cap (per `feedback_engineer_pr_count_cap` = 10 in-flight; 2026-05-21 ratification) accommodates the parallel wave easily.
 - **Step 7 (analyzer) depends on Steps 2-6 all having landed** — the analyzer needs to know all the rename mappings to emit the per-namespace + per-type suggestions.
 - **Total Engineer lift:** ~13-19 hours across Steps 1-7 (Step 1: ~3-4h; Steps 2-6: ~1-3h each = ~8-13h aggregate; Step 7: ~2-3h). Substantially less than the alternative of incremental renames spread across 3-6 months of substrate-block PR churn per D5.
 - **Downstream consumer-update lift (post-Accept; not Engineer-blocking):** ~10-15 hours across sunfish desktop + signal-bridge consumer PRs; happens at downstream's own pace within the deprecation window per the re-export-shim discipline.
-- **Council attestation cadence:** 1 dual-council MANDATORY on ADR text (this PR; Halt 10); 1 dual-council MANDATORY on Step 1 PR; 5 SPOT-CHECKs on Steps 2-6 (Step 5 has 2 SPOT-CHECKs — .NET-arch + sec-eng); 1 .NET-architect MANDATORY on Step 7 analyzer.
+- **Council attestation cadence:** 1 dual-council MANDATORY on ADR text (this PR; Halt 10); 1 dual-council MANDATORY on Step 1 PR; 5 SPOT-CHECKs on Steps 2-6 (Step 5 has 2 SPOT-CHECKs — .NET-arch + sec-eng — for W#28 capability-tier preservation; Step 6 ALSO has 2 SPOT-CHECKs per S5 + Admiral pre-ruling P5 — .NET-arch + sec-eng — for FHA/FCRA compliance-surface preservation); 1 .NET-architect MANDATORY on Step 7 analyzer.
 
 ### Rollback story
 
@@ -535,11 +620,14 @@ The §"Considered options" section above enumerated eight design alternatives (O
 
 - **Risk R1 — Step 1 PR scope creep.** Step 1 covers the new substrate package + 4 interface types + 1 enum + xmldoc + tests. Engineer may split into two PRs if scope threshold reached (per fleet PR-cap discipline). Mitigation: explicit Step 1a/1b split call at Step 1 authoring if Engineer flags.
 
-- **Risk R2 — `LeaseOffer` → `OfferTerms` ADR 0057 amendment trigger.** ADR 0057 (Leasing Pipeline + Fair Housing) references `LeaseOffer` by name; the Step 6 rename to `OfferTerms` MAY require an ADR 0057 amendment side-letter. Mitigation: flagged in §"Open questions" below; Admiral-judgment at Step 6 authoring time.
+- **Risk R2 — `LeaseOffer` → `OfferTerms` ADR 0057 reference verification (DOWNGRADED per A11).** Verified at Rev 2 authoring time: `grep "LeaseOffer" docs/adrs/0057-leasing-pipeline-fair-housing.md` returns ZERO matches. ADR 0057 references the leasing-pipeline concept generically without naming the `LeaseOffer` type. No amendment side-letter needed; Step 6 ships with no ADR 0057 amendment.
 
-- **Risk R3 — Deprecation-cycle calendar slippage.** "One release cycle" is implicit cadence (per ADR 0011); Shipyard release-on-readiness has no fixed schedule yet. The shim packages remain on nuget.org indefinitely if no release cycle ships before MVP launch. Mitigation: Admiral pins a calendar date at Step 6 PR closing time (e.g., "shim packages archived 2026-08-01") rather than leaving "next release cycle" as the trigger.
+- **Risk R3 — Deprecation-cycle calendar slippage + security-support-window exposure.** "One release cycle" is implicit cadence (per ADR 0011); Shipyard release-on-readiness has no fixed schedule yet. Per S3 (security-engineering amendment): the open-ended deprecation window creates an open-ended security-support exposure window — if a CVE surfaces in an OLD-name shim package (or in its transitive deps) between Step 6 PR closing and the next release cycle, the shim remains on `nuget.org` indefinitely. Three sub-mitigations, all ratified at substrate-tier minimum-floor:
+  - **(S3a) Shim transitive-dependency drift.** Shim packages SHALL be re-released on every security patch to the renamed-target package's transitive dependencies; the deprecation window is a **security-support window, not a freeze window**. When `blocks-recurring-billing` (NEW) patches a transitive-dep security issue, the `blocks-rent-collection` (SHIM) ProjectReference inherits the fix only when both packages release on the same cadence — Engineer SHALL release the shim alongside any security patch to the renamed-target.
+  - **(S3b) Hard archive cap (90 days).** Shim packages SHALL be archived (`nuget.org` listed=false) no later than 90 days after the latest of: (a) MVP launch, (b) Step 7 analyzer PR landing. Admiral pins the specific calendar date at Step 6 PR closing time per Q5; the 90-day cap is ADR-ratified at Rev 2 (prevents the open-ended exposure window pattern that Risk R1's "next release cycle" framing left implicit).
+  - **(S3c) CVE-disclosure cross-referencing.** CVE disclosures filed against deprecated-name packages SHALL be cross-referenced to the renamed-target package; security advisories SHALL list both package names. If a security researcher reports a CVE against `Sunfish.Blocks.RentCollection` (deprecated name), the disclosure routing SHALL include `Sunfish.Blocks.RecurringBilling` so open-source community downstream consumers tracking either name receive the advisory.
 
-- **Risk R4 — Roslyn analyzer false-positive cost.** The Step 7 analyzer warns on every `using <DeprecatedNamespace>;` and every fully-qualified-name use. In a long-tailed downstream codebase (signal-bridge has ~60 consumption sites across the 5 renamed namespaces per the ONR scaffold §5.1 audit), the analyzer noise during the migration window is real. Mitigation: shim-then-deprecation-window discipline gives downstream time to migrate before the analyzer fires; downstream consumers may opt the warning out via per-project `<NoWarn>SUNFISH_ADR_0098_DEPRECATED_BLOCK_NAME</NoWarn>` while they migrate.
+- **Risk R4 — Roslyn analyzer false-positive cost.** The Step 7 analyzer warns on every `using <DeprecatedNamespace>;` and every fully-qualified-name use. In a long-tailed downstream codebase (signal-bridge has ~60 consumption sites across the 5 renamed namespaces per the ONR scaffold §5.1 audit), the analyzer noise during the migration window is real. Mitigation: shim-then-deprecation-window discipline gives downstream time to migrate before the analyzer fires; downstream consumers may opt the warning out via per-project `<NoWarn>SUNFISH_BLOCKDEP001</NoWarn>` while they migrate (per A4 diagnostic ID convention).
 
 - **Risk R5 — Cross-vertical substrate IAgreement shape mismatch when Step 8 adopts.** The `IAgreement` shape pinned at Step 1 may not exactly match `Sunfish.Blocks.Leases.Lease`'s actual entity geometry; Step 8 adoption may surface refinement needs. Mitigation: Step 1 interface shape is INTENTIONALLY thin (6 properties on `IAgreement`; 3 on `IContractTerm`; 3 on `IParty`) to minimize implementation friction; any refinement is a Step 8-time amendment, not an ADR 0098 amendment.
 
@@ -547,15 +635,15 @@ The §"Considered options" section above enumerated eight design alternatives (O
 
 These open questions are explicitly NOT pre-empted by this Rev 1 draft; they route to dual-council attestation at PR-open per Halt 10 OR to Step-PR authoring time per the step's council cadence. ONR scaffold §9 named the questions; this section forwards them at ADR-tier so council attestation can dispose.
 
-**Q1 — `Agreement` typed-marker for substrate invariant.** Per the `IMustHaveTenant` precedent in `Foundation.MultiTenancy` (ADR 0008), a typed marker enforces invariants at compile time. A `Foundation.Agreements.IAgreementMustHaveParties` marker could enforce "an Agreement must have at least 2 Parties" at compile + runtime. Decided OUT of ADR 0098 scope; forwarded to .NET-architect council at Step 1 PR review for Engineer-judgment. If ratified at Step 1, Engineer adds the marker; otherwise deferred to Step 8 or beyond.
+**Q1 — `IAgreementMustHaveParties` typed-marker for substrate invariant (DEFERRED to Step 8 per A8 advisory).** Per the `IMustHaveTenant` precedent in `Foundation.MultiTenancy` (ADR 0008), a typed marker enforces invariants at compile time. A `Foundation.Agreements.IAgreementMustHaveParties` marker could enforce "an Agreement must have at least 2 Parties" at compile + runtime. Per A8 (`.NET`-architect advisory): at Step 1 PR time, there are zero vertical-block consumers (Step 8 is post-MVP); the marker is speculative. DISPOSITION: Step 1 ships `IAgreement : IMustHaveTenant` (A1) without the `IAgreementMustHaveParties` marker. Step 8 (post-MVP) introduces `IAgreementMustHaveParties` IF the `blocks-leases.Lease` materialization surface needs it — future vertical-block authors compose markers (`public interface ILease : IAgreement, IAgreementMustHaveParties { }`) at their authoring time. Premature without a 2nd-vertical consumer surface.
 
-**Q2 — `LeaseId` ↔ `AgreementId` strongly-typed reconciliation.** When `blocks-leases.Lease` implements `Foundation.Agreements.IAgreement` (Step 8 deferred), does the existing `LeaseId`-as-`string` strongly-typed wrapper collapse to the substrate's `AgreementId`-as-`string` plain-string? Or stay separate strongly-typed? Decided OUT of ADR 0098 scope; forwarded to .NET-architect council at Step 8 PR authoring time.
+**Q2 — `LeaseId` ↔ `AgreementId` strongly-typed reconciliation.** When `blocks-leases.Lease` implements `Foundation.Agreements.IAgreement` (Step 8 deferred), does the existing `LeaseId`-as-`string` strongly-typed wrapper collapse to the substrate's `AgreementId`-as-`string` plain-string? Or stay separate strongly-typed? Per `.NET`-architect advisory: defer to Step 8 PR authoring time; `IAgreement.AgreementId : string` + `blocks-leases.LeaseId`-as-strongly-typed-wrapper coexist via `Lease.AgreementId => LeaseId.Value` materialization; no substrate amendment required. Decided OUT of ADR 0098 scope; forwarded to .NET-architect council at Step 8 PR authoring time.
 
-**Q3 — ADR 0057 amendment side-letter for `LeaseOffer` → `OfferTerms` rename.** ADR 0057 references `LeaseOffer` by name. Step 6 PR's rename may require an ADR 0057 amendment side-letter (per ADR 0069 §A0 cited-symbol audit discipline). Decided OUT of ADR 0098 scope; flagged for Admiral consideration at Step 6 PR closing time.
+**Q3 — RESOLVED at Rev 2 fold per A11.** ADR 0057 contains zero `LeaseOffer` references (verified by grep at Rev 2 authoring time); no amendment side-letter trigger. Step 6 ships with no ADR 0057 amendment.
 
-**Q4 — Roslyn analyzer scope: `using` vs fully-qualified.** Step 7 analyzer ratified MANDATORY (Halt 7); the analyzer emits warnings on `using <DeprecatedNamespace>;` AND on fully-qualified-name uses (`Sunfish.Blocks.RentCollection.Invoice`). Whether the analyzer ALSO flags type-only renames within the rename targets (`LeaseOffer` → `OfferTerms`, `RentLedgerEntry` → `RecurringLedgerEntry`) is implementation-detail. Decided OUT of ADR 0098 scope; .NET-architect council resolves at Step 7 PR review.
+**Q4 — Roslyn analyzer scope: `using` vs fully-qualified vs type-level renames.** Step 7 analyzer ratified MANDATORY (Halt 7); the `SUNFISH_BLOCKDEP001` rule (per A4) emits warnings on `using <DeprecatedNamespace>;` AND on fully-qualified-name uses (`Sunfish.Blocks.RentCollection.Invoice`). Type-level renames within the rename targets (`LeaseOffer` → `OfferTerms`, `LeaseOfferId` → `OfferTermsId`, `LeaseOfferStatus` → `OfferTermsStatus` per A2 lockstep; `RentLedgerEntry` → `RecurringLedgerEntry`) are second-pass concern — a future `SUNFISH_BLOCKDEP002` rule (reserved per A4) if ratified; deferred. Decided OUT of ADR 0098 scope; .NET-architect council resolves scope split between BLOCKDEP001/002 at Step 7 PR review.
 
-**Q5 — Deprecation cadence pinning.** Per ADR 0011 (Bundle Versioning + Upgrade Policy), Shipyard release cadence is implicit (release-on-readiness; no fixed schedule). "One release cycle" therefore translates to "the next time Shipyard tags a release after Step 6 ships." Admiral may want to commit to a calendar date (e.g., "shim packages archived 2026-08-01") rather than leaving "next release cycle" as the trigger. Decided OUT of ADR 0098 scope; flagged for Admiral at Step 6 PR closing time per Risk R3 mitigation.
+**Q5 — Deprecation cadence pinning (90-day cap ADR-ratified per S3).** Per ADR 0011 (Bundle Versioning + Upgrade Policy), Shipyard release cadence is implicit (release-on-readiness; no fixed schedule). Per S3 (security-engineering amendment): "One release cycle" + open-ended deprecation creates open-ended security-support exposure window. RESOLUTION: shim packages SHALL be archived no later than 90 days after the latest of (a) MVP launch, (b) Step 7 analyzer PR landing. Admiral pins the specific calendar date at Step 6 PR closing time (e.g., "shim packages archived 2026-08-01" — within the 90-day cap) per Risk R3 (S3b) mitigation. The 90-day cap itself is ADR-ratified at Rev 2; the specific date is Admiral-pinned at Step 6 closing.
 
 ## Revisit triggers
 
