@@ -15,11 +15,14 @@ namespace Sunfish.Foundation.Integrations.Captcha;
 /// production** — production deployments wire the
 /// <c>providers-recaptcha</c> (or similar) adapter from Phase 3.1.
 /// </remarks>
-public sealed class InMemoryCaptchaVerifier : ICaptchaVerifier
+public sealed class InMemoryCaptchaVerifier : ICaptchaVerifier, IMockVendorProvider
 {
     private readonly ConcurrentDictionary<string, double> _seeds = new();
     private readonly ConcurrentBag<(string Token, IPAddress ClientIp)> _calls = new();
     private readonly double _minPassingScore;
+
+    // When set, VerifyAsync returns this verdict for ANY token (AlwaysPass / AlwaysFail).
+    private readonly bool? _forcedVerdict;
 
     /// <summary>Snapshot of every verify call (token + client IP) for test assertions.</summary>
     public IReadOnlyCollection<(string Token, IPAddress ClientIp)> Calls => _calls;
@@ -35,6 +38,27 @@ public sealed class InMemoryCaptchaVerifier : ICaptchaVerifier
             throw new ArgumentOutOfRangeException(nameof(minPassingScore), "Score must be in [0.0, 1.0].");
         }
         _minPassingScore = minPassingScore;
+    }
+
+    private InMemoryCaptchaVerifier(bool forcedVerdict)
+    {
+        _minPassingScore = 0.3;
+        _forcedVerdict = forcedVerdict;
+    }
+
+    /// <summary>A verifier that passes every token (test convenience).</summary>
+    public static InMemoryCaptchaVerifier AlwaysPass() => new(forcedVerdict: true);
+
+    /// <summary>A verifier that fails every token (test convenience).</summary>
+    public static InMemoryCaptchaVerifier AlwaysFail() => new(forcedVerdict: false);
+
+    /// <summary>A verifier where only <paramref name="magicToken"/> passes; all others fail.</summary>
+    public static InMemoryCaptchaVerifier WithMagicToken(string magicToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(magicToken);
+        var verifier = new InMemoryCaptchaVerifier();
+        verifier.Seed(magicToken, 1.0);
+        return verifier;
     }
 
     /// <summary>
@@ -60,6 +84,12 @@ public sealed class InMemoryCaptchaVerifier : ICaptchaVerifier
         ct.ThrowIfCancellationRequested();
 
         _calls.Add((token, clientIp));
+
+        if (_forcedVerdict is { } forced)
+        {
+            return Task.FromResult(new CaptchaVerifyResult(
+                Passed: forced, Score: forced ? 1.0 : 0.0, Provider: "in-memory"));
+        }
 
         if (!_seeds.TryGetValue(token, out var score))
         {

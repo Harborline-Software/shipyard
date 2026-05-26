@@ -30,6 +30,12 @@ public enum ProviderCategory
     /// <summary>Identity providers (OIDC / SAML).</summary>
     IdentityProvider = 7,
 
+    /// <summary>CAPTCHA / bot-verification providers (ADR 0096 Tier-2).</summary>
+    Captcha = 10,
+
+    /// <summary>Transactional-email providers (ADR 0096 Tier-2).</summary>
+    TransactionalEmail = 11,
+
     /// <summary>Other provider categories not otherwise enumerated.</summary>
     Other = 99,
 }

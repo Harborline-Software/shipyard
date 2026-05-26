@@ -4,9 +4,20 @@
     <PackageId>Sunfish.Foundation.Integrations</PackageId>
     <Description>Runtime contracts for external provider integrations: provider registry, credentials references, webhook event envelopes + dispatcher, sync cursors, health checks. See ADR 0013.</Description>
     <PackageTags>sunfish;foundation;integrations;webhooks;providers</PackageTags>
+    <!-- NU1510 suppressed: ADR 0096 Step 1 adds direct PackageReferences for
+         Microsoft.Extensions.Hosting.Abstractions (IHostedService) +
+         Microsoft.Extensions.DependencyInjection.Abstractions (ServiceDescriptor,
+         IServiceCollection, services.Replace). NuGet preview.4 pruning flags them
+         as unnecessary due to transitive availability via the full DI package, but
+         the substrate uses these types directly. Per fleet-conventions
+         §"NU1510 — keep the PackageRef, suppress the warning"; reference template
+         shipyard commit b4475df + foundation-authorization precedent. -->
+    <NoWarn>NU1510</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
