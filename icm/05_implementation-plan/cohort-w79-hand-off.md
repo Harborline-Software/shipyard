@@ -36,7 +36,7 @@ W#79 sub-cohort 1 (per onboarding-ladder ruling Decision 9; W79-W83 allocated; t
 - α-1 child-`IServiceScope` transition with `ITenantContextSeed` per ADR 0095 §"Handler Lifecycle" step 5.
 - W#79 ships **Shape A — mocks-only** per ADR 0096 §"Step 4 W79 composition-root wiring" until Engineer ships Step 2 (Postmark) + Step 3 (Turnstile) adapter PRs. Production runtime requires `SUNFISH_ALLOW_MOCK_PROVIDERS=true` until real adapters land.
 - Frontend rebind on SignupPage + VerifyEmailPage from any current mock to real Bridge endpoints (pattern-009 PAIR).
-- Rate-limit policy values per ADR 0095 Rev 2 non-permissive-default minimum-floor (5/min signup; 10/min verify-email; 20/min check-availability; 429 + Retry-After).
+- Rate-limit policy values per ADR 0095 Rev 2 non-permissive-default minimum-floor (5/min signup; 10/min verify-email; 3/min resend-verification per-IP + per-email; 429 + Retry-After). (Rev 2: check-availability floor REMOVED per D4.)
 - Email-uniqueness check on `TenantRegistrations` control-plane table.
 - `ITenantRegistry.CreateAsync` first-production-callsite.
 
@@ -807,20 +807,27 @@ Tests covering these semantics live in `shipyard/packages/foundation-authorizati
 **Estimated effort:** 2-3 days Engineer time
 **Council SPOT-CHECK on Ready-flip:** sec-eng (MANDATORY; α-1 child-scope transition is security-critical confused-deputy-seam) + .NET-architect (MANDATORY; first production consumer of ADR 0095 + ADR 0096 substrates; ITenantRegistry first-production-callsite invariant per ADR 0095 §Decision drivers).
 
-#### 4.2.1 SignupHandler — α-1 child-scope transition body
+#### 4.2.1 SignupHandler — α-1 child-scope transition body (Rev 2)
 
-Per ADR 0095 §"Handler Lifecycle" 6-step ordering:
+Rev 2 fold absorbs sec-eng A (IPasswordHasher interface), sec-eng D (constant-work discipline), sec-eng C (one-shot via TenantRegistration.EmailVerified), D1 (IOperationSigner.SignAsync<T>), D3 (IBootstrapTenantRegistry), .NET-arch K1 (IPasswordHasher<UserEntity>), .NET-arch K2 (V3 versioned-hash for ADR 0097), H2 (always-202 unconditional — drops the email_already_registered branch + the EmailUnverifiedTenantExists branch is folded into always-202 + OOB):
+
+**Note (FW-A1 reconciliation):** Spec uses `await using var childScope = scopeFactory.CreateAsyncScope()` (async-disposable). ADR 0095's example uses sync `using var childScope = _scopeFactory.CreateScope()` — the sync example is illustrative; the .NET-idiomatic async-disposable shape is correct here because `await userRepo.PersistInitialUserAsync(...)` mandates async-disposable scope (sync `using` would dispose synchronously before async work in nested scoped services completes; EFCore `DbContext.DisposeAsync` is the canonical example). Engineer's Step 3 Roslyn analyzer (Tier-3 F) should NOT read sync-vs-async-using as a regression.
 
 ```csharp
 namespace Sunfish.Bridge.Onboarding.Handlers;
 
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Sunfish.Foundation.Authorization;
 using Sunfish.Foundation.Bootstrap;
+using Sunfish.Foundation.Crypto;
 using Sunfish.Foundation.Integrations.Captcha;
 using Sunfish.Foundation.Integrations.Email;
+using Sunfish.Bridge.Data;
 
 public static class SignupHandler
 {
@@ -829,9 +836,11 @@ public static class SignupHandler
         IBootstrapContext bootstrapContext,
         ICaptchaVerifier captcha,
         IEmailProvider email,
-        ITenantRegistry tenantRegistry,
+        IBootstrapTenantRegistry tenantRegistry,    // D3 — bootstrap-scope-resolvable
         IServiceScopeFactory scopeFactory,
         IOperationSigner signer,
+        IPasswordHasher<UserEntity> passwordHasher, // sec-eng A + .NET-arch K1 — interface, NEVER static
+        IOnboardingAuditEmitter auditEmitter,        // D5 — emits to SUNFISH_SYSTEM_TENANT partition
         ILogger<SignupHandler> logger,
         CancellationToken ct)
     {
@@ -844,8 +853,10 @@ public static class SignupHandler
         var validationResult = SignupRequestValidator.Validate(request);
         if (!validationResult.IsValid)
         {
+            await auditEmitter.EmitSignupAttemptedAsync(
+                bootstrapContext, request.Email, outcome: "validation_failed", ct);
             return Results.Problem(
-                title: "validation_failed",
+                title: OnboardingDiscriminators.ValidationFailed,
                 statusCode: 400,
                 detail: validationResult.ToProblemDetails());
         }
@@ -858,90 +869,140 @@ public static class SignupHandler
             ct);
         if (!captchaResult.Succeeded)
         {
+            await auditEmitter.EmitSignupCaptchaRejectedAsync(
+                bootstrapContext, request.Email, ct);
             return Results.Problem(
-                title: "captcha_failed",
+                title: OnboardingDiscriminators.CaptchaFailed,
                 statusCode: 400,
                 detail: "CAPTCHA verification failed.");
         }
 
-        // STEP 3 — Email-uniqueness check via dedicated read-only DbContext.
-        // (Implementation-detail per ADR 0095 Q4: W#79 picks among (a) opt-out DbContext registration,
-        // (b) separate SunfishBridgeReadOnlyDbContext, (c) constructor-guard alone — see §5.4 below
-        // for the W#79 disposition: option (b) — separate read-only DbContext for the uniqueness check.)
-        // The read-only DbContext queries TenantRegistrations (control-plane; not under HasQueryFilter).
+        // STEP 2b — CONSTANT-WORK DISCIPLINE (sec-eng D — closes timing-attack on H2).
+        // Hash the user-supplied password UNCONDITIONALLY here, BEFORE the uniqueness check.
+        // PasswordHasher.HashPassword is the wall-clock-dominant cost (PBKDF2 v3 ~100k iterations
+        // ~tens of ms). Equalizing this cost across all H2 branches (fresh / unverified-existing /
+        // verified-existing) narrows the timing-distinguisher floor to sub-ms DB-query variation.
+        //
+        // The hash output is COMPUTED ON EVERY REQUEST; consumed only on the fresh-path; discarded
+        // on the existing-path. This is a deliberate constant-work invariant — do NOT optimize it
+        // away with a "skip if existing" branch. Per sec-eng D + ADR 0095 Rev 2 timing-floor.
+        //
+        // Hash output is ASP.NET Identity V3 format (version-byte 0x01; PBKDF2-HMAC-SHA256;
+        // configurable iteration count). Future ADR 0097 Argon2id swap will detect old hashes via
+        // the version byte and trigger PasswordVerificationResult.SuccessRehashNeeded on next login.
+        // Per .NET-arch K2 — handler is non-load-bearing on algorithm choice.
+        var stubUser = new UserEntity { Email = request.Email.Trim().ToLowerInvariant() };
+        var passwordHashCandidate = passwordHasher.HashPassword(stubUser, request.Password);
 
+        // STEP 3 — Email + slug uniqueness check via SunfishBridgeReadOnlyDbContext.
+        // Per Decision 8: bootstrap-scope-resolvable read-only DbContext; queries control-plane
+        // TenantRegistrations table (NOT under HasQueryFilter); see §6.1 Decision 8.
+        // (Rev 2 .NET-arch O fix: prior Rev 1 referenced "§5.4 below"; corrected to §6.1 Decision 8.)
         var emailNormalized = request.Email.Trim().ToLowerInvariant();
         var slugNormalized = request.TenantSlug.Trim().ToLowerInvariant();
 
-        // (Implementation: ITenantRegistry.CheckEmailUniqueAsync + .CheckSlugAvailableAsync
-        // both query TenantRegistrations via the read-only DbContext.)
         var uniquenessCheck = await tenantRegistry.CheckUniquenessAsync(
-            emailNormalized,
-            slugNormalized,
-            ct);
+            emailNormalized, slugNormalized, ct);
 
+        // SLUG-side discriminator paths remain — these don't leak email-existence; they leak
+        // slug-existence (which is already a public namespace property — slug -> tenant URL).
         if (uniquenessCheck.SlugReserved)
-            return Results.Problem(title: "tenant_slug_reserved", statusCode: 400);
-
-        if (uniquenessCheck.SlugTaken)
-            return Results.Problem(title: "tenant_slug_taken", statusCode: 400);
-
-        if (uniquenessCheck.EmailVerifiedTenantExists)
-            return Results.Problem(title: "email_already_registered", statusCode: 400);
-
-        if (uniquenessCheck.EmailUnverifiedTenantExists)
         {
-            // Halt H2 disposition (preliminary): quiet re-send + 202 envelope to avoid
-            // tenant-enumeration leak via signup-vs-resend probing.
-            // Final disposition per Admiral ruling on Halt H2.
-            var resendDispatchId = await SendVerificationEmailAsync(
-                email, signer, emailNormalized, uniquenessCheck.ExistingTenantId!.Value,
-                bootstrapContext, ct);
-            return Results.Accepted(
-                value: new SignupAcceptedResponse(
-                    EmailDispatchId: resendDispatchId,
-                    CorrelationId: bootstrapContext.CorrelationId));
+            await auditEmitter.EmitSignupAttemptedAsync(
+                bootstrapContext, request.Email, outcome: "slug_reserved", ct);
+            return Results.Problem(
+                title: OnboardingDiscriminators.TenantSlugReserved, statusCode: 400);
         }
 
-        // STEP 4 — Call ITenantRegistry.CreateAsync.
-        // First production callsite per ADR 0095 §Decision drivers invariant.
-        var newTenant = await tenantRegistry.CreateAsync(
-            new CreateTenantCommand(
-                EmailNormalized: emailNormalized,
-                SlugNormalized: slugNormalized,
-                DisplayName: request.TenantDisplayName,
-                PasswordHash: PasswordHasher.Hash(request.Password)),
-            ct);
+        if (uniquenessCheck.SlugTaken)
+        {
+            await auditEmitter.EmitSignupAttemptedAsync(
+                bootstrapContext, request.Email, outcome: "slug_taken", ct);
+            return Results.Problem(
+                title: OnboardingDiscriminators.TenantSlugTaken, statusCode: 400);
+        }
 
-        // STEP 5 — Child IServiceScope for post-tenant write (α-1 mechanism per ADR 0095).
-        await using var childScope = scopeFactory.CreateAsyncScope();
-        childScope.ServiceProvider
-            .GetRequiredService<ITenantContextSeed>()
-            .Bind(newTenant.TenantId);
+        // EMAIL-side: H2 always-202 ratified.
+        // Three sub-paths converge on a 202 response (see §6.1 Decision 2 Rev 2):
+        //
+        //  (a) Fresh email + valid slug -> CreatePendingAsync + verification email dispatch
+        //      + 202 with email_dispatch_id.
+        //  (b) Unverified-existing email -> quietly resend verification email + 202 with
+        //      email_dispatch_id (same shape as fresh path).
+        //  (c) Verified-existing email -> dispatch OOB notification email ("someone tried to
+        //      sign up with your address") + 202 with email_dispatch_id (same shape).
+        //
+        // All three responses are byte-for-byte identical to the caller. Discarded
+        // passwordHashCandidate on paths (b) and (c) preserves constant-work invariant.
 
-        var userRepo = childScope.ServiceProvider.GetRequiredService<IUserAggregateRepository>();
-        await userRepo.PersistInitialUserAsync(
-            new InitialUser(
-                TenantId: newTenant.TenantId,
-                Email: emailNormalized,
-                PasswordHash: newTenant.PasswordHash,
-                EmailVerified: false),
-            ct);
-        // Child scope disposes here on await using.
+        string emailDispatchId;
+        if (uniquenessCheck.EmailVerifiedTenantExists)
+        {
+            // Path (c): OOB notification per H2 ratification.
+            // (Per-victim-email rate-limit gates the dispatch; sec-eng I forward-watched.)
+            emailDispatchId = await SendVerifiedExistingNotificationAsync(
+                email, emailNormalized, uniquenessCheck.ExistingTenantId!.Value, bootstrapContext, ct);
+            await auditEmitter.EmitSignupAttemptedAsync(
+                bootstrapContext, request.Email, outcome: "verified_existing_oob_dispatched", ct);
+        }
+        else if (uniquenessCheck.EmailUnverifiedTenantExists)
+        {
+            // Path (b): quietly resend verification.
+            emailDispatchId = await SendVerificationEmailAsync(
+                email, signer, emailNormalized, uniquenessCheck.ExistingTenantId!.Value,
+                bootstrapContext, ct);
+            await auditEmitter.EmitSignupAttemptedAsync(
+                bootstrapContext, request.Email, outcome: "unverified_existing_resend_dispatched", ct);
+        }
+        else
+        {
+            // Path (a): fresh registration.
 
-        // STEP 6 — Bootstrap scope continues: audit-emission + email-dispatch.
-        var emailDispatchId = await SendVerificationEmailAsync(
-            email, signer, emailNormalized, newTenant.TenantId, bootstrapContext, ct);
+            // STEP 4 — Create the pending TenantRegistration row.
+            // Per D2 schema extension: AdminEmailNormalized + EmailVerified=false + PasswordHash
+            // all written here. Per D3: bootstrap-scope CreatePendingAsync uses
+            // SunfishBridgeReadOnlyDbContext write path (or narrow BootstrapWriteDbContext;
+            // Engineer's PR 0 picks).
+            var newRegistration = await tenantRegistry.CreatePendingAsync(
+                new CreatePendingTenantCommand(
+                    EmailNormalized: emailNormalized,
+                    SlugNormalized: slugNormalized,
+                    DisplayName: request.TenantDisplayName,
+                    PasswordHash: passwordHashCandidate),
+                ct);
 
-        // Audit event: TenantSignup (one tenant created; verification email queued).
-        // (Implementation per ADR 0049 audit substrate; emits to control-plane audit stream.)
+            // STEP 5 — Child IServiceScope for post-tenant initial-User write (α-1 mechanism).
+            // Per ADR 0095 Rev 2 Amendment 2.
+            await using var childScope = scopeFactory.CreateAsyncScope();
+            childScope.ServiceProvider
+                .GetRequiredService<ITenantContextSeed>()
+                .Bind(newRegistration.TenantId);
 
+            var userRepo = childScope.ServiceProvider.GetRequiredService<IUserAggregateRepository>();
+            await userRepo.PersistInitialUserAsync(
+                new InitialUser(
+                    TenantId: newRegistration.TenantId,
+                    Email: emailNormalized,
+                    EmailVerified: false),
+                ct);
+            // Child scope disposes here on await using.
+
+            // STEP 6 — Bootstrap scope continues: verification email dispatch.
+            emailDispatchId = await SendVerificationEmailAsync(
+                email, signer, emailNormalized, newRegistration.TenantId, bootstrapContext, ct);
+
+            await auditEmitter.EmitSignupAcceptedAsync(
+                bootstrapContext, request.Email, newRegistration.TenantId, ct);
+        }
+
+        // ALL THREE PATHS converge here: identical 202 response shape per H2 RATIFY.
         return Results.Accepted(
             value: new SignupAcceptedResponse(
                 EmailDispatchId: emailDispatchId,
                 CorrelationId: bootstrapContext.CorrelationId));
     }
 
+    // SendVerificationEmailAsync — uses IOperationSigner.SignAsync<VerificationTokenPayload> per D1.
     private static async Task<string> SendVerificationEmailAsync(
         IEmailProvider email,
         IOperationSigner signer,
@@ -950,12 +1011,22 @@ public static class SignupHandler
         IBootstrapContext bootstrapContext,
         CancellationToken ct)
     {
-        var verificationToken = signer.SignVerificationToken(
-            new VerificationTokenPayload(
-                Email: emailNormalized,
-                TenantId: tenantId,
-                IssuedAt: DateTimeOffset.UtcNow,
-                ExpiresAt: DateTimeOffset.UtcNow.AddHours(24)));
+        // D1: existing SignAsync<T> surface; no SignVerificationToken invented method.
+        // Envelope carries the payload + IssuedAt + nonce; signer signs the canonical-JSON form.
+        var payload = new VerificationTokenPayload(
+            Email: emailNormalized,
+            TenantId: tenantId,
+            Audience: "sunfish.verify-email");
+        var signed = await signer.SignAsync(
+            payload,
+            issuedAt: DateTimeOffset.UtcNow,
+            nonce: Guid.NewGuid(),
+            ct);
+        // Serialize SignedOperation<VerificationTokenPayload> envelope to canonical JSON
+        // + Base64Url-encode for the URL token. (Engineer's PR 1 references
+        // foundation/Crypto SignedOperationEncoder if it exists, OR ships the encoder helper
+        // inline. Either way, no new methods invented on IOperationSigner.)
+        var verificationToken = SignedOperationEncoder.EncodeBase64Url(signed);
 
         var dispatchResult = await email.SendAsync(
             new EmailMessage(
@@ -976,166 +1047,348 @@ public static class SignupHandler
                 $"Email dispatch failed for tenant {tenantId}; result: {dispatchResult}")
         };
     }
+
+    // OOB notification path for H2 verified-existing — no signed token; just a notification.
+    private static async Task<string> SendVerifiedExistingNotificationAsync(
+        IEmailProvider email,
+        string emailNormalized,
+        Guid existingTenantId,
+        IBootstrapContext bootstrapContext,
+        CancellationToken ct)
+    {
+        var dispatchResult = await email.SendAsync(
+            new EmailMessage(
+                From: "noreply@sunfish.app",
+                To: new[] { emailNormalized },
+                Subject: "Sunfish signup attempt for your account",
+                BodyText: "Someone tried to sign up using your email address. " +
+                          "If this wasn't you, no action is required. " +
+                          "If you'd like to sign in, visit https://sunfish.app/auth/login.",
+                BodyHtml: null,
+                MessageStream: "transactional-onboarding",
+                IdempotencyKey: $"oob-existing-{existingTenantId}-{DateTimeOffset.UtcNow:yyyy-MM-dd}", // per-day dedup
+                EmailDispatchId: Guid.NewGuid().ToString()),
+            ct);
+
+        return dispatchResult switch
+        {
+            EmailDispatchResult.Accepted accepted => accepted.MessageId,
+            EmailDispatchResult.RateLimited _ => Guid.NewGuid().ToString(),  // silent drop; caller still gets a dispatch-id-shape
+            _ => throw new InvalidOperationException(
+                $"OOB notification dispatch failed for tenant {existingTenantId}; result: {dispatchResult}")
+        };
+    }
 }
 ```
 
-**Critical invariants enforced in PR 1:**
+**Critical invariants enforced in PR 1 (Rev 2):**
 
+- **Constant-work discipline (sec-eng D).** `passwordHasher.HashPassword(...)` runs UNCONDITIONALLY at STEP 2b — closes the H2 timing-attack on verified-vs-fresh enumeration. Integration test asserts p50/p95 latency parity across the 3 paths.
+- **IPasswordHasher<UserEntity> interface ONLY (sec-eng A + .NET-arch K1).** No static `PasswordHasher.Hash(...)` calls anywhere. ADR 0097 future Argon2id swap requires zero callsite changes (handler signature unchanged; DI registration swap only).
+- **V3 versioned hash output (.NET-arch K2).** ASP.NET Identity's `PasswordHasher<TUser>` defaults to `PasswordHasherCompatibilityMode.IdentityV3` (PBKDF2-HMAC-SHA256 + version byte 0x01). ADR 0097 migration uses the byte to detect old hashes + trigger `PasswordVerificationResult.SuccessRehashNeeded` on next login.
+- **D1 — IOperationSigner.SignAsync<VerificationTokenPayload>.** No invented signer methods; uses existing async substrate API. Token envelope = `SignedOperation<VerificationTokenPayload>` canonical-JSON + Base64Url.
+- **D3 — IBootstrapTenantRegistry bootstrap-scope-resolvable.** SignupHandler injects `IBootstrapTenantRegistry` (NOT `ITenantRegistry`); resolves via `SunfishBridgeReadOnlyDbContext`. `ITenantRegistry` (tenant-bound) is reserved for child-scope post-Bind resolution paths.
+- **D5 — Audit emission to SUNFISH_SYSTEM_TENANT partition.** All pre-tenant audit events (validation_failed / captcha_rejected / slug_reserved / slug_taken / verified_existing_oob_dispatched / unverified_existing_resend_dispatched / signup_accepted) route via `IOnboardingAuditEmitter` to ADR 0049 substrate with `tenant_id = SystemTenant.Id`. Email + IP-hashed + UA-truncated-200 + correlation_id plain (per redaction policy).
+- **H2 RATIFY always-202.** All three email-side sub-paths converge on a byte-for-byte identical 202 response. No `email_already_registered` 400 branch (retired Rev 2).
 - α-1 scoped-holder pattern per ADR 0095 Rev 2 Amendment 2 — `ITenantContextSeed.Bind()` IMMEDIATELY before any post-tenant resolution inside the child scope.
 - `await using var childScope` — async-disposable; scope disposes after the write commits.
 - `IUserAggregateRepository` resolved from child scope (NOT outer bootstrap scope) — confirms `SeededTenantContext` is reachable in the child scope.
-- The outer `await SendVerificationEmailAsync` continues on the **outer bootstrap scope**, not the child scope — audit + email-dispatch are bootstrap-scope concerns per ADR 0095 §"Handler Lifecycle" step 6.
+- The outer `SendVerificationEmailAsync` continues on the **outer bootstrap scope**, not the child scope — audit + email-dispatch are bootstrap-scope concerns per ADR 0095 §"Handler Lifecycle" step 6.
 - `IEmailProvider` injection consumes mock (MockEmailProvider) until Engineer Tier-2 D ships PostmarkEmailProvider; production guard fires if not opted-out (`SUNFISH_ALLOW_MOCK_PROVIDERS=true` required for `ASPNETCORE_ENVIRONMENT=Production` mock-only deploys).
 - `ICaptchaVerifier` likewise consumes InMemoryCaptchaVerifier (now `: IMockVendorProvider` via Step 1 retrofit).
-- `PasswordHasher.Hash` shape MUST be ASVS Level 2 conformant (Argon2id or BCrypt 12+ cost; W#79 ratifies via halt H8 if substrate is missing).
 
-#### 4.2.2 VerifyEmailHandler
+#### 4.2.2 VerifyEmailHandler (Rev 2)
+
+Rev 2 fold absorbs D1 (existing IOperationSigner surface, no invented verify-method), sec-eng C (one-shot redemption-state via IBootstrapTenantRegistry.TryConsumeEmailVerificationAsync), D3 (split registries — bootstrap registry for token-validate + one-shot consume; tenant registry resolved from child-scope ONLY when tenant-bound write is required), H9 200-idempotent (test-eng T2 removes verification_token_already_used discriminator), D5 audit-emission:
 
 ```csharp
 public static async Task<IResult> HandleAsync(
     [FromBody] VerifyEmailRequest request,
     IBootstrapContext bootstrapContext,
-    ITenantRegistry tenantRegistry,
+    IBootstrapTenantRegistry tenantRegistry,    // D3 — bootstrap-resolvable; token-validate + one-shot consume
     IServiceScopeFactory scopeFactory,
     IOperationSigner signer,
+    IOperationVerifier verifier,                // companion to IOperationSigner per Engineer's PR 0 substrate API (D1 alignment)
+    IOnboardingAuditEmitter auditEmitter,       // D5 audit emission
+    ILogger<VerifyEmailHandler> logger,
     CancellationToken ct)
 {
     // STEP 1 — Bootstrap-only scope.
-    // STEP 2 — Verify signed token (Ed25519 per IOperationSigner).
-    var verificationResult = signer.TryVerifyVerificationToken(request.VerificationToken);
-    if (verificationResult is not OperationSignerResult.Valid valid)
+
+    // STEP 2 — Decode + verify the signed envelope per D1.
+    // The URL token is the Base64Url-encoded canonical-JSON of SignedOperation<VerificationTokenPayload>.
+    // Use the canonical verify substrate (IOperationVerifier; ships in Engineer's PR 0 alongside the encoder
+    // helper). NO invented OperationSignerResult discriminated union — verify returns success-or-throws OR
+    // a typed-result envelope ratified by Engineer's substrate PR.
+    //
+    // Engineer's substrate-tier verify-shape (one of):
+    //   ValueTask<VerifiedOperation<T>> VerifyAsync<T>(string token, CancellationToken ct);   (throws on invalid)
+    //   ValueTask<VerifyResult<T>> TryVerifyAsync<T>(string token, CancellationToken ct);     (typed result)
+    //
+    // Rev 2 spec assumes the second shape (TryVerifyAsync returns typed result). If Engineer ships the
+    // first (throws-on-invalid), the handler wraps in try/catch and maps the exception shape to the
+    // same discriminator routing.
+    var verifyOutcome = await verifier.TryVerifyAsync<VerificationTokenPayload>(
+        request.VerificationToken, ct);
+
+    if (verifyOutcome is VerifyResult<VerificationTokenPayload>.Invalid)
     {
-        return verificationResult switch
-        {
-            OperationSignerResult.Invalid     => Results.Problem(title: "verification_token_invalid", statusCode: 400),
-            OperationSignerResult.Expired     => Results.Problem(title: "verification_token_expired", statusCode: 400),
-            _                                  => Results.Problem(title: "verification_token_invalid", statusCode: 400),
-        };
+        await auditEmitter.EmitVerifyEmailRejectedAsync(
+            bootstrapContext, reason: "token_invalid", ct);
+        return Results.Problem(
+            title: OnboardingDiscriminators.VerificationTokenInvalid, statusCode: 400);
     }
 
-    // STEP 3 — Look up Tenant by token payload (NOT URL slug).
-    // The token carries tenant_id; the read-only DbContext loads it.
-    var tenantLookup = await tenantRegistry.GetByIdAsync(valid.Payload.TenantId, ct);
-    if (tenantLookup is null)
+    if (verifyOutcome is VerifyResult<VerificationTokenPayload>.Expired)
     {
-        // Token signed a tenant_id that no longer exists. Treat as invalid token (uniform-404 / 400 invariant).
-        return Results.Problem(title: "verification_token_invalid", statusCode: 400);
+        await auditEmitter.EmitVerifyEmailRejectedAsync(
+            bootstrapContext, reason: "token_expired", ct);
+        return Results.Problem(
+            title: OnboardingDiscriminators.VerificationTokenExpired, statusCode: 400);
     }
 
-    if (tenantLookup.EmailVerified)
+    if (verifyOutcome is not VerifyResult<VerificationTokenPayload>.Valid valid)
     {
-        // Token already redeemed. Idempotency invariant: return 200 with same response shape as fresh verify.
-        // (Replay-attack defense: same response shape regardless of token-state to avoid leakage of "was already redeemed.")
-        // OR: fail with verification_token_already_used (halt H9 — disposition needed).
-        // W#79 RECOMMENDED disposition: return 200 (idempotent) to match resend-friendly UX; halt for Admiral.
-        return Results.Ok(new VerifyEmailAcceptedResponse(
-            Email: tenantLookup.AdminEmailNormalized,
-            TenantSlug: tenantLookup.Slug,
-            TenantDisplayName: tenantLookup.DisplayName));
+        // Defensive default — any non-Valid is treated as invalid.
+        await auditEmitter.EmitVerifyEmailRejectedAsync(
+            bootstrapContext, reason: "token_invalid", ct);
+        return Results.Problem(
+            title: OnboardingDiscriminators.VerificationTokenInvalid, statusCode: 400);
     }
 
-    // STEP 4 — Mark tenant + user as email-verified.
-    // This is a write; uses child IServiceScope for the post-tenant write per ADR 0095.
-    await using var childScope = scopeFactory.CreateAsyncScope();
-    childScope.ServiceProvider
-        .GetRequiredService<ITenantContextSeed>()
-        .Bind(tenantLookup.TenantId);
+    // STEP 3 — Audience check: payload must claim the verify-email audience.
+    if (valid.Payload.Audience != "sunfish.verify-email")
+    {
+        await auditEmitter.EmitVerifyEmailRejectedAsync(
+            bootstrapContext, reason: "audience_mismatch", ct);
+        return Results.Problem(
+            title: OnboardingDiscriminators.VerificationTokenInvalid, statusCode: 400);
+    }
 
-    var userRepo = childScope.ServiceProvider.GetRequiredService<IUserAggregateRepository>();
-    await userRepo.MarkEmailVerifiedAsync(tenantLookup.TenantId, valid.Payload.Email, ct);
+    // STEP 4 — ATOMIC one-shot consumption per sec-eng C.
+    //
+    // This is the closure of the H9 1h-TTL replay window. The TryConsumeEmailVerificationAsync
+    // method reads the TenantRegistration row, asserts EmailVerified IS false, atomically updates
+    // to true, returns boolean (true on consumed; false on already-consumed or tenant-not-found).
+    //
+    // Per H9 RATIFY 200-idempotent: already-consumed AND tenant-not-found both fall through to the
+    // 200 path (idempotent UX; cannot leak "was already redeemed" by response-shape).
+    var consumed = await tenantRegistry.TryConsumeEmailVerificationAsync(
+        valid.Payload.TenantId, valid.Payload.Email, ct);
 
-    // STEP 6 — Audit emission (bootstrap scope).
-    // EmailVerified audit event emitted; correlation-id carried from bootstrap context.
+    if (consumed)
+    {
+        // First-time redemption fired.
+        // STEP 5 — Materialize the User-aggregate write inside the child scope (α-1 transition).
+        await using var childScope = scopeFactory.CreateAsyncScope();
+        childScope.ServiceProvider
+            .GetRequiredService<ITenantContextSeed>()
+            .Bind(valid.Payload.TenantId);
+
+        var userRepo = childScope.ServiceProvider.GetRequiredService<IUserAggregateRepository>();
+        await userRepo.MarkEmailVerifiedAsync(
+            valid.Payload.TenantId, valid.Payload.Email, ct);
+        // Child scope disposes here.
+
+        await auditEmitter.EmitVerifyEmailConsumedAsync(
+            bootstrapContext, valid.Payload.TenantId, ct);
+    }
+    else
+    {
+        // Already-consumed OR tenant-not-found path. Idempotent per H9 RATIFY.
+        await auditEmitter.EmitVerifyEmailRejectedAsync(
+            bootstrapContext, reason: "already_consumed_or_missing", ct);
+    }
+
+    // STEP 6 — Read-back from bootstrap-scope read-only DbContext for response body.
+    // (Read after the optional write; the consumed-or-not branch above is the auth boundary.)
+    var registration = await tenantRegistry.GetPendingByTokenTargetAsync(
+        valid.Payload.TenantId, ct);
+
+    if (registration is null || registration.AdminEmailNormalized is null)
+    {
+        // Tenant-gone-after-redemption edge; surface as invalid token (defensive).
+        return Results.Problem(
+            title: OnboardingDiscriminators.VerificationTokenInvalid, statusCode: 400);
+    }
 
     return Results.Ok(new VerifyEmailAcceptedResponse(
-        Email: tenantLookup.AdminEmailNormalized,
-        TenantSlug: tenantLookup.Slug,
-        TenantDisplayName: tenantLookup.DisplayName));
+        Email: registration.AdminEmailNormalized,
+        TenantSlug: registration.Slug,
+        TenantDisplayName: registration.DisplayName));
 }
 ```
 
-#### 4.2.3 ResendVerificationHandler — uniform-202
+**Critical invariants enforced (sec-eng C + D1 + D3 + H9 RATIFY):**
+
+- **One-shot redemption-state (sec-eng C).** `TryConsumeEmailVerificationAsync` is the atomic gate; replays beyond the consumption point fall through to the 200-idempotent shape. The H9 1h-TTL combined with the consumed-flag closes the replay-readable window.
+- **D1 — IOperationSigner verify surface.** Uses the canonical substrate verify shape (Engineer's PR 0 substrate API; no invented `TryVerifyVerificationToken` / `OperationSignerResult` types).
+- **D3 — IBootstrapTenantRegistry for read + atomic consume.** ITenantRegistry (tenant-bound) is NOT injected; the tenant materialization path uses `IUserAggregateRepository` from the child scope post-Bind. Bootstrap-scope can write to TenantRegistrations control-plane row (the one-shot flag); tenant-bound writes go through child scope.
+- **H9 RATIFY 200-idempotent.** Already-consumed token → 200 with the same response body shape; no `verification_token_already_used` discriminator (retired per Rev 2 + test-eng T2 9-discriminator floor).
+- **D5 audit.** All branches emit; system-tenant partition; redaction policy applied.
+- **No tenant_id leakage.** Response body carries only `Email + TenantSlug + TenantDisplayName` per §3.2 NEGATIVE-MATCH rows.
+
+#### 4.2.3 ResendVerificationHandler — uniform-202 + per-email rate-limit + D5 audit (Rev 2)
 
 ```csharp
 public static async Task<IResult> HandleAsync(
     [FromBody] ResendVerificationRequest request,
     IBootstrapContext bootstrapContext,
-    ITenantRegistry tenantRegistry,
+    IBootstrapTenantRegistry tenantRegistry,    // D3
     IEmailProvider email,
     IOperationSigner signer,
+    IPerEmailRateLimiter perEmailRateLimiter,   // §3.7 handler-tier per-entity-key partition
+    IOnboardingAuditEmitter auditEmitter,       // D5
     CancellationToken ct)
 {
     // ALWAYS returns 202; uniform-202 invariant.
     var emailNormalized = request.Email.Trim().ToLowerInvariant();
+    var emailBucketKey = ComputeEmailBucketKey(emailNormalized);   // SHA-256 first-16-bytes per .NET-arch G2
 
-    // (Per-email rate-limit key — separate from per-IP — applied at middleware level.)
+    await auditEmitter.EmitResendVerificationAttemptedAsync(
+        bootstrapContext, request.Email, ct);
 
-    var lookup = await tenantRegistry.GetByEmailAsync(emailNormalized, ct);
-    if (lookup is not null && !lookup.EmailVerified)
+    // Per-email rate-limit gate.
+    using var lease = await perEmailRateLimiter.AcquireAsync(emailBucketKey, permits: 1, ct);
+    if (!lease.IsAcquired)
+    {
+        // Silent drop — uniform-202 invariant means caller can't distinguish rate-limited from sent.
+        // Audit still emitted for fraud-forensics.
+        return Results.Accepted(value: new ResendVerificationResponse(Status: "queued"));
+    }
+
+    var lookup = await tenantRegistry.GetPendingByEmailAsync(emailNormalized, ct);
+    if (lookup is not null && lookup.EmailVerified == false)
     {
         // Quietly re-send verification email; do not surface lookup result.
-        _ = await SendVerificationEmailAsync(
+        _ = await SignupHandler.SendVerificationEmailAsync(
             email, signer, emailNormalized, lookup.TenantId, bootstrapContext, ct);
     }
 
     return Results.Accepted(value: new ResendVerificationResponse(Status: "queued"));
 }
-```
 
-#### 4.2.4 CheckAvailabilityHandler — uniform `available` boolean
-
-```csharp
-public static async Task<IResult> HandleAsync(
-    [FromBody] CheckAvailabilityRequest request,
-    ITenantRegistry tenantRegistry,
-    CancellationToken ct)
+private static string ComputeEmailBucketKey(string emailNormalized)
 {
-    // Shape validation first.
-    if (request.Field is not ("email" or "tenant_slug"))
-        return Results.Problem(title: "validation_failed", statusCode: 400);
-
-    if (string.IsNullOrWhiteSpace(request.Value) || request.Value.Length > 256)
-        return Results.Problem(title: "validation_failed", statusCode: 400);
-
-    var normalized = request.Value.Trim().ToLowerInvariant();
-
-    var available = request.Field switch
-    {
-        "email"       => await tenantRegistry.IsEmailAvailableAsync(normalized, ct),
-        "tenant_slug" => await tenantRegistry.IsSlugAvailableAsync(normalized, ct),
-        _              => false
-    };
-
-    return Results.Ok(new CheckAvailabilityResponse(Available: available));
+    var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(emailNormalized));
+    return Convert.ToHexString(bytes.AsSpan(0, 16));    // 32 hex chars per .NET-arch G2
 }
 ```
 
-#### 4.2.5 MockEmailProvider production-guard verification
+#### 4.2.4 (REMOVED per D4) — CheckAvailabilityHandler
 
-PR 1's deployment story is **Shape A — mocks-only** per ADR 0096 §"Step 4 W79 composition-root wiring." Two distinct test surfaces verify the guard:
+Per Admiral ruling D4 (2026-05-26T01:00Z), this handler is REMOVED. Anchor preserved for cross-reference stability; see §1.5 D4 + §3.4 (removed-note).
 
-- **Test M1 — Production-default fail.** `WebApplicationBuilder().Build()` with `AddSunfishVendorProvider<IEmailProvider, MockEmailProvider>()` + `ASPNETCORE_ENVIRONMENT=Production` + NO opt-out + NO `POSTMARK_API_KEY` env var → assert `IHost.StartAsync` throws `MockInProductionException` whose message names `IEmailProvider` AND `POSTMARK_API_KEY`. (Confirms ADR 0096 D1c silent-typo foot-gun closer.)
-- **Test M2 — Production-allow-with-opt-out.** Same fixture but with `SUNFISH_ALLOW_MOCK_PROVIDERS=true` → assert `IHost.StartAsync` succeeds; signup endpoint works against MockEmailProvider; email dispatched to in-memory store; no body leaks to console log.
+#### 4.2.5 MockEmailProvider production-guard verification (Rev 2 — M1-M12 + sec-eng H factory-registered mock detection)
 
-Tests live in `signal-bridge/Sunfish.Bridge.Tests/Onboarding/MockProviderGuardIntegrationTests.cs`.
+PR 1's deployment story is **Shape A — mocks-only** per ADR 0096 §"Step 4 W79 composition-root wiring." Rev 2 expands the production-guard test matrix from M1+M2 to **M1-M12** per test-eng T1 (canonical-form parsing variants + ASPNETCORE_ENVIRONMENT branches) + extends to factory-registered mock detection per sec-eng H (M3 + M4):
 
-#### 4.2.6 Acceptance criteria for PR 1
+| # | Env: mock-bound? | `SUNFISH_ALLOW_MOCK_PROVIDERS` | `POSTMARK_API_KEY` | `ASPNETCORE_ENVIRONMENT` | Registration shape | Expected | Closes |
+|---|---|---|---|---|---|---|---|
+| M1 | yes | (unset) | (unset) | Production | `AddSingleton<IEmailProvider, MockEmailProvider>()` | THROW (names IEmailProvider + POSTMARK_API_KEY) | D1c silent-typo foot-gun |
+| M2 | yes | `"true"` | (unset) | Production | type-bound | SUCCESS | D1b opt-out happy path |
+| M3 | yes | (unset) | (unset) | Production | **factory-registered: `AddSingleton<IEmailProvider>(sp => new MockEmailProvider(...))`** | THROW | **sec-eng H Threat 5** — guard inspects `ImplementationFactory` returns; closes ImplementationType-null escape |
+| M4 | yes | `"true"` | (unset) | Production | factory-registered | SUCCESS | sec-eng H factory + opt-out interaction |
+| M5 | yes | `"True"` | (unset) | Production | type-bound | SUCCESS | bool.TryParse canonical-form parsing |
+| M6 | yes | `"TRUE"` | (unset) | Production | type-bound | SUCCESS | bool.TryParse canonical-form parsing |
+| M7 | yes | `"false"` | (unset) | Production | type-bound | THROW | bool.TryParse canonical-form parsing fail-closed |
+| M8 | yes | `"1"` | (unset) | Production | type-bound | THROW (fail-closed) | non-parseable value fail-closed (ADR 0096 R2 sec-eng B1) |
+| M9 | yes | `"yes"` | (unset) | Production | type-bound | THROW (fail-closed) | non-parseable value fail-closed |
+| M10 | yes | (unset) | `"pm-token-xxxxx"` | Production | type-bound | SUCCESS | real-adapter-env-var presence path (no opt-out needed) |
+| M11 | yes | (unset) | `""` (empty string) | Production | type-bound | THROW | `!IsNullOrWhiteSpace` semantic — empty-string is absent |
+| M12 | yes | (unset) | `"   "` (whitespace) | Production | type-bound | THROW | `!IsNullOrWhiteSpace` semantic — whitespace is absent |
+| M13 | yes | (unset) | (unset) | Testing | type-bound | SUCCESS | Testing-env early-return per ADR 0096 D1c |
+| M14 | yes | (unset) | (unset) | Development | type-bound | SUCCESS | Development-env early-return |
 
-- [ ] SignupHandler body implements 6-step α-1 transition per ADR 0095 §"Handler Lifecycle."
-- [ ] `ITenantContextSeed.Bind()` called IMMEDIATELY before any post-tenant resolution inside the child scope.
+**Total: 14 production-guard tests** (originally specced as M1-M12 in test-eng T1; sec-eng H adds the factory-registered variants M3/M4; M13/M14 cover the ASPNETCORE_ENVIRONMENT early-return branches that close §9 risk-row "MockEmailProvider production-guard fires unexpectedly in CI").
+
+**Implementation note for sec-eng H Threat 5 closure (M3).** The guard must walk `IServiceCollection` for `ServiceDescriptor` entries whose `ImplementationFactory` is non-null + execute the factory on a probe `ServiceProvider` to inspect the returned runtime type for `IMockVendorProvider`. ADR 0096 Step 1 substrate (Engineer's Tier-1 B PR) is the canonical home for this walk; if Step 1 ships only the type-bound inspection, sec-eng SPOT-CHECK on Step 1 surfaces the gap + Engineer's Step 2 amendment extends. Decorator-pattern mock detection (sec-eng H sub-concern 2) is FORWARD-WATCHED (not blocking for W#79; promoted at next-substrate-touch).
+
+Tests live in `signal-bridge/Sunfish.Bridge.Tests/Onboarding/MockProviderGuardIntegrationTests.cs`. All tests use `EnvVarScope` IDisposable + `[Collection("EnvVarSerial")]` per §4.2.8 env-var isolation discipline.
+
+#### 4.2.6 Acceptance criteria for PR 1 (Rev 2)
+
+- [ ] SignupHandler body implements α-1 transition per ADR 0095 §"Handler Lifecycle" + Rev 2 constant-work discipline (sec-eng D) + H2 RATIFY always-202 (3-branch convergence: fresh / unverified-existing / verified-existing) + D5 audit emission.
+- [ ] `IPasswordHasher<UserEntity>` injected; NO static `PasswordHasher.Hash(...)` calls anywhere (sec-eng A + .NET-arch K1).
+- [ ] `passwordHasher.HashPassword(...)` runs UNCONDITIONALLY at STEP 2b regardless of email-branch (sec-eng D constant-work). Integration test asserts p50/p95 latency parity across 3 H2 branches (`+/- 25%` floor; CI flake-resilient bound).
+- [ ] `IOperationSigner.SignAsync<VerificationTokenPayload>(...)` per D1 — NO invented `SignVerificationToken` method.
+- [ ] `IBootstrapTenantRegistry` injected (NOT `ITenantRegistry`); per D3 split.
+- [ ] `ITenantContextSeed.Bind()` called IMMEDIATELY before any post-tenant resolution inside the child scope; one-shot semantics enforced (throws on second call); see §4.1.4 Bind() contract + §4.2.7 unit tests.
 - [ ] `await using` async-disposable child scope; outer scope continues for audit + email.
-- [ ] `SunfishBridgeDbContext` NEVER resolved in bootstrap scope; constructor guard verified (test asserts `InvalidOperationException` when resolved from bootstrap-branch DI scope).
-- [ ] Email-uniqueness check via separate read-only DbContext (W#79 disposition of ADR 0095 Q4 = option b; §5.4).
-- [ ] `ITenantRegistry.CreateAsync` first production callsite working; control-plane `TenantRegistrations` write succeeds; outside HasQueryFilter set.
-- [ ] VerifyEmailHandler validates Ed25519 token, looks up tenant by payload tenant_id, marks user verified inside child scope.
-- [ ] ResendVerificationHandler returns uniform-202 regardless of email-existence; re-sends only when tenant is unverified.
-- [ ] CheckAvailabilityHandler returns uniform `available` boolean; no reason-code leakage.
-- [ ] MockEmailProvider production-guard tests M1 + M2 passing per §4.2.5.
+- [ ] `SunfishBridgeDbContext` NEVER resolved in bootstrap scope; constructor guard verified per .NET-arch C1.z mechanism (test asserts `InvalidOperationException` when resolved from bootstrap-branch DI scope).
+- [ ] Email-uniqueness check via `SunfishBridgeReadOnlyDbContext` (W#79 disposition of ADR 0095 Q4 = option b; §6.1 Decision 8); explicitly minimal `OnModelCreating` (no HasQueryFilter inheritance).
+- [ ] `IBootstrapTenantRegistry.CreatePendingAsync` first production callsite working; control-plane `TenantRegistrations` write succeeds; outside HasQueryFilter set.
+- [ ] EF migration `AddOnboardingFieldsToTenantRegistration` applied; AdminEmailNormalized filtered-unique index in place; rollback test passes.
+- [ ] VerifyEmailHandler uses `IOperationVerifier.TryVerifyAsync<VerificationTokenPayload>` per D1; audience-mismatch check; `TryConsumeEmailVerificationAsync` atomic one-shot (sec-eng C); H9 200-idempotent on already-consumed.
+- [ ] ResendVerificationHandler returns uniform-202 regardless of email-existence; per-email rate-limit via SHA-256 first-16-bytes key (.NET-arch G2); D5 audit always emitted; re-sends only when tenant is unverified.
+- [ ] CheckAvailabilityHandler **REMOVED** per D4 — not in scope.
+- [ ] MockEmailProvider production-guard tests **M1-M14** passing per §4.2.5 (includes factory-registered M3/M4 per sec-eng H).
 - [ ] MockEmailProvider console-log discipline: emits To[]/Subject/EmailDispatchId/IdempotencyKey/MessageStream only — NEVER BodyHtml/BodyText (ADR 0096 Rev 2 Amendment #6).
 - [ ] InMemoryCaptchaVerifier carries `IMockVendorProvider` marker (consumed test).
-- [ ] Audit emission on signup-completion + email-verified — per ADR 0049 substrate; correlation-id flows from bootstrap context.
+- [ ] Audit emission on EVERY pre-tenant signup branch + verify-email outcome (D5); `tenant_id = SystemTenant.Id`; email full / IP SHA-256 hashed / UA truncated 200 chars / correlation_id plain; PasswordHash NEVER logged.
+- [ ] §4.2.7 `MutableTenantContextSeedTests` (6 unit tests) passing.
+- [ ] §4.2.8 env-var isolation discipline — all env-mutating tests use `EnvVarScope IDisposable` + `[Collection("EnvVarSerial")]`.
+- [ ] §4.2.6.PD ProblemDetails per-discriminator backend tests (9 tests; one per discriminator) passing — verifies `body.title` matches the corresponding `OnboardingDiscriminators` constant; `body.error` field is NEVER emitted.
 - [ ] PR description includes acceptance-criteria checklist + §A0 cited-symbol audit.
 - [ ] Pre-flight commit-message check (Amendment K) clean.
+
+#### 4.2.6.PD ProblemDetails backend per-discriminator tests (test-eng T2 fold)
+
+Lives in `signal-bridge/Sunfish.Bridge.Tests/Onboarding/ProblemDetailsDiscriminatorTests.cs`. 9 backend tests, one per discriminator in §3.5 post-Rev-2:
+
+| # | Test | Discriminator | Closes |
+|---|---|---|---|
+| PD1 | `signup payload missing email -> 400 title='validation_failed'` | `validation_failed` | T2 + Amendment J |
+| PD2 | `signup with reserved slug -> 400 title='tenant_slug_reserved'` | `tenant_slug_reserved` | T2 + Amendment J |
+| PD3 | `signup with taken slug -> 400 title='tenant_slug_taken'` | `tenant_slug_taken` | T2 + Amendment J |
+| PD4 | `signup with invalid-shape slug -> 400 title='tenant_slug_invalid_shape'` | `tenant_slug_invalid_shape` | T2 + Amendment J |
+| PD5 | `signup with failed CAPTCHA -> 400 title='captcha_failed'` | `captcha_failed` | T2 + Amendment J |
+| PD6 | `verify-email with malformed token -> 400 title='verification_token_invalid'` | `verification_token_invalid` | T2 + Amendment J |
+| PD7 | `verify-email with expired token -> 400 title='verification_token_expired'` | `verification_token_expired` | T2 + Amendment J |
+| PD8 | `signup at 6th request in 60s -> 429 title='rate_limited' + Retry-After header` | `rate_limited` | T2 + §3.7 |
+| PD9 | `signup with missing Origin -> 403 title='origin_invalid'` | `origin_invalid` | T2 + §3.6 |
+
+Each test:
+- Asserts the response body's `title` field equals the canonical `OnboardingDiscriminators.<Name>` constant (NOT a string literal — proves the const-export is the single source of truth).
+- Asserts `body.error` field is NOT present (proves the fleet `title`-not-`error` convention per Amendment J).
+- For PD8: asserts `Retry-After` header is present with parseable seconds value.
+
+#### 4.2.7 `ITenantContextSeed` substrate-primitive unit tests (test-eng T3 fold)
+
+Lives in `shipyard/packages/foundation-authorization/tests/MutableTenantContextSeedTests.cs`. **6 unit tests** pinning the substrate primitive semantics introduced at §4.1.4:
+
+| # | Test | Closes |
+|---|---|---|
+| T3.1 | `Bind once + read succeeds` (seed.Bind(tenantId); seededContext.TenantId == tenantId) | Happy-path semantics |
+| T3.2 | `Read before bind throws InvalidOperationException with message naming "not bound"` | Pre-Bind resolution invariant; prevents Guid.Empty HasQueryFilter foot-gun |
+| T3.3 | `Bind twice throws InvalidOperationException with message naming "already seeded"` | One-shot bind semantics; prevents silent tenant-mutation |
+| T3.4 | `Concurrent Bind from two threads: one wins (Interlocked.CompareExchange), the other throws` | Thread-safety semantics; prevents silent last-write-wins races |
+| T3.5 | `SeededTenantContext.TenantId returns the bound Guid after Bind via Interlocked-protected read` | Volatile.Read invariant |
+| T3.6 | `SeededTenantContext.TenantId accessed in a scope where seed was never bound throws via the seed-holder's pre-Bind invariant` | Seed-holder propagates error to facade adapter |
+
+These tests ship in PR 0 (substrate primitives ship in PR 0 per the directive); handler integration tests in PR 1 are the integration-tier complement.
+
+#### 4.2.8 Env-var test isolation discipline (test-eng T5 + ADR 0096 .NET-arch A5)
+
+Tests in `MockProviderGuardIntegrationTests.cs` and any other test class that mutates `Environment.SetEnvironmentVariable` MUST satisfy ONE of:
+
+1. **Preferred: `IEnvironment` abstraction.** Production code reads via `IEnvironment.GetVariable(name)`; tests inject a mock `IEnvironment` with per-test state. No real `Environment` mutation; no isolation problem. (If ADR 0096 substrate ships `IEnvironment`, W#79 consumes; if not, W#79 falls back to option 2 — Engineer's PR 1 verifies.)
+
+2. **Acceptable: `IDisposable` restoration + xUnit `[Collection]` discipline.**
+   - Test class declares `[Collection("EnvVarSerial")]` to opt out of parallel execution.
+   - Test bodies use `EnvVarScope : IDisposable` helper (shipped in `Sunfish.Bridge.Tests/Onboarding/EnvVarScope.cs`) that captures original value + restores on Dispose:
+     ```csharp
+     using var _ = new EnvVarScope("ASPNETCORE_ENVIRONMENT", "Production");
+     using var __ = new EnvVarScope("SUNFISH_ALLOW_MOCK_PROVIDERS", "true");
+     // ... test body ...
+     // Dispose restores original values in reverse order.
+     ```
+   - Test asserts post-test that env vars are restored to baseline (defensive integration-tier guard).
+
+**PROHIBITED in W#79 tests:**
+- Naked `Environment.SetEnvironmentVariable(...)` without IDisposable restoration.
+- Setting env vars in `[Fact]`-body code without `[Collection]` serialization.
+- Cross-test env-var dependencies (each test must declare its own EnvVarScope; never rely on a prior test's env-var state).
 
 ### 4.3 PR 2 — Frontend rebind (sunfish)
 
@@ -1152,7 +1405,8 @@ Tests live in `signal-bridge/Sunfish.Bridge.Tests/Onboarding/MockProviderGuardIn
 | `sunfish/apps/web/src/pages/auth/SignupPage.tsx` | new or rewrite | Multi-step form: email + password + tenant_slug + tenant_display_name + captcha widget; submit → `POST /api/v1/auth/signup` |
 | `sunfish/apps/web/src/pages/auth/VerifyEmailPage.tsx` | new or rewrite | Receives `?token=<verification_token>` query param; submits → `POST /api/v1/auth/verify-email` |
 | `sunfish/apps/web/src/pages/auth/VerifyEmailPendingPage.tsx` | new | Static "check your inbox" page; reached post-signup-accept; "Resend" button → `POST /api/v1/auth/resend-verification` |
-| `sunfish/apps/web/src/api/onboarding.ts` | new | TanStack mutation hooks: `useSignup`, `useVerifyEmail`, `useResendVerification`, `useCheckAvailability`; typed-error contracts per §3.5 |
+| `sunfish/apps/web/src/api/onboarding.ts` | new | TanStack mutation hooks: `useSignup`, `useVerifyEmail`, `useResendVerification`; typed-error contracts per §3.5. (Rev 2: `useCheckAvailability` REMOVED per D4.) |
+| `sunfish/apps/web/src/api/onboarding-discriminators.ts` | new | Const-export single-source-of-truth for the 9 discriminator string literals per §3.5 + test-eng T2 + .NET-arch F2; consumed by typed-error class definitions + RTL per-discriminator tests + MSW handlers + MSW-vs-Bridge parity test. |
 | `sunfish/apps/web/src/api/onboarding.types.ts` | new | TypeScript interfaces matching §3.1-§3.4 wire shapes (POSITIVE matches only; negative-match fields are NOT declared per Amendment I discipline) |
 | `sunfish/apps/web/src/components/CaptchaWidget.tsx` | new | Wraps Turnstile widget; in dev/mock mode renders a `mock-pass` token + checkbox UX |
 | `sunfish/apps/web/src/pages/auth/__tests__/SignupPage.test.tsx` | new | ≥10 RTL tests per §4.3.4 |
@@ -1214,7 +1468,21 @@ export function useSignup() {
 }
 ```
 
-Same shape for `useVerifyEmail` + `useResendVerification` + `useCheckAvailability` per §3.2/3.3/3.4 shapes.
+Same shape for `useVerifyEmail` + `useResendVerification` per §3.2/3.3 shapes. (`useCheckAvailability` REMOVED per Rev 2 D4.) Typed-error classes consume the const-export from `onboarding-discriminators.ts` to pin discriminator string literals to a single source of truth per .NET-arch F2 + test-eng T2.
+
+**Post-Rev-2 typed-error class roster (8 classes):**
+- `ValidationFailedError` (`validation_failed`)
+- `TenantSlugTakenError` (`tenant_slug_taken`)
+- `TenantSlugReservedError` (`tenant_slug_reserved`)
+- `TenantSlugInvalidShapeError` (`tenant_slug_invalid_shape`)
+- `CaptchaFailedError` (`captcha_failed`)
+- `RateLimitedError` (`rate_limited`, carries retryAfterSeconds)
+- `VerificationTokenInvalidError` (`verification_token_invalid`)
+- `VerificationTokenExpiredError` (`verification_token_expired`)
+
+Plus `OriginInvalidError` rendered as transport-failure banner (403 non-user-correctable; not in the typed-error switch since the user cannot resolve client-side).
+
+**Rev 2 retirement:** `EmailAlreadyRegisteredError` REMOVED (H2 RATIFY); no email-already-registered branch in `useSignup` error switch.
 
 #### 4.3.3 Cycle-1 DRAFT posture (per §3.9 cascade plan Amendment L)
 
@@ -1327,7 +1595,7 @@ When all 4 PRs land, the cumulative cohort coverage matrix:
 | `SunfishBridgeDbContext resolved in bootstrap scope throws InvalidOperationException` | PR 1 | ADR 0095 Rev 2 Amendment 4 (Gap B) | DbContext guard |
 | `VerifyEmailHandler validates token + marks user verified inside child scope` | PR 1 | ADR 0095 lifecycle | handler |
 | `ResendVerificationHandler returns uniform-202 regardless of email existence` | PR 1 | enumeration-leak defense | handler |
-| `CheckAvailabilityHandler returns uniform boolean; no reason-code leakage` | PR 1 | enumeration-leak defense | handler |
+| ~~CheckAvailabilityHandler returns uniform boolean~~ | (REMOVED per D4) | (n/a — endpoint dropped) | (n/a) |
 | `MockEmailProvider production-guard throws when env=Production + no opt-out` | PR 1 | ADR 0096 D1c | IHostedService |
 | `MockEmailProvider production-guard succeeds when SUNFISH_ALLOW_MOCK_PROVIDERS=true` | PR 1 | ADR 0096 D1c opt-out | IHostedService |
 | `MockEmailProvider console log captures To+Subject+EmailDispatchId; NEVER BodyHtml/BodyText` | PR 1 | ADR 0096 Rev 2 Amendment #6 | provider |
@@ -1360,19 +1628,26 @@ Per ADR 0093 Rev 4 §"Adversarial Brief — template" + the 5-8 (or 12 for subst
 - **Failure mode:** Cross-tenant data leak via a non-onboarding endpoint accidentally routed through the bootstrap branch.
 - **Mitigation in this hand-off:** `MapBootstrapEndpoints` chains only `MapOnboardingEndpoints` (W#79) + `MapInvitationsEndpoints` (W#82); the `UseWhen` predicate matches narrow path prefixes, not the whole `/api/v1/`. Step 3 Roslyn analyzer enforces that any handler registered via `MapBootstrapEndpoints` does NOT inject post-tenant interfaces. Sec-eng SPOT-CHECK on PR 0 verifies the prefix list.
 
-#### Decision 2 — `email_already_registered` shape (verified vs unverified Tenant)
+#### Decision 2 — `email_already_registered` shape RESOLVED per H2 RATIFY (always-202)
 
-- **Decision summary:** signup against a verified-Tenant email returns 400 `email_already_registered`; signup against an unverified-Tenant email returns 202 `queued` (quietly re-sends verification). Distinct response shapes are a tenant-existence leak.
-- **Worst-case interpretation:** An attacker probes signup with arbitrary emails. 400 `email_already_registered` reveals verified-tenant existence; 202 `queued` reveals nothing about whether the email is unknown or unverified-registered. The asymmetric response leaks information.
-- **Failure mode:** Email-enumeration → targeted phishing of confirmed Sunfish customers.
-- **Mitigation in this hand-off:** Halt H2 surfaces this for Admiral disposition. Mitigation options: (a) always-202 (drops the `email_already_registered` discriminator entirely — frontend can't distinguish; UX regresses for legitimate "I forgot I had an account" flows); (b) always-202 with an out-of-band notification email "someone tried to sign up with your address"; (c) rate-limit-aggressive (per-email per-day) to make enumeration economically expensive. ONR recommends (b) + (c); Admiral disposition needed.
+- **Decision summary (Rev 2):** RESOLVED per Admiral ruling H2 RATIFY (b+c — always-202 + OOB notification + per-email rate-limit). Signup against ANY email-state (fresh / unverified-existing / verified-existing) returns 202 with byte-for-byte identical envelope. Verified-existing path additionally dispatches an OOB "someone tried to sign up with your address" notification email; per-email per-day dedup on the OOB dispatch prevents amplification.
+- **Worst-case interpretation:** Previously: asymmetric response leaks verified-tenant existence. Post-Rev-2: caller cannot distinguish the three email-states by response shape; constant-work discipline (sec-eng D) closes the timing-distinguisher; OOB notification gives the legitimate-account-owner a fraud-detection signal.
+- **Failure mode (Rev 2):** Closed at substrate-tier. Frontend has NO email-state-aware UX branching; signup always navigates to "check your inbox" page.
+- **Mitigation in this hand-off (Rev 2):** Already-202 enforced at handler tier; OOB notification per-email-per-day dedup (`IdempotencyKey: $"oob-existing-{tenantId}-{date:yyyy-MM-dd}"`); constant-work passwordHasher.HashPassword(...) per-request closes timing channel; D5 audit emits to SUNFISH_SYSTEM_TENANT partition for fraud-pattern forensics (high-rate enumeration-campaign signal). Frontend retires `EmailAlreadyRegisteredError` typed-error per §3.5.
 
-#### Decision 3 — Verification token re-use semantics
+#### Decision 3 — Verification token replay window RESOLVED per H9 RATIFY + sec-eng C one-shot
 
-- **Decision summary:** verify-email handler treats already-verified tenant as success (200 with same response shape as fresh-verify). Idempotency-friendly. (Halt H9.)
-- **Worst-case interpretation:** Token-replay window: a captured verification URL (stolen email log; victim's browser history) replays successfully after the user has verified. Attacker hits the verify endpoint with the captured token and gets the tenant_slug + display_name back (no auth token, but a tenant-existence and naming confirmation).
-- **Failure mode:** Information disclosure (tenant_slug + display_name to an attacker who captured a verification URL).
-- **Mitigation in this hand-off:** Token TTL is 24 hours per §4.2.1 (`SignVerificationToken` `ExpiresAt`). Verification token is one-shot in terms of state-change but multi-shot for read-back. Defense-in-depth: token is delivered exclusively via verified email + HTTPS; if email is compromised, the threat model already includes account takeover. ALTERNATIVE: 410 Gone on already-verified to deny replay-read; UX regresses for legitimate "I already verified" cases. Halt H9 surfaces for Admiral disposition.
+- **Decision summary (Rev 2):** RESOLVED per Admiral ruling H9 RATIFY (a + d — 200-idempotent + TTL reduced from 24h to 1h) + sec-eng C blocking finding (one-shot consumption via server-stored `TenantRegistration.EmailVerified` flag, atomically transitioned inside the verify-email handler).
+- **Worst-case interpretation (Rev 1):** captured token replays successfully after legit user verified; attacker reads tenant_slug + display_name back indefinitely until 24h TTL.
+- **Worst-case interpretation (Rev 2):** captured token can be replayed ONCE within 1h TTL; on first valid verify, the handler atomically marks `EmailVerified=true`; subsequent replays land on the consumed-path 200-idempotent shape but the underlying state has no further mutation. Attacker who steals a fresh token gets at most one verify-success in <1h window; legitimate user's subsequent visits land on idempotent 200 (no UX regression).
+- **Failure mode:** Closed at substrate-tier. Replay-readable window narrowed from 24h to 1h TTL + bounded by atomic consumption flag.
+- **Mitigation in this hand-off (Rev 2):**
+  - Token TTL reduced 24h → 1h per H9.
+  - `TenantRegistration.EmailVerified: bool` field added per D2 schema extension.
+  - `IBootstrapTenantRegistry.TryConsumeEmailVerificationAsync` is the atomic gate: reads the row, asserts `EmailVerified IS false`, atomically updates to `true`, returns boolean (true on consumed; false on already-consumed → falls through to 200-idempotent path).
+  - Already-consumed responses are byte-for-byte identical to first-redemption responses (no leakage of "was already redeemed" via response shape).
+  - Audit emission (D5) fires on every redemption attempt regardless of outcome — fraud-forensics signal for replay-attempt detection.
+  - HTTPS + verified-email delivery channel for original token (existing defense-in-depth; no change).
 
 #### Decision 4 — `MockEmailProvider` production-guard semantics
 
@@ -1430,6 +1705,8 @@ Per ADR 0093 Rev 4 §"Adversarial Brief" + the pattern-emergence cadence (V11 #1
 - **Threat 2:** Mock concrete log leaks secret. Closed by ADR 0096 Rev 2 Amendment #6 substrate-tier log discipline (no `BodyHtml`/`BodyText` for email; analogous floors for other vendors).
 - **Threat 3:** Mock dev-inbox UI shipped in production. Closed by 3-prong gate (mock-provider-registered AND non-Production AND dev-host allow-list).
 - **Threat 4:** Future Tier-2 contract added without marker constraint. Closed by `where TConcrete : class, TContract, IMockVendorProvider` compile-time constraint on `AddSunfishVendorProvider`.
+- **Threat 5 (Rev 2 — sec-eng H):** Mock registered via implementation-factory (`services.AddSingleton<IEmailProvider>(sp => new MockEmailProvider(...))`) escapes ServiceDescriptor.ImplementationType inspection (ImplementationType is null on factory-registered entries). Closed by `MockProviderProductionGuardAssertion` startup body inspecting `ServiceDescriptor.ImplementationFactory` returns — for each candidate IServiceCollection entry with non-null ImplementationFactory, resolve a probe instance from each candidate + check runtime type for the `IMockVendorProvider` marker. Test coverage: §4.2.5 M3 + M4 (factory-registered mock detection; production-default-fail + opt-out-success paths).
+- **Threat 6 (Rev 2; forward-watch):** Decorator-pattern mock (`services.Decorate<IEmailProvider, LoggingMockEmailProvider>()` where `LoggingMockEmailProvider` wraps a real provider but doesn't carry the marker). The decorator escapes the runtime-type check. Forward-watched; promoted at next substrate-touch (Engineer's Step 1 or Step 2 amendment if decorator-walking is shipped).
 
 **Promotion to STANDING:** when W#79 (instance 1) + Engineer Tier-2 D Postmark (instance 2) + Engineer Tier-2 E Turnstile (instance 3) all ship without regression and a 4th instance (likely future `IBlobStorageProvider` or `IExternalIdpProvider`) lands cleanly using the same pattern.
 
@@ -1634,22 +1911,24 @@ The following decisions are surfaced for Admiral disposition BEFORE Engineer ope
 
 ---
 
-## 11. Decisions surfaced (route to Admiral via inbox)
+## 11. Decisions surfaced (route to Admiral via inbox) — RESOLVED in Rev 2
 
-Per `feedback_onr_questions_via_inbox`:
+All halt conditions H1-H9 RESOLVED per `admiral-ruling-2026-05-26T0035Z-w79-stage-05-9-halts-resolved.md` (Admiral pre-Rev-2 ruling) AND `admiral-directive-2026-05-26T0100Z-onr-w79-rev-2-fold-with-5-architectural-rulings.md` (Admiral Rev 2 architectural rulings D1-D5).
 
-1. **H1** — MockEmailProvider `/dev/inbox` scope (W#79 inspection endpoint only; UI deferred to W#80; ONR recommends option c).
-2. **H2** — `email_already_registered` discriminator (always-202 + OOB notification + per-email rate-limit; ONR recommends b+c).
-3. **H3** — Verify-email idempotency-key (optional; token carries idempotency-semantics; ONR recommends b).
-4. **H4** — Onboarding cluster home + path prefix (new project + `/api/v1/auth/*`; ONR recommends a).
-5. **H5** — PR 0/PR 1 split (two PRs per readability; ONR recommends two; Engineer discretion).
-6. **H6** — `ITenantContextSeed` package home (`foundation-authorization`; ONR recommends a per ADR 0095 .NET-arch A2 follow-on).
-7. **H7** — `EmailDispatchOptions.FromAddress` substrate-tier or hard-code (substrate-tier; ONR recommends a; ~30 LOC).
-8. **H8** — `PasswordHasher` substrate (reuse `IPasswordHasher<TUser>`; future ADR 0097 hardens to Argon2id; ONR recommends b; substrate-shaping — Admiral may want dedicated ADR).
-9. **H9** — Verify-email already-redeemed (200 idempotent + reduce TTL to 1h; ONR recommends a+d).
-10. **H10** (forward-watch only, no halt) — Turnstile site-key delivery deferred to W#80 per ADR 0096 Halt 7.
+| Halt | Disposition | Folded at |
+|---|---|---|
+| H1 — Mock /dev/inbox scope | option (c) test-only inspection endpoint; UI deferred to W#80 | §10 + W#80 hand-off |
+| H2 — `email_already_registered` shape | RATIFY (b+c) — always-202 + OOB + per-email rate-limit | §3.5 + §4.2.1 + §6.1 Decision 2 |
+| H3 — Verify-email idempotency-key | option (b) optional; token carries idempotency-semantics | §3.2 |
+| H4 — Onboarding cluster home + path | RATIFY-ONR (a) new project + `/api/v1/auth/*` | §4.1.1 + §4.1.2 |
+| H5 — PR 0/PR 1 split | RATIFY-ONR two PRs; Engineer discretion override | §4.1 + §4.2 |
+| H6 — ITenantContextSeed package home | RATIFY-ONR (a) foundation-authorization | §4.1.4 + §4.1.1 |
+| H7 — EmailDispatchOptions.FromAddress | option (a) substrate-tier ~30 LOC | §4.2.1 (handler hard-codes for now; substrate option pending) |
+| H8 — PasswordHasher substrate | RATIFY (b) IPasswordHasher<TUser> + future ADR 0097 Argon2id | §4.2.1 + .NET-arch K1/K2 fold |
+| H9 — Verify-email already-redeemed | RATIFY (a+d) 200-idempotent + TTL 1h + sec-eng C one-shot | §4.2.2 + §6.1 Decision 3 |
+| H10 (forward-watch only) | Turnstile site-key delivery deferred to W#80 | (W#80 hand-off) |
 
-ONR recommends Admiral file a single ruling-beacon resolving H1–H9 in one pass before Engineer opens PR 0; this avoids 9 separate beacon round-trips.
+**Rev 2 architectural-ruling additions** (D1-D5) absorbed; see §1.5 + per-amendment fold. No new halt conditions opened in Rev 2.
 
 ---
 
@@ -1693,4 +1972,5 @@ After PR open + status-beacon:
 
 ONR will pick up the Q2/Q6 specs if W#79 is blocked on halt resolution or cleared queue; substrate-PR retro is tertiary slack-window work.
 
-— ONR, 2026-05-25T22:50Z
+— ONR, 2026-05-25T22:50Z (Rev 1)
+— ONR, 2026-05-26T01:30Z (Rev 2 fold of 3-council triple-AMBER verdicts + 5 Admiral architectural rulings)
