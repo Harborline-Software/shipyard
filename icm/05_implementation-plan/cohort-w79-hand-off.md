@@ -3,8 +3,21 @@
 **Authored by:** ONR (post-ADR-0095/0096-Accepted dispatch)
 **Requester:** Admiral (per `admiral-directive-2026-05-25T2230Z-onr-w79-stage-05-handoff-authoring.md`)
 **Authored at:** 2026-05-25T22:50Z
+**Rev 2 authored at:** 2026-05-26T01:30Z (folds 3-council triple-AMBER Stage-05 verdicts + 5 Admiral architectural rulings per `admiral-directive-2026-05-26T0100Z-onr-w79-rev-2-fold-with-5-architectural-rulings.md`)
 **Workstream:** W#79 — onboarding sub-cohort 1 (substrate consumption + signup/verify-email Bridge + frontend rebind)
-**Status:** Stage-05 hand-off; Stage-06 build gated on (a) Engineer ADR 0095 Step 2 PR MERGED (`MapBootstrapEndpoints` extension + bootstrap pipeline branch); (b) Engineer ADR 0096 Step 1 PR MERGED (Tier-2 vendor substrate); (c) Stage-05 dual-council verdicts on this hand-off (sec-eng + .NET-arch + test-eng per ADR 0093 Rev 4 trigger matrix).
+**Status:** Stage-05 hand-off Rev 2 — pending sec-eng + .NET-arch + test-eng re-attest; Stage-06 build gated on (a) Engineer ADR 0095 Step 2 PR MERGED (`MapBootstrapEndpoints` extension + bootstrap pipeline branch); (b) Engineer ADR 0096 Step 1 PR MERGED (Tier-2 vendor substrate); (c) Stage-05 triple-council Rev 2 verdicts GREEN.
+
+## Rev 2 — what changed vs Rev 1
+
+Rev 1 returned triple-AMBER on 2026-05-26T00:25Z/00:40Z/00:50Z. Rev 2 absorbs 5 Admiral architectural rulings + 19 substantive amendments + ~10 minor nits. See `admiral-directive-2026-05-26T0100Z-onr-w79-rev-2-fold-with-5-architectural-rulings.md` for the canonical fold map. Summary:
+
+- **D1** — `IOperationSigner` API: spec realigned to existing `SignAsync<VerificationTokenPayload>(...)` surface (no invented `SignVerificationToken` / `TryVerifyVerificationToken` methods).
+- **D2** — `TenantRegistration` schema extended with `AdminEmailNormalized` / `EmailVerified` / `PasswordHash` + EF migration scoped to PR 0; `IUserAggregateRepository` package home = `Sunfish.Bridge.Data` (D2.a).
+- **D3** — `ITenantRegistry` split into `IBootstrapTenantRegistry` (bootstrap-scope-resolvable; read-only DbContext) + `ITenantRegistry` (tenant-bound; full DbContext) — closes the transitive bootstrap-scope contradiction.
+- **D4** — `/api/v1/auth/check-availability` endpoint REMOVED (enumeration-defense alignment with H2 always-202); endpoint count 4 → 3 throughout the spec.
+- **D5** — Pre-tenant audit emission lands in ADR 0049 substrate with `tenant_id = SUNFISH_SYSTEM_TENANT` sentinel (D5.a covers Engineer adding sentinel + partition routing in PR 0 if ADR 0049 doesn't yet support it).
+
+Plus: sec-eng A (PasswordHasher interface) + C (replay-window via redemption-state) + D (constant-time sham-hash on existing-email path) + H (M3/M4 production-guard factory-registered mock detection) + .NET-arch B1/B2/C1/D1/F1/K1 + ~10 minor nits + test-eng T1-T6 coverage expansion (production-guard M1-M12 + 10 ProblemDetails per-discriminator + ITenantContextSeed 6 unit tests + selector-strategy floor + env-var isolation discipline + pair-merge cascade per-step test gating).
 
 ---
 
@@ -18,7 +31,7 @@ W#79 is the first cohort that consumes the two substrate ADRs Accepted 2026-05-2
 W#79 sub-cohort 1 (per onboarding-ladder ruling Decision 9; W79-W83 allocated; this hand-off covers W#79 only) wires the public signup flow against both substrates: signup + verify-email Bridge endpoints (PR 0); handler-side IBootstrapContext + IEmailProvider + ICaptchaVerifier consumption (PR 1); SignupPage + VerifyEmailPage frontend rebind from mock to real Bridge (PR 2); end-to-end + contract tests (PR 3). Sub-cohort 2 (W#80) covers Surfaces A+B (full signup + verification copy + email templating + i18n + welcome-flow UX polish); sub-cohort 3 (W#81) covers Surface C (first-property wizard); sub-cohort 4 (W#82) covers Surface D (invitations); sub-cohort 5 (W#83) is polish. W#79 is the substrate-consumption layer that unblocks all four downstream sub-cohorts.
 
 **Scope-in:**
-- 4 new Bridge endpoint routes on the bootstrap pipeline branch (`POST /api/v1/auth/signup`, `POST /api/v1/auth/verify-email`, `POST /api/v1/auth/resend-verification`, `POST /api/v1/auth/check-availability` — note ADR 0095 §Pipeline routing names `/api/signup/*`; W#79 uses `/api/v1/auth/*` per fleet convention for versioned auth APIs; halt for Admiral if path-prefix choice needs reconciliation).
+- **3 new Bridge endpoint routes** on the bootstrap pipeline branch (`POST /api/v1/auth/signup`, `POST /api/v1/auth/verify-email`, `POST /api/v1/auth/resend-verification`). W#79 uses `/api/v1/auth/*` per fleet convention for versioned auth APIs. **`POST /api/v1/auth/check-availability` REMOVED per Admiral ruling D4 (2026-05-26T01:00Z)** — its existence as a yes/no endpoint contradicts the H2 always-202 enumeration-defense. UX rationale for inline email-availability is weak under H2 (the user finds out via the OOB email, not at form-submit); slug-uniqueness is enforced at submit time via the canonical signup 400 `tenant_slug_taken` discriminator. If a future workstream wants a "real-time email check" UX with proper threat-model accommodation, route via separate workstream + new ADR (likely Tier-2 substrate involvement for the enumeration-resistant primitive).
 - Wire SignupHandler + VerifyEmailHandler in signal-bridge (or a new `signal-bridge/Sunfish.Bridge.Onboarding/` host module per Decision 7 cluster naming — halt: see Halt H4).
 - α-1 child-`IServiceScope` transition with `ITenantContextSeed` per ADR 0095 §"Handler Lifecycle" step 5.
 - W#79 ships **Shape A — mocks-only** per ADR 0096 §"Step 4 W79 composition-root wiring" until Engineer ships Step 2 (Postmark) + Step 3 (Turnstile) adapter PRs. Production runtime requires `SUNFISH_ALLOW_MOCK_PROVIDERS=true` until real adapters land.
@@ -43,6 +56,114 @@ W#79 sub-cohort 1 (per onboarding-ladder ruling Decision 9; W79-W83 allocated; t
 - `pattern-onboarding-rate-limit` — first-instance CANDIDATE; non-permissive-default rate limit (Rev 2 Amendment 7 minimum-floors).
 
 Stage-05 adversarial-review framework specs for each first-instance pattern are in §6 below.
+
+---
+
+## 1.5 Rev 2 — Admiral architectural rulings (load-bearing constraints)
+
+Per `admiral-directive-2026-05-26T0100Z-onr-w79-rev-2-fold-with-5-architectural-rulings.md`, Admiral ruled 5 architectural decisions that constrain Rev 2 fold. These are summarized here for reviewer convenience; the canonical text is in the directive.
+
+### D1 — `IOperationSigner` API surface (sec-eng B)
+
+**Rule:** Rev 2 uses the existing `SignAsync<T>` surface on `IOperationSigner` (verified at `shipyard/packages/foundation/Crypto/IOperationSigner.cs` lines 1-24):
+
+```csharp
+public interface IOperationSigner
+{
+    PrincipalId IssuerId { get; }
+    ValueTask<SignedOperation<T>> SignAsync<T>(
+        T payload, DateTimeOffset issuedAt, Guid nonce, CancellationToken ct = default);
+}
+```
+
+W#79 defines a `VerificationTokenPayload` record and invokes `signer.SignAsync<VerificationTokenPayload>(payload, issuedAt, nonce, ct)`. The returned `SignedOperation<VerificationTokenPayload>` envelope is canonical-JSON-serialized + Base64Url-encoded into the URL token.
+
+Verification is the inverse: the URL token is Base64Url-decoded + canonical-JSON-deserialized into a `SignedOperation<VerificationTokenPayload>`; verification uses the canonical verify shape associated with `IOperationSigner` substrate (Engineer's PR 1 may either reuse an existing `IOperationVerifier` substrate primitive OR ship a minimal companion verify-method as substrate-touch in PR 0). **No new methods invented on `IOperationSigner`.** If a more specialized signer surface is genuinely needed later, route via a new substrate ADR (post-MVP).
+
+### D2 — `TenantRegistration` schema extension (sec-eng E)
+
+**Rule:** Extend the existing `TenantRegistration` entity in `Sunfish.Bridge.Data/Entities/TenantRegistration.cs` with three new fields. EF Core migration scope = W#79 PR 0:
+
+| Field | Type | Why |
+|---|---|---|
+| `AdminEmailNormalized` | `string` (indexed, unique-when-not-null) | Queryable for uniqueness from bootstrap scope. Lowercased canonical form. Control-plane field. Existing query path used `TenantRegistrations.Slug`; signup adds an email-uniqueness gate. |
+| `EmailVerified` | `bool` (default `false`) | One-shot redemption flag (per sec-eng C; closes replay-window). On `VerifyEmail` first-redemption, atomically updates `EmailVerified=true` inside the EFCore transaction. |
+| `PasswordHash` | `string` (nullable; non-null after verify-email completes) | Stored on TenantRegistration row at signup time. **Rationale:** TenantRegistration is the control-plane aggregate; the admin's password belongs at admin-registration tier, not at data-plane User-aggregate tier. The first-tenant-admin's password lives here; future invited users' passwords live on the User aggregate. |
+
+EF migration named `AddOnboardingFieldsToTenantRegistration` ships in PR 0 alongside the schema edit. **`CreateAsync` signature changes** (4-param command shape vs 3-param today); see §4.2.1 + Decision 9 below.
+
+**D2.a sub-ruling — `IUserAggregateRepository` package home.** The `IUserAggregateRepository` referenced by the child-scope write path (originally inferred to live anywhere) is RULED to live in `Sunfish.Bridge.Data` (next to TenantRegistration entity). If substrate-locality concerns emerge in Rev 3 (e.g., the User aggregate becomes blocks-shared), move at that point — for W#79 PR 0/PR 1 it lives in `Sunfish.Bridge.Data`. Add to §4.1.1 PR 0 files-touched.
+
+### D3 — `ITenantRegistry` bootstrap-scope split (.NET-arch L)
+
+**Rule:** Split into two interfaces:
+
+- **`IBootstrapTenantRegistry`** (new; bootstrap-scope-resolvable) — backed by `SunfishBridgeReadOnlyDbContext` (per Decision 8 disposition). Surface:
+  ```csharp
+  public interface IBootstrapTenantRegistry
+  {
+      Task<bool> ExistsByEmailAsync(string emailNormalized, CancellationToken ct);
+      Task<bool> ExistsBySlugAsync(string slugNormalized, CancellationToken ct);
+      Task<UniquenessCheck> CheckUniquenessAsync(
+          string emailNormalized, string slugNormalized, CancellationToken ct);
+      Task<TenantRegistration?> GetPendingByEmailAsync(string emailNormalized, CancellationToken ct);
+      Task<TenantRegistration?> GetPendingByTokenTargetAsync(Guid tenantId, CancellationToken ct);
+      Task<TenantRegistration> CreatePendingAsync(CreatePendingTenantCommand command, CancellationToken ct);
+      Task<bool> TryConsumeEmailVerificationAsync(
+          Guid tenantId, string emailFromToken, CancellationToken ct);
+  }
+  ```
+  - `CheckUniquenessAsync` returns `UniquenessCheck(SlugReserved, SlugTaken, EmailVerifiedTenantExists, EmailUnverifiedTenantExists, ExistingTenantId)`.
+  - `CreatePendingAsync` writes a NEW `TenantRegistration` row with `EmailVerified=false`. This is the bootstrap-scope write path (control-plane TenantRegistrations write is bootstrap-scope-permitted by construction since `TenantRegistrations` is NOT under HasQueryFilter per ADR 0031).
+  - `TryConsumeEmailVerificationAsync` is the atomic one-shot consumption per sec-eng C: reads the row, asserts `EmailVerified IS false`, atomically updates to `true`, returns the boolean (true on consumed; false on already-consumed → caller decides whether to fall through to 200-idempotent or some other disposition).
+  - **DbContext used:** `SunfishBridgeReadOnlyDbContext` for reads; **same read-only context for the writes above** because `TenantRegistrations` table writes are control-plane and bootstrap-resolvable. (Engineer's PR 0 confirms whether `SunfishBridgeReadOnlyDbContext` ships as truly read-only by EF semantics — if so, write paths use a NARROW `BootstrapWriteDbContext` that maps only `TenantRegistrations` + nothing else; documented in §4.1.4 below.)
+- **`ITenantRegistry`** (existing; tenant-bound; unchanged at substrate-shape tier) — post-verify-email tenant materialization. Constructor still takes `SunfishBridgeDbContext`; `RequireTenantBoundDbContext` constructor guard fails resolution in bootstrap scope. **Existing call sites unchanged** — only the new bootstrap consumption path uses `IBootstrapTenantRegistry`.
+
+**Mechanism for split:**
+- Bootstrap `SignupHandler` + `VerifyEmailHandler` + `ResendVerificationHandler` inject `IBootstrapTenantRegistry`.
+- Verify-email's tenant-materialization path (post-token-redemption; the moment the user account is provisioned and the tenant transitions from "registration pending" to "active tenant") opens the child-IServiceScope (α-1 per ADR 0095 Rev 2 Amendment 2), seeds `ITenantContextSeed.Bind(tenantId)`, and resolves `ITenantRegistry` from the CHILD scope for the tenant-bound write.
+
+**LOC budget:** ~80-120 lines of spec text (this section + §4.1.4 + §4.2.1/§4.2.2 handler-body changes); lands in PR 0 substrate setup before PR 1 handler bodies.
+
+### D4 — `check-availability` endpoint removal (sec-eng F)
+
+**Rule:** REMOVE `/api/v1/auth/check-availability` from W#79 scope entirely. Endpoint count drops 4 → 3.
+
+Affected sections rewritten throughout this hand-off:
+- §1 Scope-in (done above).
+- §3.4 — section removed.
+- §3.5 — `tenant_slug_*` discriminators retained (still surfaced from signup); discriminator narrative updated to not reference check-availability.
+- §3.7 — `check-availability` row removed from rate-limit table.
+- §4.1.1 — `CheckAvailabilityHandler.cs` + `CheckAvailabilityRequest.cs` + `CheckAvailabilityResponse.cs` removed from files-touched.
+- §4.1.2 — `MapOnboardingEndpoints` registers 3 routes, not 4.
+- §4.1.3 — `onboarding-check` rate-limit policy registration removed.
+- §4.2.4 — `CheckAvailabilityHandler` section REMOVED (the §4.2.4 anchor is preserved with a removed-note for cross-references).
+- §4.4 — Playwright + MSW scope drops the check-availability scenarios.
+
+### D5 — Pre-tenant audit emission destination (sec-eng G)
+
+**Rule:** Pre-tenant signup events emit to the existing ADR 0049 audit substrate with `tenant_id = SUNFISH_SYSTEM_TENANT` (well-known sentinel `Guid` reserved for system-scope audit partitioning).
+
+**D5.a sub-ruling — sentinel + partition routing.** If ADR 0049's substrate does not currently support a system-tenant sentinel, Engineer adds it as W#79 PR 0 substrate work alongside the TenantRegistration schema migration. The sentinel lives in `Sunfish.Bridge.Data/Constants/SystemTenant.cs` (or equivalent) as `public static readonly Guid Id = new("00000000-0000-0000-0000-000000000000")` OR a reserved non-zero Guid (Engineer picks; documents in PR 0 description).
+
+**Audit field redaction:**
+- `email` — logged in full (audit-relevant for fraud-prevention forensics; full email enables enumeration-campaign detection).
+- `client_ip` — hashed via SHA-256 (privacy floor; GDPR alignment for pre-tenant data minimization).
+- `user_agent` — truncated to 200 chars (fingerprint retention without unbounded log growth).
+- `correlation_id` — logged plain (already low-entropy + intentionally per-request).
+- `password_hash` — NEVER logged in any form (substrate-tier invariant; mirrors ADR 0096 Rev 2 Amendment #6 BodyText/BodyHtml discipline).
+
+Audit events emitted under `SUNFISH_SYSTEM_TENANT`:
+- `OnboardingSignupAttempted` — request received (after CAPTCHA, before uniqueness check).
+- `OnboardingSignupCaptchaRejected` — CAPTCHA failed.
+- `OnboardingSignupRateLimited` — 429 fired (post-middleware).
+- `OnboardingSignupAccepted` — 202 returned (regardless of fresh vs unverified-existing vs verified-existing per H2 always-202).
+- `OnboardingVerifyEmailAttempted` — token presented.
+- `OnboardingVerifyEmailRejected` — token invalid/expired/already-consumed.
+- `OnboardingVerifyEmailConsumed` — first-redemption fired; tenant transitioned to active.
+- `OnboardingResendVerificationAttempted` — resend request received.
+
+Post-tenant audit events (post-verify-email, when tenant is active) emit to the resolved-tenant audit stream — cross-scope seam closes because the tenant exists.
 
 ---
 
@@ -169,50 +290,71 @@ interface ResendVerificationResponse {
 - (server does NOT echo the submitted email) — uniform-202 invariant. (No row in table; the constant-envelope shape is the contract.)
 - (server does NOT return `email_dispatch_id`) — caller cannot probe dispatch existence. (No row.)
 
-### 3.4 Wire-contract reconciliation — `POST /api/v1/auth/check-availability`
+### 3.4 (REMOVED per D4) — `POST /api/v1/auth/check-availability`
 
-**Request shape:**
+Per Admiral ruling D4 (2026-05-26T01:00Z), the check-availability endpoint is REMOVED from W#79 scope. Its existence as a yes/no endpoint contradicts the H2 always-202 enumeration-defense. Slug uniqueness is enforced via the canonical signup 400 `tenant_slug_taken` discriminator at submit time; email uniqueness is silently absorbed by H2 always-202 + OOB notification. UX for inline-feedback during form fill is regressed; reviewed product impact is acceptable.
 
-```typescript
-interface CheckAvailabilityRequest {
-  field: 'email' | 'tenant_slug';
-  value: string;                    // ≤256 chars; server canonicalizes (lowercase email; lowercase + normalize slug)
-}
-```
-
-**Response 200 shape:**
-
-```typescript
-interface CheckAvailabilityResponse {
-  available: boolean;
-  // Frontend renders "available" / "taken" badge based on this single boolean.
-  // No reason-code; uniform-response shape across both `field` values.
-}
-```
-
-**Negative-match:**
-- (server does NOT return why a slug is unavailable — taken-by-tenant vs reserved-slug vs invalid-shape returns a uniform `available: false`) — defense-in-depth on tenant-enumeration via slug-availability probing. Invalid-shape requests return 400 (Amendment J discriminator) rather than `{available: false}`.
+Anchor preserved for cross-reference stability; see §1 scope-in and §1.5 D4 for the canonical ruling.
 
 ### 3.5 Error response shape — onboarding endpoint family (ADR 0093 Rev 4 Amendment J)
 
 400-class responses use RFC 7807 ProblemDetails. The Bridge serializer emits `title` (not `error`) as the error-discriminator field. Frontend error handlers MUST read `body.title === '<discriminator>'`.
 
-**Known 400 discriminators (signup + verify-email + resend + check-availability family):**
+**Fleet convention re: ProblemDetails field name (.NET-arch F2):** Per ADR 0093 Rev 4 Amendment J, the fleet uses `title` as the discriminator (NOT RFC 7807's canonical `type` URI). ASP.NET Core's default `Results.Problem(title:, statusCode:)` overload sets `title` directly; the fleet relies on this. Frontend MUST read `body.title` (NOT `body.error`, NOT `body.type`). ASP.NET Core may also emit `type` with a default URI (e.g., `https://tools.ietf.org/html/rfc9110#section-15.5.1` for 400); frontend ignores. The fleet convention is rationalized at protocol tier.
+
+**Known 400/403/429 discriminators (signup + verify-email + resend family, 9 total post-Rev-2):**
 
 - `validation_failed` — generic shape-validation failure (required-field missing; format check failed). Response body's `errors[]` array carries per-field detail.
-- `email_already_registered` — signup with an email that already has a verified Tenant. Returned by signup ONLY when the duplicate is verified; unverified duplicates trigger a quiet re-send + 202 (verification-resilience over leak-suppression — halt: see Halt H2).
+- ~~`email_already_registered`~~ — **RETIRED in Rev 2 per Admiral ruling H2 (always-202).** Signup never exposes verified-duplicate status; the OOB notification email is the disposition for verified-existing emails (see §6.1 Decision 2). Frontend MUST NOT declare an `EmailAlreadyRegisteredError` typed-error class.
 - `tenant_slug_taken` — signup with a slug already in `TenantRegistrations`.
 - `tenant_slug_reserved` — signup with a reserved slug (admin, www, api, app, demo, etc.; reserved-list canonicalized in `signal-bridge/Sunfish.Bridge/Services/TenantRegistry.cs` or W#79 introduces if not present).
 - `tenant_slug_invalid_shape` — slug fails `^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$` regex.
-- `verification_token_invalid` — verify-email with token that fails Ed25519 signature check, is malformed, or has invalid `aud`/`iss`.
-- `verification_token_expired` — token signature valid but `exp` past now.
-- `verification_token_already_used` — token previously redeemed (idempotency-replay or attacker re-use).
+- `verification_token_invalid` — verify-email with token that fails Ed25519 signature check, is malformed, or has invalid `aud`/`iss`. Returned on any `SignedOperation<VerificationTokenPayload>` deserialize/verify failure or stale-aud mismatch (per D1 surface alignment).
+- `verification_token_expired` — token signature valid but `exp` past now (1h TTL per H9; sec-eng C closes replay via one-shot consumption — see §4.2.2 Step 4).
 - `captcha_failed` — Turnstile / mock CAPTCHA verification returned non-success.
-- `origin_invalid` — Origin header missing on POST or did not match apex host. (This is a 403, not 400; included here for frontend error-mapping completeness.) Per ADR 0095 §"Bootstrap branch input policy" Origin validation returns 403 with non-diagnostic body — frontend treats as transport failure, not user-correctable.
+- `rate_limited` — 429 response per §3.7 floors. Carries `Retry-After` header.
+- `origin_invalid` — 403 response. Origin header missing on POST or did not match apex host. (Per ADR 0095 §"Bootstrap branch input policy" Origin validation returns 403 with non-diagnostic body — frontend treats as transport failure, not user-correctable.)
+
+**Rev 2 deletion:** `verification_token_already_used` is REMOVED from the discriminator list. Per H9 disposition (200-idempotent + sec-eng C one-shot redemption-state), the verify-email handler returns 200 on already-consumed tokens — there is no 400 path that exposes "already consumed" as a distinct discriminator. (Closes the verification_token_already_used → 9-discriminator confusion; per test-eng Gap T2 B2.)
 
 **Frontend typed-error contract:**
 
-Each 400 discriminator becomes a typed-error class in the frontend (`ValidationFailedError`, `EmailAlreadyRegisteredError`, `TenantSlugTakenError`, etc.). Collapsing multiple discriminators into one generic error type is a Stage-05 finding sec-eng surfaces at hand-off review per Amendment J.
+Each 400/429 discriminator becomes a typed-error class in the frontend (`ValidationFailedError`, `TenantSlugTakenError`, `TenantSlugReservedError`, `TenantSlugInvalidShapeError`, `CaptchaFailedError`, `RateLimitedError`, `VerificationTokenInvalidError`, `VerificationTokenExpiredError`). The 403 `origin_invalid` is surfaced as a transport-failure banner (no user-correctable input).
+
+**Discriminator single-source-of-truth (test-eng T2):** discriminator string literals are defined ONCE as a `const` export in `sunfish/apps/web/src/api/onboarding-discriminators.ts` (TypeScript) + mirrored at `signal-bridge/Sunfish.Bridge.Onboarding/OnboardingDiscriminators.cs` (C#). A contract test asserts the two const sets are equal byte-for-byte. This pins string-drift at the source.
+
+```typescript
+// sunfish/apps/web/src/api/onboarding-discriminators.ts
+export const SignupDiscriminator = {
+  VALIDATION_FAILED: 'validation_failed',
+  TENANT_SLUG_TAKEN: 'tenant_slug_taken',
+  TENANT_SLUG_RESERVED: 'tenant_slug_reserved',
+  TENANT_SLUG_INVALID_SHAPE: 'tenant_slug_invalid_shape',
+  VERIFICATION_TOKEN_INVALID: 'verification_token_invalid',
+  VERIFICATION_TOKEN_EXPIRED: 'verification_token_expired',
+  CAPTCHA_FAILED: 'captcha_failed',
+  RATE_LIMITED: 'rate_limited',
+  ORIGIN_INVALID: 'origin_invalid',
+} as const;
+
+export type SignupDiscriminatorValue = typeof SignupDiscriminator[keyof typeof SignupDiscriminator];
+```
+
+```csharp
+// signal-bridge/Sunfish.Bridge.Onboarding/OnboardingDiscriminators.cs
+public static class OnboardingDiscriminators
+{
+    public const string ValidationFailed = "validation_failed";
+    public const string TenantSlugTaken = "tenant_slug_taken";
+    public const string TenantSlugReserved = "tenant_slug_reserved";
+    public const string TenantSlugInvalidShape = "tenant_slug_invalid_shape";
+    public const string VerificationTokenInvalid = "verification_token_invalid";
+    public const string VerificationTokenExpired = "verification_token_expired";
+    public const string CaptchaFailed = "captcha_failed";
+    public const string RateLimited = "rate_limited";
+    public const string OriginInvalid = "origin_invalid";
+}
+```
 
 **429 shape (rate-limit; ADR 0095 Rev 2 Amendment 7 floors):**
 
@@ -238,14 +380,65 @@ These caps are validated at `BootstrapContextResolutionMiddleware` BEFORE any ha
 
 ### 3.7 Rate-limit floors (ADR 0095 Rev 2 Amendment 7; non-permissive-default minimum-floor)
 
-| Endpoint | Per-IP layer | Per-route+per-IP layer | Burst | 429 Retry-After |
-|---|---|---|---|---|
-| `POST /api/v1/auth/signup` | 5 / min / IP fixed-window | 5 / min / (route+IP) | 0 | window remainder |
-| `POST /api/v1/auth/verify-email` | 10 / min / IP fixed-window | 10 / min / (route+IP) | 5 | window remainder |
-| `POST /api/v1/auth/resend-verification` | 3 / min / IP fixed-window | 3 / min / (email-keyed) | 0 | window remainder |
-| `POST /api/v1/auth/check-availability` | 20 / min / IP fixed-window | 20 / min / (route+IP) | 5 | window remainder |
+| Endpoint | Per-IP layer | Per-route+per-IP layer | Per-entity layer | Burst | 429 Retry-After |
+|---|---|---|---|---|---|
+| `POST /api/v1/auth/signup` | 5 / min / IP fixed-window | 5 / min / (route+IP) | n/a (signup doesn't have an entity key — email is the candidate but always-202 + sham-hash already absorb floor) | 0 | window remainder |
+| `POST /api/v1/auth/verify-email` | 10 / min / IP fixed-window | 10 / min / (route+IP) | n/a | 5 | window remainder |
+| `POST /api/v1/auth/resend-verification` | 3 / min / IP fixed-window | 3 / min / (route+IP) | 3 / min / (email-keyed) | 0 | window remainder |
+| ~~`POST /api/v1/auth/check-availability`~~ | (REMOVED per D4) | | | | |
 
-W#79 ratifies these as MINIMUM floors; W#79 implementation MAY tighten (smaller windows, lower counts) but MUST NOT loosen. The resend-verification per-email key prevents an attacker from amplifying a single victim email by spreading across IPs (defense-in-depth on email-flood abuse). The per-email key is computed inside the handler post-input-canonicalization (lowercased email; SHA-256 prefix for bucketing).
+W#79 ratifies these as MINIMUM floors; W#79 implementation MAY tighten (smaller windows, lower counts) but MUST NOT loosen. The resend-verification per-email key prevents an attacker from amplifying a single victim email by spreading across IPs (defense-in-depth on email-flood abuse).
+
+**Per-email key computation (.NET-arch G2 pin).** Lowercased email → SHA-256 of UTF-8 bytes → take **first 16 bytes (32 hex chars)** as the bucket key. For a population of 10K-100K users, 16-byte prefix gives ~2^64 collision-space — sufficient for collision-resistant bucketing without unbounded bucket-key cardinality. Engineer's PR 0 sets the prefix length explicitly:
+
+```csharp
+private static string ComputeEmailBucketKey(string emailNormalized)
+{
+    // SHA-256 first-16-bytes; 32 hex chars; .NET-arch G2 ratified prefix length.
+    var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(emailNormalized));
+    return Convert.ToHexString(bytes.AsSpan(0, 16));
+}
+```
+
+**Partition-key resolver worked example (.NET-arch G1).** Per ADR 0095 Rev 2: per-IP fallback to route-only when `ClientIp` is null (test contexts). The `PartitionedRateLimiter<HttpContext>` shape:
+
+```csharp
+services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString();
+        var route = httpContext.Request.Path.ToString();
+        // Route-only fallback per RateLimitBucketKey xmldoc remarks (ADR 0095 Rev 2).
+        var key = ip is null ? $"route:{route}" : $"ip:{ip}:route:{route}";
+
+        // Pick window + permit-count by route prefix (signup vs verify-email vs resend).
+        var (permitLimit, queueLimit) = route switch
+        {
+            var r when r.StartsWith("/api/v1/auth/signup")                  => (5, 0),
+            var r when r.StartsWith("/api/v1/auth/verify-email")            => (10, 5),
+            var r when r.StartsWith("/api/v1/auth/resend-verification")     => (3, 0),
+            _                                                                => (60, 5), // non-onboarding default
+        };
+
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = permitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = queueLimit,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            });
+    });
+
+    // Separate per-email partition for resend-verification.
+    // Resolved inside the handler post-input-canonicalization since the email
+    // isn't visible at middleware-tier (it's a body field, not a header or URL part).
+    // See §4.2.3 ResendVerificationHandler.
+});
+```
+
+The handler-tier per-email partition for resend-verification lives inside the handler (see §4.2.3); the middleware-tier partition handles per-IP + per-(route+IP). Engineer's PR 0 ships both partitions; sec-eng + .NET-arch SPOT-CHECK verifies.
 
 ### 3.8 Mandatory `AllowAnonymous()` + analyzer enforcement (ADR 0095 Rev 2 Amendment 6)
 
@@ -260,24 +453,26 @@ endpoints.MapPost("/api/v1/auth/signup", SignupHandler.HandleAsync)
     .WithName("OnboardingSignup");
 ```
 
-### 3.9 Pair-merge cascade plan (ADR 0093 Rev 4 Amendment L)
+### 3.9 Pair-merge cascade plan (ADR 0093 Rev 4 Amendment L; Rev 2 per-step test-gating per test-eng T6)
 
-W#79 PR 0 (Bridge endpoints) + W#79 PR 2 (frontend rebind) form a pattern-009 PAIR. Sequencing:
+W#79 PR 0 (Bridge endpoints) + W#79 PR 2 (frontend rebind) form a pattern-009 PAIR. Sequencing + test-suite gating per step:
 
-| Step | Owner | Deliverable | Cycle |
-|---|---|---|---|
-| 1 | Engineer | shipyard#158 ADR 0095 Step 1 MERGED | (gate) |
-| 2 | Engineer | shipyard ADR 0096 Step 1 MERGED | (gate; parallel to step 1) |
-| 3 | Engineer | shipyard ADR 0095 Step 2 MERGED (`MapBootstrapEndpoints` + pipeline branch + DbContext constructor guard) | (gate) |
-| 4 | Engineer | W#79 PR 0 (Bridge endpoints + handlers minimal-API surfaces; routes registered; no handler body yet OR scaffold handler returns 501) | Substrate cycle |
-| 5 | FED | W#79 PR 2 in DRAFT — SignupPage + VerifyEmailPage scaffolding bound against real Bridge URLs but with **mocks-only Bridge** (MockEmailProvider runs the welcome email; in dev the email-dispatch_id is enough to surface) | Cycle 1 |
-| 6 | sec-eng + frontend-arch | Cycle 1 SPOT-CHECK on FED DRAFT — expects AMBER (handler bodies not fully wired; mock-only) | Cycle 1 |
-| 7 | Engineer | W#79 PR 1 (handler bodies; α-1 child-scope transition; IEmailProvider + ICaptchaVerifier consumption; first-tenant + first-user write) MERGED | Substrate cycle |
-| 8 | FED | W#79 PR 2 amendment commit — Cycle 2 fixture realignment + error-handling fully wired | Cycle 2 |
-| 9 | sec-eng + frontend-arch | Cycle 2 re-attest — GREEN gate for auto-merge cascade | Cycle 2 |
-| 10 | FED/test-eng | W#79 PR 3 (e2e + contract tests; cross-stack assertion on full flow) | Cycle 2 |
+| Step | Owner | Deliverable | Tests gated at this step | Cycle |
+|---|---|---|---|---|
+| 1 | Engineer | shipyard#158 ADR 0095 Step 1 MERGED | (substrate test suite per ADR 0095) | (gate) |
+| 2 | Engineer | shipyard ADR 0096 Step 1 MERGED | (substrate test suite per ADR 0096) | (gate; parallel to step 1) |
+| 3 | Engineer | shipyard ADR 0095 Step 2 MERGED (`MapBootstrapEndpoints` + pipeline branch + DbContext constructor guard) | (substrate test suite per ADR 0095 Step 2) | (gate) |
+| 4 | Engineer | W#79 PR 0 (Bridge endpoints scaffold-only returning 501 ProblemDetails + DI registrations + DbContext schema migration + IBootstrapTenantRegistry interface + SUNFISH_SYSTEM_TENANT sentinel + EF migration for TenantRegistration fields) | §4.1.5 5 integration tests (routing wire-up + AllowAnonymous + rate-limit floor + Origin reject + length-cap reject) + §4.2.7 ITenantContextSeed 6 unit tests + EF-migration apply-rollback smoke test | Substrate cycle |
+| 5 | FED | W#79 PR 2 DRAFT — SignupPage + VerifyEmailPage scaffolding bound against real Bridge URLs. PR 0's 501 ProblemDetails triggers the "service not yet available" banner per §4.3.3. | §4.3.4 SignupPage tests 1, 2, 9 only (form-renders + slug-regex + captcha-mock) + banner-presence test; tests 3-8/11-12 wait for PR 1 merge (Bridge handlers active). Tests run AGAINST MOCK MSW (typed-error mapping verified at MSW tier in cycle 1). | Cycle 1 |
+| 6 | sec-eng + frontend-arch | Cycle 1 SPOT-CHECK on FED DRAFT — expects AMBER if FED-Cycle-1-commit-clean-banner; expects RED if FED-Cycle-1-commit-silently-hides-dead-code | (no new tests; verdict only) | Cycle 1 |
+| 7 | Engineer | W#79 PR 1 (handler bodies + α-1 child-scope transition + IBootstrapTenantRegistry + IEmailProvider + ICaptchaVerifier consumption + first-tenant + first-user write + ProblemDetails per-discriminator emission) MERGED | §4.2.6 13 handler integration tests (9 baseline + sec-eng C one-shot + sec-eng D constant-work + audit-emission test) + §4.2.5 12 production-guard tests M1-M12 + §4.2.6.PD 9 ProblemDetails backend per-discriminator tests = 34 PR 1 tests | Substrate cycle |
+| 8 | FED | W#79 PR 2 amendment commit — Cycle 2 banner removed; full RTL suite + error-handling per-discriminator wired | §4.3.4 12 SignupPage + §4.3.5 6 VerifyEmailPage RTL tests; §4.3.6 9 per-discriminator typed-error tests (matched 1:1 against §3.5 discriminators) | Cycle 2 |
+| 9 | sec-eng + frontend-arch | Cycle 2 re-attest — GREEN gate for auto-merge cascade | (no new tests; verdict only) | Cycle 2 |
+| 10 | FED/test-eng | W#79 PR 3 (e2e + contract tests + MSW-vs-real-Bridge parity verification) | §4.4 3 Playwright specs + §4.4.4 MSW-vs-Bridge parity test + cross-stack contract test asserting MSW handlers byte-for-byte match Bridge handler responses | Cycle 2 |
 
-**Constraint per Amendment L.** Cycle 1's DRAFT MUST NOT silently hide a non-functional feature. The signup form MUST be wired to a real Bridge URL (not a service-worker mock); if the handler body is not yet wired and the Bridge returns 501, the frontend renders a "service not yet available" banner cleanly with a forward-watch comment. Cleanly-removed-with-forward-watch is the AMBER posture; silently-dead-code is the RED posture.
+**Constraint per Amendment L.** Cycle 1's DRAFT MUST NOT silently hide a non-functional feature. The signup form MUST be wired to a real Bridge URL (not a service-worker mock); if the handler body is not yet wired and the Bridge returns **501 ProblemDetails with `title: 'not_implemented'`**, the frontend renders a "service not yet available" banner cleanly with a forward-watch comment. Cleanly-removed-with-forward-watch is the AMBER posture; silently-dead-code is the RED posture. (Per .NET-arch I1: the OR-shaped "no handler body" option in Rev 1 is structurally unavailable — `MapPost` requires a delegate; PR 0 ships handlers returning 501 ProblemDetails as the canonical scaffold-only shape.)
+
+**MSW-vs-real-Bridge parity (test-eng T6 B2 + Gap T6 step-10 column).** Step 10's MSW handlers in `sunfish/apps/web/msw/onboarding-handlers.ts` are verified against the real Bridge response shapes at PR 3 cycle. The parity test fixture spins up the test-env Bridge + captures the response JSON for each of the 9 discriminator paths + asserts byte-for-byte equality with the MSW handler's emitted body. Without parity, MSW lies are invisible.
 
 ### 3.10 Commit-message pre-flight (ADR 0093 Rev 4 Amendment K)
 
@@ -309,22 +504,71 @@ Returns nothing → safe to push. Returns matches → rephrase: `Refs: shipyard#
 
 | File | Action | Notes |
 |---|---|---|
-| `signal-bridge/Sunfish.Bridge/Program.cs` | extend | Add `endpoints.MapBootstrapEndpoints()` call inside the bootstrap pipeline branch; configure rate-limit policies per §3.7 floors; call `services.AddSunfishBootstrapContext<BootstrapContext>()`; call `services.AddSunfishVendorProvider<IEmailProvider, MockEmailProvider>()`; call `services.AddSunfishVendorProvider<ICaptchaVerifier, InMemoryCaptchaVerifier>()`; register both IHostedService assertions in canonical order (ADR 0095 first, ADR 0096 second). |
-| `signal-bridge/Sunfish.Bridge.Onboarding/` | new module | New project (or new folder inside `Sunfish.Bridge`; halt: see Halt H4 on module-boundary decision). Houses `OnboardingEndpoints.cs`, `Handlers/SignupHandler.cs`, `Handlers/VerifyEmailHandler.cs`, `Handlers/ResendVerificationHandler.cs`, `Handlers/CheckAvailabilityHandler.cs`, `Contracts/*.cs`. |
-| `signal-bridge/Sunfish.Bridge.Onboarding/OnboardingEndpoints.cs` | new | Extension method `MapOnboardingEndpoints(IEndpointRouteBuilder)` called from inside `MapBootstrapEndpoints` body in PR 1 (or directly from `MapBootstrapEndpoints` if PR 0 ships the registration as scaffold-only). Registers 4 endpoints with `.AllowAnonymous()` per ADR 0095 Rev 2 Amendment 6. |
+| `signal-bridge/Sunfish.Bridge/Program.cs` | extend | Add `endpoints.MapBootstrapEndpoints()` call inside the bootstrap pipeline branch; configure rate-limit policies per §3.7 floors; call `services.AddSunfishBootstrapContext<BootstrapContext>()`; call `services.AddSunfishVendorProvider<IEmailProvider, MockEmailProvider>()`; call `services.AddSunfishVendorProvider<ICaptchaVerifier, InMemoryCaptchaVerifier>()`; register `IBootstrapTenantRegistry` (bootstrap-scope) + `ITenantRegistry` (tenant-bound; existing); register both IHostedService assertions in canonical order (ADR 0095 first, ADR 0096 second). |
+| `signal-bridge/Sunfish.Bridge.Onboarding/Sunfish.Bridge.Onboarding.csproj` | new | New project (per Admiral ruling H4 RATIFY-ONR option a + .NET-arch D1). Worked-example contents below. |
+| `signal-bridge/Sunfish.Bridge.Onboarding/` | new module | Houses `OnboardingEndpoints.cs`, `OnboardingDiscriminators.cs`, `Handlers/SignupHandler.cs`, `Handlers/VerifyEmailHandler.cs`, `Handlers/ResendVerificationHandler.cs`, `Contracts/*.cs`. **CheckAvailabilityHandler / CheckAvailability*.cs REMOVED per D4.** |
+| `signal-bridge/Sunfish.Bridge.Onboarding/OnboardingEndpoints.cs` | new | Extension method `MapOnboardingEndpoints(IEndpointRouteBuilder)` called from inside `MapBootstrapEndpoints` body. Registers **3 endpoints** with `.AllowAnonymous()` per ADR 0095 Rev 2 Amendment 6. |
+| `signal-bridge/Sunfish.Bridge.Onboarding/OnboardingDiscriminators.cs` | new | `public static class OnboardingDiscriminators` with the 9 discriminator string constants per §3.5; consumed by handler emission + ProblemDetailsDiscriminatorTests assertion + frontend MSW parity test. |
 | `signal-bridge/Sunfish.Bridge.Onboarding/Contracts/SignupRequest.cs` | new | Request DTO; record. |
 | `signal-bridge/Sunfish.Bridge.Onboarding/Contracts/SignupAcceptedResponse.cs` | new | Response DTO; record. |
 | `signal-bridge/Sunfish.Bridge.Onboarding/Contracts/VerifyEmailRequest.cs` | new | Request DTO. |
 | `signal-bridge/Sunfish.Bridge.Onboarding/Contracts/VerifyEmailAcceptedResponse.cs` | new | Response DTO. |
 | `signal-bridge/Sunfish.Bridge.Onboarding/Contracts/ResendVerificationRequest.cs` | new | Request DTO. |
 | `signal-bridge/Sunfish.Bridge.Onboarding/Contracts/ResendVerificationResponse.cs` | new | Constant `{"status":"queued"}` envelope; record with single property. |
-| `signal-bridge/Sunfish.Bridge.Onboarding/Contracts/CheckAvailabilityRequest.cs` | new | Request DTO. |
-| `signal-bridge/Sunfish.Bridge.Onboarding/Contracts/CheckAvailabilityResponse.cs` | new | Single-boolean DTO. |
-| `signal-bridge/Sunfish.Bridge.Onboarding/Handlers/SignupHandler.cs` | new | Skeleton returns `Results.Problem(...)` with `title: "not_implemented"` and status 501 IF PR 0 ships scaffold-only; full body in PR 1. |
+| `signal-bridge/Sunfish.Bridge.Onboarding/Contracts/VerificationTokenPayload.cs` | new | Record consumed by `IOperationSigner.SignAsync<VerificationTokenPayload>` (per D1). Fields: `Email` (string), `TenantId` (Guid), `Audience` (string; canonical `"sunfish.verify-email"` literal for token-class disambiguation). `IssuedAt` + nonce are envelope-tier per `SignedOperation<T>` shape; not payload-tier. Expiration is handled at verify-time by `signer`'s replay-window per its substrate contract OR by handler-side `nbf+ttl` check (Engineer's PR 1 ratifies). |
+| `signal-bridge/Sunfish.Bridge.Onboarding/Handlers/SignupHandler.cs` | new | Skeleton returns `Results.Problem(...)` with `title: "not_implemented"` and status 501 in PR 0; full body in PR 1 (per .NET-arch I1: no "no handler body" option — `MapPost` requires a delegate). |
 | `signal-bridge/Sunfish.Bridge.Onboarding/Handlers/VerifyEmailHandler.cs` | new | Same skeleton/scaffold pattern. |
 | `signal-bridge/Sunfish.Bridge.Onboarding/Handlers/ResendVerificationHandler.cs` | new | Same. |
-| `signal-bridge/Sunfish.Bridge.Onboarding/Handlers/CheckAvailabilityHandler.cs` | new | Same. |
-| `signal-bridge/Sunfish.Bridge.Tests/Onboarding/OnboardingEndpointsIntegrationTests.cs` | new | Wire-up tests: routes registered + AllowAnonymous + rate-limit policies applied; mock-providers respond OK in test env. |
+| `signal-bridge/Sunfish.Bridge.Data/IBootstrapTenantRegistry.cs` | new | Bootstrap-scope-resolvable read+write tenant-registry interface per D3. Lives in `Sunfish.Bridge.Data` (control-plane lives next to TenantRegistration entity). |
+| `signal-bridge/Sunfish.Bridge.Data/BootstrapTenantRegistry.cs` | new | Concrete implementation; constructor takes `SunfishBridgeReadOnlyDbContext`. ~80 LOC. |
+| `signal-bridge/Sunfish.Bridge.Data/IUserAggregateRepository.cs` | new | Per D2.a sub-ruling: lives in `Sunfish.Bridge.Data`. Surface: `PersistInitialUserAsync(InitialUser, CancellationToken)` + `MarkEmailVerifiedAsync(Guid tenantId, string email, CancellationToken)`. |
+| `signal-bridge/Sunfish.Bridge.Data/UserAggregateRepository.cs` | new | Concrete; constructor takes `SunfishBridgeDbContext` (tenant-bound; resolved only from child scope per ADR 0095 Rev 2 Amendment 4). ~60 LOC. |
+| `signal-bridge/Sunfish.Bridge.Data/Entities/TenantRegistration.cs` | modify | Add `AdminEmailNormalized: string?`, `EmailVerified: bool`, `PasswordHash: string?` per D2. Index on `AdminEmailNormalized` (filtered: WHERE NOT NULL; uniqueness gate on signup). |
+| `signal-bridge/Sunfish.Bridge.Data/Entities/User.cs` | new | First-user aggregate entity; tenant-bound (TenantId FK to TenantRegistration). Carries `Email`, `EmailVerified`, `CreatedAt`. Password hash lives on TenantRegistration per D2 schema decision. |
+| `signal-bridge/Sunfish.Bridge.Data/SunfishBridgeReadOnlyDbContext.cs` | new | Read-only DbContext for bootstrap-scope queries (no `RequireTenantBoundDbContext` marker); maps ONLY `TenantRegistrations` DbSet; `OnModelCreating` is explicitly minimal (no HasQueryFilter inheritance). Per Decision 8 disposition + .NET-arch C1 mechanism. |
+| `signal-bridge/Sunfish.Bridge.Data/Constants/SystemTenant.cs` | new (per D5.a if not already shipped) | `public static class SystemTenant { public static readonly Guid Id = new("00000000-0000-0000-0000-000000000000"); }`. Used as audit `tenant_id` for pre-tenant events. |
+| `signal-bridge/Sunfish.Bridge.Data/Migrations/<timestamp>_AddOnboardingFieldsToTenantRegistration.cs` | new | EF Core migration adding the 3 columns + filtered-unique index on AdminEmailNormalized + User entity table. |
+| `shipyard/packages/foundation-authorization/ITenantContextSeed.cs` | new | Substrate primitive per H6 ruling. Bind-once API: `void Bind(Guid tenantId); Guid? TenantId { get; }`. |
+| `shipyard/packages/foundation-authorization/MutableTenantContextSeed.cs` | new | Concrete; uses `Interlocked.CompareExchange<Guid>` for bind-once thread-safety. ~30 LOC. |
+| `shipyard/packages/foundation-authorization/SeededTenantContext.cs` | new | Adapter implementing `ITenantContext` + `ICurrentUser` + `IAuthorizationContext` + sum-interface facade via single instance per ADR 0091 R2 A1; resolves TenantId via `ITenantContextSeed`. |
+| `shipyard/packages/foundation-authorization/RequireTenantBoundDbContext.cs` | new | Sealed empty class (.NET-arch C1 shape ruling); resolved as `SunfishBridgeDbContext` constructor parameter; registered ONLY on the non-bootstrap branch. Engineer's PR 0 (ADR 0095 Step 2) ships the actual registration mechanism. |
+| `signal-bridge/Sunfish.Bridge.Tests/Onboarding/OnboardingEndpointsIntegrationTests.cs` | new | Wire-up tests: routes registered + AllowAnonymous + rate-limit policies applied; mock-providers respond OK in test env. **5 tests** per §4.1.5. |
+| `signal-bridge/Sunfish.Bridge.Tests/Onboarding/ProblemDetailsDiscriminatorTests.cs` | new (PR 1) | Backend ProblemDetails per-discriminator pinning per test-eng T2; 9 tests asserting `title` field matches each of the 9 OnboardingDiscriminators constants when corresponding handler error path fires. |
+| `signal-bridge/Sunfish.Bridge.Tests/Onboarding/MockProviderGuardIntegrationTests.cs` | new (PR 1) | 12 production-guard tests M1-M12 per test-eng T1 (canonical-form parsing variants + ASPNETCORE_ENVIRONMENT branches) + factory-registered mock detection (sec-eng H / M3 + M4 tests; see §4.2.5). |
+| `signal-bridge/Sunfish.Bridge.Tests/Onboarding/EnvVarScope.cs` | new (PR 1) | `IDisposable` helper for env-var test isolation per test-eng T5 + ADR 0096 .NET-arch A5; captures + restores `Environment.SetEnvironmentVariable` mutations. |
+| `shipyard/packages/foundation-authorization/tests/MutableTenantContextSeedTests.cs` | new (PR 0; ships with substrate) | 6 unit tests per test-eng T3 (bind-once / read-before-bind / bind-twice-throws / concurrent-bind / SeededTenantContext.TenantId resolution / scope-leak isolation). |
+
+**Worked-example: `Sunfish.Bridge.Onboarding.csproj` contents (per .NET-arch D1 + D2).** Sdk = `Microsoft.NET.Sdk` + explicit FrameworkReference for the minimal-API surface (NOT `Microsoft.NET.Sdk.Web` — this project hosts handler classes, not the app):
+
+```xml
+<!-- signal-bridge/Sunfish.Bridge.Onboarding/Sunfish.Bridge.Onboarding.csproj -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <IsPackable>false</IsPackable>
+    <!-- NU1510 suppression if direct PackageReferences become required after preview.4
+         NuGet resolution shift (foundation-authorization precedent commit b4475df). -->
+    <NoWarn>$(NoWarn);NU1510</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Sunfish.Bridge\Sunfish.Bridge.csproj" />
+    <ProjectReference Include="..\Sunfish.Bridge.Data\Sunfish.Bridge.Data.csproj" />
+    <ProjectReference Include="$(SiblingShipyardPath)\packages\foundation-bootstrap\Sunfish.Foundation.Bootstrap.csproj" />
+    <ProjectReference Include="$(SiblingShipyardPath)\packages\foundation-integrations\Sunfish.Foundation.Integrations.csproj" />
+    <ProjectReference Include="$(SiblingShipyardPath)\packages\foundation-authorization\Sunfish.Foundation.Authorization.csproj" />
+    <ProjectReference Include="$(SiblingShipyardPath)\packages\foundation\Sunfish.Foundation.csproj" />
+  </ItemGroup>
+</Project>
+```
+
+**Test project rationale (.NET-arch D3):** Onboarding integration tests reuse `Sunfish.Bridge.Tests` rather than a sibling `Sunfish.Bridge.Onboarding.Tests` project to maintain a single `IHost.StartAsync` test harness per ADR 0095 Rev 2 Amendment 3 registration-presence pattern. Tests live under `Sunfish.Bridge.Tests/Onboarding/`.
 
 **PR 0 / PR 1 split rationale.** Split shields the substrate registrations (bootstrap pipeline branch + DI wiring + endpoint registration shape) from the handler bodies (α-1 child-scope transition + repository writes + email dispatch). PR 0 is reviewable by sec-eng + .NET-arch + frontend-arch in isolation; PR 1 layers the handler logic. If PR 0's scope grows past Engineer's comfort, Engineer MAY merge PR 0 + PR 1 into a single PR with §6 adversarial-review framework applied across the union; ONR's recommendation is the split for review clarity. (Halt: see Halt H5 if the split itself becomes a routing question.)
 
@@ -352,16 +596,15 @@ public static class OnboardingEndpoints
             .AllowAnonymous()
             .WithName("OnboardingResendVerification");
 
-        endpoints.MapPost("/api/v1/auth/check-availability", CheckAvailabilityHandler.HandleAsync)
-            .AllowAnonymous()
-            .WithName("OnboardingCheckAvailability");
+        // NOTE: `/api/v1/auth/check-availability` REMOVED per Admiral ruling D4 (2026-05-26).
+        // See §1.5 D4 + §3.4 (removed-note) for rationale.
 
         return endpoints;
     }
 }
 ```
 
-Called from inside `MapBootstrapEndpoints` body (the extension method shipped by ADR 0095 Step 2). The substrate's empty `MapBootstrapEndpoints` body is filled by chained calls to per-cohort `Map*Endpoints` extensions; W#79 adds `MapOnboardingEndpoints`.
+Called from inside `MapBootstrapEndpoints` body (the extension method shipped by ADR 0095 Step 2). The substrate's empty `MapBootstrapEndpoints` body is filled by chained calls to per-cohort `Map*Endpoints` extensions; W#79 adds `MapOnboardingEndpoints` (registering 3 routes post-Rev-2).
 
 #### 4.1.3 Rate-limit policy registration (in `Program.cs`)
 
@@ -388,12 +631,7 @@ services.AddRateLimiter(options =>
         limiter.Window = TimeSpan.FromMinutes(1);
         limiter.QueueLimit = 0;
     });
-    options.AddFixedWindowLimiter("onboarding-check", limiter =>
-    {
-        limiter.PermitLimit = 20;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 5;
-    });
+    // `onboarding-check` policy REMOVED per Admiral ruling D4.
     options.OnRejected = async (context, ct) =>
     {
         // Set Retry-After header to window remainder
@@ -430,25 +668,121 @@ services.AddSunfishVendorProvider<ICaptchaVerifier, InMemoryCaptchaVerifier>();
 services.AddHostedService<BootstrapAndTenantMutualExclusionAssertion>();   // ADR 0095 — registered FIRST
 services.AddHostedService<MockProviderProductionGuardAssertion>();         // ADR 0096 — registered SECOND
 
-// ITenantContextSeed scoped-holder (post-tenant DI scope only)
-services.AddScoped<ITenantContextSeed, MutableTenantContextSeed>();
-// SeededTenantContext aliases the four-interface facade per ADR 0091 R2 A1 invariant
-// (preserves ReferenceEquals across ITenantContext / ICurrentUser / IAuthorizationContext / facade)
-services.AddScoped<Sunfish.Foundation.Authorization.ITenantContext>(sp =>
-    new SeededTenantContext(sp.GetRequiredService<ITenantContextSeed>()));
-// (Additional aliasing for the other three interfaces per AddSunfishTenantContext pattern;
-// W#79 calls AddSunfishTenantContext<SeededTenantContext>() if Engineer's substrate
-// supports the seed-holder-as-concrete pattern, OR W#79 introduces the seed-holder
-// registration block standalone if AddSunfishTenantContext expects a non-seed concrete.)
+// IBootstrapTenantRegistry (D3): registered at root; bootstrap-scope-resolvable;
+// reads/writes TenantRegistrations control-plane via SunfishBridgeReadOnlyDbContext.
+services.AddScoped<IBootstrapTenantRegistry, BootstrapTenantRegistry>();
 
-// RequireTenantBoundDbContext typed marker — registered EXCLUSIVELY on the non-bootstrap branch
-// (per ADR 0095 Rev 2 Amendment 4 minimum-floor). Bootstrap branch's IServiceCollection does NOT
-// have this marker; SunfishBridgeDbContext constructor throws InvalidOperationException if resolved
-// inside bootstrap scope.
-services.AddScoped<RequireTenantBoundDbContext>();
+// ITenantRegistry (existing): tenant-bound; constructor takes SunfishBridgeDbContext
+// (which carries RequireTenantBoundDbContext guard per ADR 0095 Rev 2 Amendment 4);
+// resolves ONLY from the child IServiceScope post-Bind().
+// (No change to existing TenantRegistry registration; left unchanged.)
+
+// IUserAggregateRepository (D2.a; tenant-bound write path; child-scope-resolved):
+services.AddScoped<IUserAggregateRepository, UserAggregateRepository>();
+
+// SunfishBridgeReadOnlyDbContext (Decision 8 disposition; bootstrap-scope-resolvable):
+// Maps ONLY the TenantRegistrations DbSet. Explicitly minimal OnModelCreating; no HasQueryFilter.
+services.AddDbContext<SunfishBridgeReadOnlyDbContext>(opts =>
+    opts.UseNpgsql(builder.Configuration.GetConnectionString("Bridge")));
+
+// Pin ProblemDetails serializer to emit `title` (NOT `type`) as the discriminator.
+// Per ADR 0093 Rev 4 Amendment J. ASP.NET Core's default Results.Problem(title:, statusCode:)
+// overload sets `title`; this AddProblemDetails call ratifies the convention at the framework tier.
+services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = ctx =>
+    {
+        // Ensure `title` is the consumer-facing discriminator; `type` may be auto-populated
+        // by ASP.NET Core with an RFC URI which is informational, not the discriminator.
+        // No-op customization here pins the contract — handler emissions set `title` directly.
+    };
+});
+
+// ITenantContextSeed scoped-holder (per H6 ratified; lives in foundation-authorization):
+services.AddScoped<ITenantContextSeed, MutableTenantContextSeed>();
+
+// SeededTenantContext aliases the four-interface facade per ADR 0091 R2 A1 invariant
+// (preserves ReferenceEquals across ITenantContext / ICurrentUser / IAuthorizationContext / facade).
+// .NET-arch B1.b explicit 4-line aliasing form (chosen over B1.a because AddSunfishTenantContext
+// today does NOT accept a seed-holder-as-concrete shape; verified at
+// shipyard/packages/foundation-authorization/DependencyInjection/TenantContextServiceCollectionExtensions.cs).
+services.AddScoped<SeededTenantContext>(sp =>
+    new SeededTenantContext(sp.GetRequiredService<ITenantContextSeed>()));
+services.AddScoped<Sunfish.Foundation.Authorization.ITenantContext>(sp =>
+    sp.GetRequiredService<SeededTenantContext>());
+services.AddScoped<Sunfish.Foundation.Authorization.ICurrentUser>(sp =>
+    sp.GetRequiredService<SeededTenantContext>());
+services.AddScoped<Sunfish.Foundation.Authorization.IAuthorizationContext>(sp =>
+    sp.GetRequiredService<SeededTenantContext>());
+// Sum-interface facade (if separately declared per ADR 0091 R2 pattern):
+services.AddScoped<Sunfish.Foundation.Authorization.ITenantContextFacade>(sp =>
+    sp.GetRequiredService<SeededTenantContext>());
+
+// RequireTenantBoundDbContext marker — per .NET-arch C1.z mechanism:
+// NOT registered at root. The non-bootstrap pipeline branch's middleware
+// (BootstrapContextResolutionMiddleware's inverse path, post-tenant-resolution)
+// opens a child scope via ChildServiceScopeMiddleware which calls
+// `services.AddScoped<RequireTenantBoundDbContext>()` on the branch's IServiceCollection
+// (per ADR 0095 Step 2 substrate API). The marker is resolvable ONLY inside non-bootstrap
+// scope. Bootstrap-branch's IServiceCollection does NOT have this registration; resolving
+// SunfishBridgeDbContext in bootstrap scope throws standard .NET DI:
+//   `InvalidOperationException: Unable to resolve service for type 'RequireTenantBoundDbContext'
+//    while attempting to activate 'SunfishBridgeDbContext'.`
+// Engineer's PR 0 substrate-tier code in ADR 0095 Step 2 ships the branch-isolated registration;
+// W#79 PR 0 consumes the mechanism, does NOT re-implement.
+//
+// NOTE: This is a DELIBERATE deviation from idiomatic ASP.NET Core DI (root container holds all
+// registrations) in service of the bootstrap-vs-tenant-bound resolvability split. ADR 0095 §"Pipeline
+// routing" + Rev 2 Amendment 4 ratifies the mechanism.
+
+// (Implementation reference for SunfishBridgeDbContext constructor signature change per .NET-arch C1:
+//   public SunfishBridgeDbContext(
+//       DbContextOptions<SunfishBridgeDbContext> options,
+//       IEnumerable<ISunfishEntityModule> modules,
+//       ITenantContext tenantContext,
+//       RequireTenantBoundDbContext _)   // new parameter; underscore name; never read
+//   { ... }
+// DesignTimeDbContextFactory updates to pass `new RequireTenantBoundDbContext()` at design time.
+// Both shipped by Engineer's PR 0 substrate-tier work, not W#79 application code.)
 ```
 
-**ITenantContextSeed package home (per ADR 0095 §"Out of scope but flagged" .NET-arch A2 follow-on).** ADR 0095 recommends `foundation-authorization` as the likely home; W#79 RATIFIES that choice and ships `ITenantContextSeed` + `MutableTenantContextSeed` + `SeededTenantContext` in `shipyard/packages/foundation-authorization/`. (Halt: see Halt H6 if Engineer prefers a separate `foundation-authorization-onboarding-seed/` sub-package or a different layering.)
+**`.Bind()` contract (.NET-arch B2 + sec-eng FW-1 pin).** The `MutableTenantContextSeed` exposes:
+
+```csharp
+public sealed class MutableTenantContextSeed : ITenantContextSeed
+{
+    private Guid _tenantId;
+    private int _bound; // 0 = not bound; 1 = bound
+
+    public Guid? TenantId
+    {
+        get
+        {
+            if (Volatile.Read(ref _bound) == 0)
+                throw new InvalidOperationException(
+                    "Tenant context seed not bound; resolve only after .Bind() inside the child scope.");
+            return _tenantId;
+        }
+    }
+
+    public void Bind(Guid tenantId)
+    {
+        if (Interlocked.CompareExchange(ref _bound, 1, 0) != 0)
+            throw new InvalidOperationException(
+                "Tenant context already seeded for this scope.");
+        _tenantId = tenantId;
+    }
+}
+```
+
+Semantics pinned at spec time:
+- **One-shot.** Second `Bind()` call in the same scope throws `InvalidOperationException("Tenant context already seeded for this scope.")`. Prevents silent tenant-context mutation across two `Bind()` calls in the same handler.
+- **Pre-Bind resolution.** Throws `InvalidOperationException("Tenant context seed not bound; resolve only after .Bind() inside the child scope.")`. NEVER returns `Guid.Empty` (the HasQueryFilter foot-gun ADR 0095 Rev 2 Gap B closes).
+- **Thread-safety.** `Bind()` is thread-safe (uses `Interlocked.CompareExchange<int>`). Reads via `Volatile.Read`. Within a single async-disposable scope, .NET DI conventions imply single-threaded resolution, but the seed could be captured by a `Task.Run` continuation — the lock prevents silent races.
+
+Tests covering these semantics live in `shipyard/packages/foundation-authorization/tests/MutableTenantContextSeedTests.cs` per test-eng T3 (6 unit tests; see §4.2.7).
+
+**ITenantContextSeed package home (per ADR 0095 §"Out of scope but flagged" .NET-arch A2 follow-on, ratified at H6).** Lives in `shipyard/packages/foundation-authorization/` alongside `AddSunfishTenantContext`.
 
 #### 4.1.5 Acceptance criteria for PR 0 (sec-eng + .NET-arch + frontend-arch GREEN)
 
