@@ -202,3 +202,247 @@ The decision folds the Admiral 10-halt ruling (`admiral-ruling-2026-05-26T0500Z`
 | 10 | Kernel-codename READMEs | **CARVE-OUT** (separate docs-only PR) | Docs-only (post-Accept) |
 
 **Final ADR 0098 scope:** 5 renames + 1 new substrate package + 1 Roslyn deprecation analyzer + 1 deferred docs-only PR carve-out.
+
+## Substrate / layering notes
+
+**`foundation-agreements` substrate-tier slotting.** The new `foundation-agreements` package sits at the foundation layer between the kernel (domain-free distributed-systems primitives — `kernel-lease` / `kernel-ledger` / `kernel-runtime`) and Tier-1 domain-blocks (vertical-specific consumers — `blocks-leases` today; future `blocks-brand-deals`, `blocks-license-agreements`). The substrate carries:
+
+- `IAgreement` — the cross-vertical abstraction; properties for parties + terms + lifecycle + tenant; `IMustHaveTenant` semantic (per ADR 0008 — multi-tenancy invariant) honored via the `TenantId` property declared on the substrate interface.
+- `IContractTerm` — a single bound term within an agreement (vertical-defined `TermType` marker); equivalent across vertical instances of agreement.
+- `IParty` — a participant in an agreement (vertical-defined `Role` marker — lessor / lessee / brand / creator / licensor / licensee / employer / employee / vendor / customer).
+- `AgreementStatus` — 4-stage lifecycle enum (Draft → PendingSignature → Active → Terminated). Per-vertical refinements (lease has SignedButNotYetCommenced; brand-deal has Negotiating-then-PendingSignature) modeled as vertical-block sub-states without altering the substrate enum.
+
+**Why this substrate sits at the foundation layer, not the kernel layer.** Kernel-tier substrate is **domain-free** (distributed-systems primitives + persistence primitives + audit emission primitives — `kernel-lease` is the canonical example; the Flease distributed-lock coordinator carries zero domain semantics). Foundation-tier substrate carries **domain-generic abstractions** that vertical blocks implement — the substrate has domain meaning (an "agreement" is a domain concept) but is generic across all verticals that have the concept. The three-tier slotting vocabulary (CIC ratified 2026-05-25) names this tier explicitly; ADR 0098 introduces `foundation-agreements` as a foundation-tier substrate alongside the existing `foundation-bootstrap` (ADR 0095) and `foundation-integrations` (ADRs 0013, 0096) packages. The renamed Tier-1 domain-blocks (`blocks-recurring-billing`, `blocks-work-items`, `blocks-reviews`, `blocks-listings`, `blocks-acquisition-pipeline`) sit ABOVE the foundation layer and consume foundation-tier substrate where appropriate. The relationship is: `blocks-leases` implements `IAgreement` from `foundation-agreements`; both ARE tier-1 substrate but at different sublayers (foundation = generic; block = vertical-specific).
+
+**Why `TenantId` is on `IAgreement` directly.** Per ADR 0008's multi-tenancy invariant + per the `IMustHaveTenant` typed-marker precedent in `Foundation.MultiTenancy`. Every domain entity that crosses the data-plane MUST carry `TenantId`. Putting the property on the substrate interface forces every vertical implementation to honor the invariant by construction. Future Step 1 PR may add a typed-marker analog (`IAgreementMustHaveParties` for "at least 2 Parties" or similar) per the IMustHaveTenant precedent; ADR 0098 leaves that as Engineer-judgment in Step 1 (the substrate's invariant story is the load-bearing piece; per-shape marker interfaces are optional refinements).
+
+**Why the cross-language collision with `@sunfish/contracts` (TS) matters.** The Shipyard fleet ships shared TypeScript types via `packages/contracts/` (`@sunfish/contracts` package per its package.json: "Shared TypeScript interface definitions for the Sunfish ERPNext property management stack"). Naming a parallel .NET substrate `Sunfish.Foundation.Contracts` would not collide at runtime (different ecosystems) but would create a continuous documentary disambiguation cost ("the contracts package — which one?"). The recommended `foundation-agreements` substrate name + `IAgreement` interface name avoid the collision cleanly while matching the dominant semantic concept (an agreement IS what each vertical block implements). The same rationale applies to the `System.Diagnostics.Contracts` BCL namespace + the .NET "contract-first programming" community convention (Eiffel-style design-by-contract assertions). All three collisions stack to argue against `foundation-contracts`; the `foundation-agreements` name avoids all three. Halt 5 RATIFY codifies the choice.
+
+**Interaction with ADR 0008 (Foundation.MultiTenancy).** `IAgreement.TenantId` honors the canonical multi-tenancy invariant. Step 1 PR's `IAgreement` interface declares the property with xmldoc citing ADR 0008 + the `IMustHaveTenant` precedent. No ADR 0008 amendment needed.
+
+**Interaction with ADR 0091 R2 (ITenantContext Divergence Resolution).** ADR 0091 R2's `ITenantContext` facade-vs-narrowed posture affects how consumers of the renamed blocks inject tenant context. The renames preserve consumption sites; per `feedback_itenantcontext_consumption_qualification` (memory 2026-05-22), consumers continue to inject the Authorization sum-interface facade until ADR 0091 Step 3 narrows. ADR 0098 does NOT change this — the renames are namespace-level + assembly-name-level only; consumer DI patterns are unchanged.
+
+**Interaction with ADR 0093 (Stage-05 Adversarial Review Protocol Amendment).** The 7 Step PRs follow the Stage-05 cadence (claim-beacon + spec + PR with binary gates + council review). Per the substrate-claim-beacon protocol (`feedback_substrate_claim_beacon_protocol`; Engineer 2026-05-26T03:14Z), all substrate-tier PRs require a pre-authoring claim beacon. Step 1 (new substrate) is substrate-tier; Steps 2-6 (mechanical renames) are substrate-touching (modifying substrate package boundaries); Engineer files claim beacons for each Step PR before authoring. Per-claim-beacon authoring time ~3-5 minutes given the rename mapping is enumerated in §Implementation roadmap below.
+
+**Interaction with ADR 0094 (IAuditEventReader).** ADR 0094's read-substrate is Tier-1 (concrete DI; no vendor swap). The renamed blocks emit audit events via the existing `IAuditEmitter` substrate (unchanged); the renames preserve audit emission contracts. No ADR 0094 amendment needed.
+
+**Interaction with ADR 0095 R2 (Bootstrap Context).** ADR 0095 is pre-tenant substrate. The renames in ADR 0098 are post-tenant (all 8 PAO-proposed candidates are tenant-scoped blocks). The two ADRs do not interact.
+
+**Interaction with ADR 0096 R2 (Tier-2 Vendor-Provider Substrate).** ADR 0096 codifies Tier-2 substrate (email + CAPTCHA + production-guard); ADR 0098 codifies Tier-1 domain-block substrate renames + a new foundation-tier substrate. The two ADRs do not interact directly except via:
+
+- The renamed `blocks-recurring-billing` consumes `Foundation.Integrations.Payments` (Tier-2 payments provider) via existing ProjectReference. The reference is preserved across the rename.
+- The renamed `blocks-listings` interacts with Tier-2 storage providers (asset bucket for listing photos) via existing ProjectReference. Preserved.
+
+No ADR 0096 amendment needed.
+
+**Interaction with `pattern-009` (Bridge endpoint + frontend rebind pair).** Per `feedback_pattern009_scope` (memory): pattern-009 SPOT-CHECK applies to NEW routes, NOT to refactors of existing routes. The downstream signal-bridge consumer-update PRs (post-Accept) touch existing routes by changing `using` statements + DTO type names; they do NOT add new routes. Pattern-009 does NOT trigger on the rename wave. Confirmed.
+
+**Tier-1 domain-block boundary.** The 5 renamed blocks remain Tier-1 domain-blocks (concrete DI; never swapped at runtime per the three-tier vocabulary). The new `foundation-agreements` package is Tier-1 foundation-tier substrate (concrete interface definitions consumed by vertical blocks). Neither is Tier-2 (category-provider; bounded vendor swap) nor Tier-3 (capability-plugin; runtime swap). ADR 0098 does NOT touch Tier-2 or Tier-3 substrate.
+
+**Open-source posture preservation per ADR 0018.** All renamed packages remain MIT-licensed per ADR 0018 governance posture. The new `foundation-agreements` package inherits the same license. No license-tier changes.
+
+## Implementation roadmap
+
+Nine Step PRs. Step 1 is the substrate-package new-creation (the load-bearing surface; carries dual-council MANDATORY per Halt 10). Steps 2-6 are mechanical rename-and-shim PRs (parallel-after-Step-1; each carries .NET-architect SPOT-CHECK; Step 5 additionally carries sec-eng SPOT-CHECK because the W#28 capability-tier surface is touched). Step 7 is the Roslyn deprecation analyzer (MANDATORY per Halt 7; .NET-architect MANDATORY). Step 8 is `blocks-leases` `IAgreement` adoption as cross-vertical-reuse exemplar (post-MVP slack-window per Halt 8). Step 9 is the kernel-codename README docs-only PR (post-Accept per Halt 9).
+
+### Step 1 — `foundation-agreements` new package PR (dual-council MANDATORY per Halt 10)
+
+Branch shape: `feat/adr-0098-step-1-foundation-agreements` (Engineer-authored post-ADR Acceptance).
+
+Scope:
+
+- New package `packages/foundation-agreements/`:
+  - `Sunfish.Foundation.Agreements.csproj` — standard foundation-tier csproj shape (per the ADR 0095 + ADR 0096 substrate-package precedent); `IsPackable=true`; `PackageId=Sunfish.Foundation.Agreements`; `Description` documents the cross-vertical agreement-substrate role; standard CPM-native package references.
+  - `IAgreement.cs` — interface declaration with the 7 properties named in §Substrate / layering notes (`AgreementId`, `TenantId`, `Parties`, `Terms`, `Status`, `CreatedAt`, `ActivatedAt`, `TerminatedAt`); xmldoc cites ADR 0008 + ADR 0098 + the cross-vertical-reuse rationale.
+  - `IContractTerm.cs` — 3-property interface (`TermId`, `TermType`, `Description`); xmldoc describes vertical-defined `TermType` marker convention.
+  - `IParty.cs` — 3-property interface (`PartyId`, `Role`, `DisplayName`); xmldoc enumerates canonical role markers (lessor / lessee / brand / creator / licensor / licensee).
+  - `AgreementStatus.cs` — 4-value enum (Draft = 0, PendingSignature = 1, Active = 2, Terminated = 3); xmldoc describes per-vertical refinement convention.
+  - Unit tests at `packages/foundation-agreements.tests/` — interface-shape verification (compilation tests; per ADR 0095 R2 / 0096 R2 Step 1 test precedent — registration-presence + contract verification, not resolution-validation).
+
+- Documentation:
+  - xmldoc on every introduced type per ADR 0069 §A0 discipline.
+  - Package README documenting the substrate-tier role + cross-vertical-reuse thesis + the canonical vertical-block implementation pattern.
+  - Cross-reference from ADR 0095 R2 / 0096 R2 README touchpoints if any (none expected — ADR 0098 substrate is independent).
+
+- csproj integration:
+  - Add `packages/foundation-agreements/Sunfish.Foundation.Agreements.csproj` to the Shipyard solution file (the workspace-wide `Sunfish.sln`).
+  - No ProjectReference dependencies from existing packages in Step 1 (the substrate is consumed in Step 8 deferred work).
+
+**Council review (Halt 10 MANDATORY): dual-council at PR-open.** .NET-architect reviews substrate API design (interface shape, property semantics, multi-tenancy invariant honoring, enum lifecycle modeling). Security-engineering SPOT-CHECK optional — no security surface in Step 1 (no new request paths; no credential surface; no DI-resolved scoped state).
+
+Effort: ~3-4h Engineer + Sonnet medium subagent (substrate authoring is highly templated against the ADR 0095 / 0096 Step 1 precedent).
+
+### Step 2 — `blocks-rent-collection` → `blocks-recurring-billing` rename + shim PR
+
+Branch shape: `feat/adr-0098-step-2-blocks-recurring-billing`.
+
+Scope:
+
+- New package `packages/blocks-recurring-billing/`:
+  - `Sunfish.Blocks.RecurringBilling.csproj` — new csproj at new path; new namespace `Sunfish.Blocks.RecurringBilling`; all source moved + adjusted (file-level namespace declarations updated; type-name renames per §"Cross-reference table — types-per-package" below).
+  - All public-API types preserved; `RentLedgerEntry` → `RecurringLedgerEntry`; `IRentLedgerService` → `IRecurringLedgerService`; remaining types (`Invoice`, `Payment`, `BankAccount`, `BillingFrequency`, `LateFeePolicy`) preserved unchanged (already domain-generic).
+
+- Existing package `packages/blocks-rent-collection/` retained as re-export shim:
+  - csproj retained; ProjectReference to `Sunfish.Blocks.RecurringBilling.csproj`.
+  - Source files replaced with `[assembly: TypeForwardedTo(typeof(...))]` declarations for every public type — `.NET`-idiomatic binary-compatibility rename mechanism. Consumers compiled against the old assembly name continue to resolve correctly.
+  - Package-level assembly attribute: `[Obsolete("Sunfish.Blocks.RentCollection is renamed to Sunfish.Blocks.RecurringBilling per ADR 0098; this package will be removed in the major version following the cross-vertical-reuse rename wave's deprecation cycle.")]` — warning (false), not error, per migration discipline.
+
+- ProjectReference updates within shipyard for internal consumers of `blocks-rent-collection` (limited to in-tree references; sunfish desktop + signal-bridge are downstream of Shipyard and update at their own pace via the shim).
+
+- Major version bump on both new and shim packages per SemVer + per the §"Per-rename migration pattern" below.
+
+**Council review (Halt 10): .NET-architect SPOT-CHECK at PR-open.** Per-shim correctness review + ProjectReference graph coherence verification.
+
+Effort: ~2-3h Engineer (or Sonnet medium subagent for the mechanical-rename portion).
+
+### Step 3 — `blocks-work-orders` → `blocks-work-items` rename + shim PR
+
+Branch shape: `feat/adr-0098-step-3-blocks-work-items`.
+
+Scope: Same pattern as Step 2. `Sunfish.Blocks.WorkOrders.csproj` → `Sunfish.Blocks.WorkItems.csproj`; `WorkOrder` → `WorkItem`; `WorkOrderStatus` → `WorkItemStatus`; `IWorkOrderService` → `IWorkItemService`. `TypeForwardedTo` shim from `blocks-work-orders`. ProjectReference updates internal.
+
+**Council review (Halt 10): .NET-architect SPOT-CHECK at PR-open.**
+
+Effort: ~1-2h Engineer.
+
+### Step 4 — `blocks-inspections` → `blocks-reviews` rename + shim PR
+
+Branch shape: `feat/adr-0098-step-4-blocks-reviews`.
+
+Scope: Same pattern as Step 2. `Sunfish.Blocks.Inspections.csproj` → `Sunfish.Blocks.Reviews.csproj`; `Inspection` → `Review`; `InspectionTemplate` → `ReviewTemplate`; `InspectionResponse` → `ReviewResponse`; `IInspectionsService` → `IReviewsService`. Property-domain-coupling types (`Deficiency`, `EquipmentConditionAssessment`) PRESERVED unchanged — entity-shape generalization is OUT OF SCOPE per Halt 6 Option α. The `EquipmentConditionAssessment` retains its ProjectReference to `blocks-property-equipment`; flagged in §"Forward watch" as cross-vertical-divergence trigger.
+
+`TypeForwardedTo` shim from `blocks-inspections`. ProjectReference updates internal.
+
+**Council review (Halt 10): .NET-architect SPOT-CHECK at PR-open.**
+
+Effort: ~1-2h Engineer.
+
+### Step 5 — `blocks-public-listings` → `blocks-listings` rename + shim PR
+
+Branch shape: `feat/adr-0098-step-5-blocks-listings`.
+
+Scope: Same pattern as Step 2. `Sunfish.Blocks.PublicListings.csproj` → `Sunfish.Blocks.Listings.csproj`; `PublicListing` → `Listing` (singular type rename). Pipeline-mechanics-types (`ListingPhotoRef`, `RedactionPolicy`, `ShowingAvailability`, `RenderedListing`, `IListingRepository`, `IListingRenderer`, `ICapabilityPromoter`) preserved unchanged. The W#28 capability-tier-promotion surface is the security-relevant boundary; sec-eng SPOT-CHECK additionally MANDATORY per Halt 10.
+
+`TypeForwardedTo` shim from `blocks-public-listings`. ProjectReference updates internal.
+
+**Council review (Halt 10): .NET-architect SPOT-CHECK + sec-eng SPOT-CHECK at PR-open.** Sec-eng verifies the rename preserves the W#28 capability-tier-promotion access-control surface invariants (no inadvertent broadening of public-readability scope; tier-redaction discipline preserved).
+
+Effort: ~2-3h Engineer (incrementally higher than Steps 3/4 due to W#28 cross-cutting + dual SPOT-CHECK coordination).
+
+### Step 6 — `blocks-property-leasing-pipeline` → `blocks-acquisition-pipeline` rename + shim PR
+
+Branch shape: `feat/adr-0098-step-6-blocks-acquisition-pipeline`.
+
+Scope: Same pattern as Step 2. `Sunfish.Blocks.PropertyLeasingPipeline.csproj` → `Sunfish.Blocks.AcquisitionPipeline.csproj`; `LeaseOffer` → `OfferTerms` (the only rename within the type set; the term "lease" was the only property-specific type-name in the pipeline; everything else — `Inquiry`, `Prospect`, `Application`, `DecisioningFacts`, `DemographicProfile`, `BackgroundCheckRequest`, `BackgroundCheckResult`, `AdverseActionNotice` — preserved unchanged). FHA + FCRA coupling (`DemographicProfile` + `AdverseActionNotice`) preserved per Halt 6 Option α; flagged in §"Forward watch" as cross-vertical-divergence trigger.
+
+`TypeForwardedTo` shim from `blocks-property-leasing-pipeline`. ProjectReference updates internal. Note: ADR 0057 (Leasing-Pipeline + Fair Housing) references `LeaseOffer` by name; the rename to `OfferTerms` MAY require an ADR 0057 amendment side-letter — flagged for Admiral consideration at Step 6 authoring time (per §"Open questions" below).
+
+**Council review (Halt 10): .NET-architect SPOT-CHECK at PR-open.**
+
+Effort: ~2-3h Engineer.
+
+### Step 7 — `BlockNameDeprecationAnalyzer` Roslyn analyzer PR (MANDATORY per Halt 7; .NET-architect MANDATORY per Halt 10)
+
+Branch shape: `feat/adr-0098-step-7-block-name-deprecation-analyzer`.
+
+Scope:
+
+- Extend `packages/foundation-wayfinder-analyzers/` (existing analyzer package per ADR 0095 R2 Step 3 precedent) with a new analyzer `BlockNameDeprecationAnalyzer`. Emits `SUNFISH_ADR_0098_DEPRECATED_BLOCK_NAME` diagnostic at compile time on:
+  - `using Sunfish.Blocks.RentCollection;` (suggests `using Sunfish.Blocks.RecurringBilling;`)
+  - `using Sunfish.Blocks.WorkOrders;` (suggests `using Sunfish.Blocks.WorkItems;`)
+  - `using Sunfish.Blocks.Inspections;` (suggests `using Sunfish.Blocks.Reviews;`)
+  - `using Sunfish.Blocks.PublicListings;` (suggests `using Sunfish.Blocks.Listings;`)
+  - `using Sunfish.Blocks.PropertyLeasingPipeline;` (suggests `using Sunfish.Blocks.AcquisitionPipeline;`)
+  - Direct fully-qualified-name uses (`Sunfish.Blocks.RentCollection.Invoice` etc.) — same diagnostic.
+  - Type-level renames within the rename targets (`LeaseOffer` → `OfferTerms`, `RentLedgerEntry` → `RecurringLedgerEntry`, etc.) — direct type-name suggestions where applicable.
+
+- Default severity: `Warning`. Per `feedback_prefer_cleanest_long_term_option` + ADR 0091 R2 amendment A2 + ADR 0095 R2 Step 3 analyzer precedent, the analyzer's compile-warning is louder than the `[Obsolete]` warning alone + CI-enforceable in `WarningsAsErrors` mode at consumer projects' discretion.
+
+- Code-fix provider: where applicable, ships a Roslyn code-fix that rewrites the deprecated `using` / fully-qualified name to the new namespace. Code-fix is non-mandatory (analyzer ships first; code-fix is a follow-on if Engineer time permits at Step 7 authoring; otherwise deferred).
+
+- Unit tests: AnalyzerTestFramework xUnit tests covering each deprecated-name case + non-deprecated control case (must NOT warn on uses of the renamed-target namespaces).
+
+- CI gate addition (optional; Engineer-judgment at Step 7 authoring): add `SUNFISH_ADR_0098_DEPRECATED_BLOCK_NAME` to the `WarningsAsErrors` list in the Shipyard solution Directory.Build.props if council ratifies. Default: warning-only; downstream consumer projects opt in by their own `WarningsAsErrors` configuration.
+
+**Council review (Halt 10 MANDATORY): .NET-architect MANDATORY at PR-open.** Reviews analyzer code quality + diagnostic ID assignment + code-fix correctness (if shipped) + severity selection rationale. Sec-eng SPOT-CHECK optional (no security surface).
+
+Effort: ~2-3h Engineer + ~1h .NET-architect council review.
+
+### Step 8 — `blocks-leases` `IAgreement` adoption (post-MVP slack-window per Halt 8; deferred)
+
+Branch shape: `feat/adr-0098-step-8-blocks-leases-iagreement-adoption` (deferred; NOT delivered by ADR 0098 Acceptance; ships during post-MVP slack-window per CIC dispatch).
+
+Scope (forward-watch):
+
+- `blocks-leases` adds ProjectReference to `foundation-agreements`.
+- `Sunfish.Blocks.Leases.Lease` aggregate implements `Sunfish.Foundation.Agreements.IAgreement` — first cross-vertical-reuse exemplar.
+- `Lease.AgreementId` returns the existing strongly-typed `LeaseId`'s underlying string (per `IAgreement.AgreementId: string`); `Lease.TenantId` returns existing tenant scoping; `Lease.Parties` materializes existing lessor + lessee + co-signers as `IParty` instances with role markers; `Lease.Terms` materializes existing rent-amount + lease-duration + escalation + other terms as `IContractTerm` instances; `Lease.Status` maps existing lease lifecycle to `AgreementStatus`.
+- ADR 0057 (Leasing Pipeline + Fair Housing) may require amendment-side-letter touch — flagged for Admiral consideration when Step 8 dispatches.
+- Subsequent vertical blocks (future `blocks-brand-deals`, `blocks-license-agreements`) implement `IAgreement` at their authoring time.
+
+**Council review:** dispatched at Step 8 authoring time; ADR 0098 does not pre-pin council cadence for Step 8 (the cross-vertical-reuse step is conceptually GREEN-attestable but ships in a different temporal window).
+
+Effort: ~3-4h Engineer at Step 8 dispatch time.
+
+### Step 9 — Kernel-codename READMEs (post-Accept docs-only PR per Halt 9; deferred)
+
+Branch shape: `docs/adr-0098-step-9-kernel-codename-readmes` (deferred; separate docs-only PR; NOT part of ADR 0098 Acceptance critical path).
+
+Scope:
+
+- Author README.md for each kernel-codename package without one today:
+  - `packages/blocks-quarterdeck/` (apex entry-point block per ADR 0080)
+  - `packages/blocks-sick-bay/` (operational-health aggregation surface per ADR 0082)
+  - `packages/blocks-engine-room/` (runtime telemetry block)
+  - `packages/blocks-ships-office/` (content-aggregation surface per ADR 0083)
+  - `packages/blocks-tactical/` (anomaly-detection block per ADR 0081)
+  - `packages/blocks-crew-comms/` (crew-communications block)
+  - Any other codename-named packages without a current README.
+
+- Each README documents (a) the codename's source-of-truth ADR if any, (b) the substantive role (in domain-grounded terms, not fleet-codename only), (c) the consumer pattern, (d) the cross-vertical applicability note where relevant.
+
+**Council review:** none required for docs-only.
+
+Effort: ~3-4h Sonnet medium subagent dispatch (delegated work per ONR scaffold suggestion).
+
+### Per-rename migration pattern (Steps 2-6 canonical mechanic)
+
+For each of the 5 confirmed renames, the migration pattern is:
+
+1. **New package shipped.** New csproj at new path (e.g., `packages/blocks-recurring-billing/Sunfish.Blocks.RecurringBilling.csproj`), new namespace (`Sunfish.Blocks.RecurringBilling`), all source moved + adjusted (file-level namespace declarations updated; type-name renames per §"Cross-reference table — types-per-package" below).
+2. **Old package retained as re-export shim.** Old csproj keeps its name, references the new csproj via ProjectReference, re-exports all public types via `[assembly: TypeForwardedTo(typeof(<NewNamespace>.<Type>))]` declarations (the `.NET`-idiomatic binary-compatibility rename mechanism). Consumers compiled against the old assembly name continue to resolve correctly.
+3. **Old package deprecated.** Package-level assembly attribute: `[Obsolete("<OldNamespace> is renamed to <NewNamespace> per ADR 0098; this package will be removed in the major version following the cross-vertical-reuse rename wave's deprecation cycle.", false /* warning, not error */)]`.
+4. **Major version bump.** Both new and shim packages bump per SemVer to the next major version; renames are binary-compat-survivable but consumer tooling depending on AssemblyName WILL break — major bump is honest.
+5. **Archive after one release cycle.** After one full release cycle of co-shipping new + shim (typically 1-2 months at current Shipyard cadence per ADR 0011 Bundle Versioning + Upgrade Policy), the shim package is archived (csproj removed; published NuGet package marked listed=false on nuget.org).
+6. **Step 7 Roslyn analyzer ships after Steps 2-6 land.** Emits compile-time warnings on `using` of the deprecated namespaces + direct fully-qualified-name uses; suggests the new namespace + new type name where applicable.
+
+### Cross-reference table — types-per-package (Steps 2-6 detailed mapping)
+
+| Old package | Old key types | New package | New key types (renamed?) | Notes |
+|---|---|---|---|---|
+| `blocks-rent-collection` (`Sunfish.Blocks.RentCollection`) | `Invoice`, `Payment`, `BankAccount`, `BillingFrequency`, `LateFeePolicy`, `RentLedgerEntry`, `IRentLedgerService` | `blocks-recurring-billing` (`Sunfish.Blocks.RecurringBilling`) | `Invoice`, `Payment`, `BankAccount`, `BillingFrequency`, `LateFeePolicy`, `RecurringLedgerEntry`, `IRecurringLedgerService` | "Rent" → "Recurring" renames in 2 of 7 types (the ledger entry + service) |
+| `blocks-work-orders` (`Sunfish.Blocks.WorkOrders`) | `WorkOrder`, `WorkOrderStatus`, `IWorkOrderService` | `blocks-work-items` (`Sunfish.Blocks.WorkItems`) | `WorkItem`, `WorkItemStatus`, `IWorkItemService` | "Order" → "Item" renames throughout |
+| `blocks-inspections` (`Sunfish.Blocks.Inspections`) | `Inspection`, `InspectionTemplate`, `InspectionResponse`, `Deficiency`, `EquipmentConditionAssessment`, `IInspectionsService` | `blocks-reviews` (`Sunfish.Blocks.Reviews`) | `Review`, `ReviewTemplate`, `ReviewResponse`, `Deficiency`, `EquipmentConditionAssessment`, `IReviewsService` | "Inspection" → "Review" renames; entity-coupling to `blocks-property-equipment` retained but flagged for future generalization (Halt 6 Option α) |
+| `blocks-public-listings` (`Sunfish.Blocks.PublicListings`) | `PublicListing`, `ListingPhotoRef`, `RedactionPolicy`, `ShowingAvailability`, `RenderedListing`, `IListingRepository`, `IListingRenderer`, `ICapabilityPromoter` | `blocks-listings` (`Sunfish.Blocks.Listings`) | `Listing`, `ListingPhotoRef`, `RedactionPolicy`, `ShowingAvailability`, `RenderedListing`, `IListingRepository`, `IListingRenderer`, `ICapabilityPromoter` | "PublicListing" → "Listing" (singular type rename); pipeline-mechanics-types retained |
+| `blocks-property-leasing-pipeline` (`Sunfish.Blocks.PropertyLeasingPipeline`) | `Inquiry`, `Prospect`, `Application`, `DecisioningFacts`, `DemographicProfile`, `BackgroundCheckRequest`, `BackgroundCheckResult`, `AdverseActionNotice`, `LeaseOffer`, `ILeasingPipelineService` | `blocks-acquisition-pipeline` (`Sunfish.Blocks.AcquisitionPipeline`) | `Inquiry`, `Prospect`, `Application`, `DecisioningFacts`, `DemographicProfile`, `BackgroundCheckRequest`, `BackgroundCheckResult`, `AdverseActionNotice`, `OfferTerms` (renamed from `LeaseOffer`), `IAcquisitionPipelineService` | "Lease" appears only in `LeaseOffer` — rename to `OfferTerms`; FHA/FCRA-specific entities retained but flagged for future generalization (Halt 6 Option α) |
+
+### Parallelism + total scope
+
+- **Step 1 is gating** for Steps 2-6 because Steps 2-6 do not depend on the substrate (the renamed blocks do NOT implement `IAgreement` at this time per Halt 8 Option α — that is Step 8 deferred work). Step 1 can therefore land **in parallel** with Steps 2-6 if desired; Engineer-judgment on sequencing.
+- **Steps 2-6 are pure mechanical renames + shims**; they can run in **parallel** as separate PRs once each branches from main (no inter-PR dependencies; each touches a disjoint subset of `packages/`). Engineer cap (per `feedback_engineer_pr_count_cap` = 10 in-flight; 2026-05-21 ratification) accommodates the parallel wave easily.
+- **Step 7 (analyzer) depends on Steps 2-6 all having landed** — the analyzer needs to know all the rename mappings to emit the per-namespace + per-type suggestions.
+- **Total Engineer lift:** ~13-19 hours across Steps 1-7 (Step 1: ~3-4h; Steps 2-6: ~1-3h each = ~8-13h aggregate; Step 7: ~2-3h). Substantially less than the alternative of incremental renames spread across 3-6 months of substrate-block PR churn per D5.
+- **Downstream consumer-update lift (post-Accept; not Engineer-blocking):** ~10-15 hours across sunfish desktop + signal-bridge consumer PRs; happens at downstream's own pace within the deprecation window per the re-export-shim discipline.
+- **Council attestation cadence:** 1 dual-council MANDATORY on ADR text (this PR; Halt 10); 1 dual-council MANDATORY on Step 1 PR; 5 SPOT-CHECKs on Steps 2-6 (Step 5 has 2 SPOT-CHECKs — .NET-arch + sec-eng); 1 .NET-architect MANDATORY on Step 7 analyzer.
+
+### Rollback story
+
+Per-step rollback is trivial because each Step PR is mechanical-rename-only:
+
+- **Step 1 rollback** (new substrate package): `git revert` removes the foundation-agreements package. No downstream depends on it yet (Step 8 deferred). Cost: minutes.
+- **Steps 2-6 rollback** (per-block rename + shim): `git revert` the rename PR. Re-export shim disappears; downstream consumers revert their consumption updates. Cost: ~30 minutes per rollback.
+- **Step 7 rollback** (analyzer): disable the analyzer (remove from `foundation-wayfinder-analyzers` registration) OR `git revert` the analyzer PR. Cost: minutes.
+- **Step 8 rollback** (deferred): does not affect ADR 0098 Acceptance; rollback is at Step 8 authoring time + its own dispatch.
+
+Rollback is mechanical because each Step preserves the old package (shim) for the entire deprecation window — no destructive operations until shim archive (which is its own PR, separate from this ADR; not in the ADR 0098 critical path).
+
