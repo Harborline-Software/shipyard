@@ -1500,17 +1500,17 @@ Plus `OriginInvalidError` rendered as transport-failure banner (403 non-user-cor
 
 **Forbidden:** silently-dead-code (a wired Submit button that does nothing) or a structurally-present-functionally-absent CAPTCHA widget. Cleanly-removed-with-forward-watch is AMBER; silently-dead-code is RED. Cohort-4 sunfish#71 RED is the canonical precedent trap.
 
-#### 4.3.4 Test expectations — `SignupPage.test.tsx`
+#### 4.3.4 Test expectations — `SignupPage.test.tsx` (Rev 2: 12 baseline tests, retired EmailAlreadyRegistered)
 
-Minimum 10 React Testing Library tests:
+Minimum 12 React Testing Library tests (Rev 1 had 12 with `email_already_registered` test #5; Rev 2 replaces #5 with `202 navigates to verify-email/pending` confirmation since H2 RATIFY drops the 400 discriminator):
 
 | # | Test | Closes |
 |---|---|---|
 | 1 | `renders signup form with email + password + slug + display-name fields` | baseline |
 | 2 | `client-side validation prevents submit when slug fails regex` | baseline + Amendment J discriminator (matches `tenant_slug_invalid_shape` server-side discriminator) |
 | 3 | `submission posts canonical JSON shape to /api/v1/auth/signup` | §3.1 wire contract |
-| 4 | `200 response navigates to /auth/verify-email/pending with email_dispatch_id` | §3.1 happy path |
-| 5 | `400 email_already_registered surfaces friendly inline message` | §3.5 typed error |
+| 4 | `202 response navigates to /auth/verify-email/pending with email_dispatch_id` | §3.1 happy path |
+| 5 | `(Rev 2 RETIRED) email_already_registered branch removed per H2 RATIFY` — replaced by test verifying signup with already-verified email STILL navigates to verify-email/pending (no error branch) | §3.5 H2 RATIFY |
 | 6 | `400 tenant_slug_taken surfaces field-scoped error on slug input` | §3.5 typed error |
 | 7 | `429 rate_limited displays Retry-After countdown` | §3.7 rate-limit + Retry-After header read |
 | 8 | `403 origin_invalid surfaces transport-failure banner (NOT user-correctable)` | §3.6 origin |
@@ -1518,6 +1518,46 @@ Minimum 10 React Testing Library tests:
 | 10 | `frontend does NOT declare tenant_id or verification_token in TypeScript interfaces` | Amendment I negative-match (static-check via type assertion test) |
 | 11 | `error handler reads body.title, never body.error` | Amendment J discriminator pin |
 | 12 | `password field does not log to console on submit` | defense-in-depth (no-log-secret) |
+
+#### 4.3.4.PD Per-discriminator RTL pinning tests (test-eng T2 fold)
+
+Lives in `sunfish/apps/web/src/api/__tests__/onboarding-discriminators.test.tsx` (or co-located with the typed-error class definitions). **9 tests, one per discriminator** in §3.5 post-Rev-2; each imports the discriminator string from the `SignupDiscriminator` const-export to pin single-source-of-truth:
+
+| # | Test | Discriminator | Closes |
+|---|---|---|---|
+| T2.1 | `400 with title=SignupDiscriminator.VALIDATION_FAILED surfaces ValidationFailedError instance` | `validation_failed` | T2 + Amendment J |
+| T2.2 | `400 with title=SignupDiscriminator.TENANT_SLUG_TAKEN surfaces TenantSlugTakenError` | `tenant_slug_taken` | T2 + Amendment J |
+| T2.3 | `400 with title=SignupDiscriminator.TENANT_SLUG_RESERVED surfaces TenantSlugReservedError` | `tenant_slug_reserved` | T2 + Amendment J |
+| T2.4 | `400 with title=SignupDiscriminator.TENANT_SLUG_INVALID_SHAPE surfaces TenantSlugInvalidShapeError` | `tenant_slug_invalid_shape` | T2 + Amendment J |
+| T2.5 | `400 with title=SignupDiscriminator.CAPTCHA_FAILED surfaces CaptchaFailedError` | `captcha_failed` | T2 + Amendment J |
+| T2.6 | `400 with title=SignupDiscriminator.VERIFICATION_TOKEN_INVALID surfaces VerificationTokenInvalidError` (VerifyEmailPage) | `verification_token_invalid` | T2 + Amendment J |
+| T2.7 | `400 with title=SignupDiscriminator.VERIFICATION_TOKEN_EXPIRED surfaces VerificationTokenExpiredError + resend CTA` (VerifyEmailPage) | `verification_token_expired` | T2 + Amendment J |
+| T2.8 | `429 with title=SignupDiscriminator.RATE_LIMITED surfaces RateLimitedError + retryAfterSeconds parsed from Retry-After header` | `rate_limited` | T2 + §3.7 |
+| T2.9 | `403 origin_invalid surfaces transport-failure banner (not user-correctable; OriginInvalidBanner component renders)` | `origin_invalid` | T2 + §3.6 |
+
+Each test ALSO asserts:
+- `body.title === SignupDiscriminator.<NAME>` (using the imported const; if the const string drifts, the test fails — pins single-source-of-truth).
+- `body.error` field is NOT consulted (proves the fleet `title`-not-`error` convention per Amendment J).
+
+**Cross-stack contract test** (`onboarding-discriminator-contract.test.ts`) asserts the TypeScript `SignupDiscriminator` const-export object matches the C# `OnboardingDiscriminators` static-class field set byte-for-byte. Without this test, TS and C# can silently drift.
+
+#### 4.3.7 Selector strategy floor (test-eng T4 fold — cohort-3 buglog 642/643 precedent)
+
+All RTL + Playwright tests in W#79 MUST use one of:
+- `findByRole(...)` / `getByRole(...)` for semantic elements (headings, buttons, textboxes, links).
+- `findByLabelText(...)` / `getByLabelText(...)` for form fields.
+- `findByTestId(...)` / `getByTestId(...)` for components without a semantic role.
+
+**PROHIBITED in W#79 tests:**
+- Bare `getByText(...)` / `findByText(...)` for headings or buttons (use `getByRole('heading' | 'button', { name })` instead).
+- `getByDisplayValue(...)` for empty inputs (use `getByLabelText` + assert `value`).
+
+**Cohort-3 buglog precedent:** bug 642 (ArAging) + bug 643 (TrialBalance) both surfaced as RTL multi-match where `getByText` hit subtitle + heading. Fix in both cases was `findByRole('heading')`. W#79 is greenfield; the floor can be set proactively with zero migration cost.
+
+**Reviewer-discipline gate:**
+- PR 2 frontend-architect SPOT-CHECK verifies no `getByText` calls on heading/button/role-bearing elements.
+- PR 3 test-eng-council SPOT-CHECK extends the gate to Playwright `page.getByText` calls.
+- (Optional follow-on:) An ESLint rule banning bare `getByText` in `*.test.tsx` files lands as a separate fleet PR (forward-watch).
 
 #### 4.3.5 Test expectations — `VerifyEmailPage.test.tsx`
 
@@ -1532,12 +1572,15 @@ Minimum 6 RTL tests:
 | 5 | `frontend does NOT declare tenant_id or session_token` | Amendment I negative-match |
 | 6 | `verification_token NEVER logged or rendered to DOM beyond the URL` | defense-in-depth |
 
-#### 4.3.6 Acceptance criteria for PR 2
+#### 4.3.6 Acceptance criteria for PR 2 (Rev 2)
 
-- [ ] All 12 SignupPage RTL tests + all 6 VerifyEmailPage RTL tests passing.
-- [ ] TypeScript interfaces in `onboarding.types.ts` carry ONLY POSITIVE-match fields per §3.1-§3.4 (no `tenant_id`, no `verification_token`, no `session_token`, no `password_hash`).
-- [ ] Cycle-1 DRAFT posture is AMBER (banner present + forward-watch comment) per §3.9 + §4.3.3.
-- [ ] Cycle-2 amendment commit removes banner; full flow operational.
+- [ ] All 12 SignupPage RTL tests (§4.3.4) + all 6 VerifyEmailPage RTL tests (§4.3.5) + 9 per-discriminator RTL tests (§4.3.4.PD) passing.
+- [ ] `sunfish/apps/web/src/api/onboarding-discriminators.ts` const-export ships; typed-error class definitions import from it (NOT inline string literals).
+- [ ] Cross-stack contract test (`onboarding-discriminator-contract.test.ts`) asserts TS `SignupDiscriminator` const-export object matches C# `OnboardingDiscriminators` static-class field set byte-for-byte (8 string constants on each side; passing test = ZERO divergence).
+- [ ] §4.3.7 selector-strategy floor enforced — no `getByText` on heading/button/role-bearing elements; reviewer SPOT-CHECK gates the discipline.
+- [ ] TypeScript interfaces in `onboarding.types.ts` carry ONLY POSITIVE-match fields per §3.1-§3.3 (no `tenant_id`, no `verification_token`, no `session_token`, no `password_hash`).
+- [ ] Cycle-1 DRAFT posture is AMBER per §3.9 + §4.3.3 (clean banner + forward-watch comment); Cycle-2 amendment removes banner.
+- [ ] `EmailAlreadyRegisteredError` typed-error class NOT shipped (retired per Rev 2 H2 RATIFY).
 - [ ] PR description includes acceptance-criteria checklist + `@candidate-pattern: pattern-009-w79-onboarding-signup-pair` claim per fleet-conventions PR-description convention.
 - [ ] Pre-flight commit-message check (Amendment K) clean.
 
@@ -1559,23 +1602,113 @@ Minimum 6 RTL tests:
 | `sunfish/apps/web/src/api/__tests__/onboarding-contract.test.ts` | new | MSW-handler-based contract tests per Amendment M (forward-watch promotion to MUST once MSW infra ships fleet-wide); pins typed-error contracts against server DTO source |
 | `sunfish/apps/web/msw/onboarding-handlers.ts` | new | MSW handlers for `/api/v1/auth/*` mirroring server DTO shapes per §3.1-§3.4 |
 
-#### 4.4.2 Cross-stack invariants asserted
+#### 4.4.2 Cross-stack invariants asserted (Rev 2 — drops check-availability + adds MSW parity)
 
 - **Happy path:** signup → 202 with email_dispatch_id → verify-email page accepts token from email body → 200 with tenant_slug + tenant_display_name. Full stack alive.
 - **Rate-limit floor:** 6 rapid signups from same IP → 6th returns 429 with `Retry-After` header set.
-- **Mock-email inbox:** signup → MockEmailProvider receives the EmailMessage with `MessageStream: "transactional-onboarding"`; the in-memory store accessible via test-only inspection API (Halt: see Halt H1 for the dev `/dev/inbox` UI route decision); the server log does NOT contain `BodyText` or `BodyHtml` (ADR 0096 Rev 2 Amendment #6 verification).
-- **Mock-vendor production-guard fires:** test fixture spins up `WebApplicationBuilder` with `ASPNETCORE_ENVIRONMENT=Production` + no opt-out → `IHost.StartAsync` throws `MockInProductionException`. (Covered already by PR 1 §4.2.5 test M1; PR 3 cross-links.)
+- **Mock-email inbox:** signup → MockEmailProvider receives the EmailMessage with `MessageStream: "transactional-onboarding"`; the in-memory store accessible via test-only inspection API (per H1 RATIFY option c — Bridge test-only inspection endpoint; UI deferred to W#80); the server log does NOT contain `BodyText` or `BodyHtml` (ADR 0096 Rev 2 Amendment #6 verification).
+- **Mock-vendor production-guard fires:** test fixture spins up `WebApplicationBuilder` with `ASPNETCORE_ENVIRONMENT=Production` + no opt-out → `IHost.StartAsync` throws `MockInProductionException`. (Covered already by PR 1 §4.2.5 tests M1-M14; PR 3 cross-links.)
 - **α-1 child-scope correctness:** signup completes → User aggregate written via `IUserAggregateRepository` resolved from child scope → outer bootstrap scope's audit emission carries correct correlation-id. (Asserted via cross-stack log inspection.)
 - **Bridge endpoint conformance to ProblemDetails:** all 4xx responses carry `title` field (not `error`); verified by MSW-handler authoring against real Bridge response capture.
+- **(Rev 2 new) MSW-vs-real-Bridge parity (test-eng T6 B2):** for each of the 9 discriminator paths (§3.5), the cross-stack parity test:
+  - Spins up the test-env Bridge.
+  - Drives the Bridge handler down the matching error path via crafted request.
+  - Captures the actual Bridge response body + status + headers.
+  - Asserts the MSW handler in `sunfish/apps/web/msw/onboarding-handlers.ts` returns a byte-for-byte identical body + status + Retry-After header (for `rate_limited`).
+  - Asserts MSW handler emits discriminator strings sourced from the `SignupDiscriminator` const-export — proves single-source-of-truth all the way through.
+  - Without parity, MSW lies are invisible to the cycle-1 test suite (per test-eng T6).
+- **H2 RATIFY always-202 byte-for-byte:** 3 signup paths (fresh / unverified-existing / verified-existing) ALL return byte-for-byte identical 202 envelopes. Playwright test fires 3 signups (one per state) + asserts response.body equality.
+- **(Rev 2 new) Constant-work latency floor (sec-eng D):** Bridge integration test fires 100 signups against the 3 H2 paths (fresh / unverified-existing / verified-existing); asserts p50/p95 latency falls within `+/- 25%` across paths. (CI flake-resilient bound; loosen to `+/- 35%` if CI runner variance proves higher.)
 
-#### 4.4.3 Acceptance criteria for PR 3
+#### 4.4.3 Acceptance criteria for PR 3 (Rev 2)
 
 - [ ] All Playwright e2e specs pass against test-env Bridge + MockEmailProvider.
-- [ ] MSW handlers in `onboarding-handlers.ts` mirror server DTO shapes byte-for-byte per §3.1-§3.4.
-- [ ] Contract-test suite asserts every 400 discriminator from §3.5 has a corresponding typed-error class.
+- [ ] MSW handlers in `onboarding-handlers.ts` mirror server DTO shapes byte-for-byte per §3.1-§3.3 (check-availability handlers REMOVED per D4).
+- [ ] MSW-vs-real-Bridge parity test (§4.4.4 below) passes for all 9 discriminators.
+- [ ] MSW handlers consume discriminator strings from `SignupDiscriminator` const-export (NO inline string literals).
+- [ ] Contract-test suite asserts every 400/429/403 discriminator from §3.5 has a corresponding typed-error class (8 typed-errors + 1 transport-banner; `EmailAlreadyRegisteredError` ABSENT per H2 RATIFY).
+- [ ] §4.4.5 H2 RATIFY 3-path byte-for-byte 202 equality test passes.
+- [ ] §4.4.6 constant-work latency floor test passes (`+/- 25%` p50/p95 across 3 H2 paths over 100 requests each).
+- [ ] §4.3.7 selector-strategy floor extended to Playwright `page.getByText` calls (no bare getByText on headings/buttons).
 - [ ] test-eng-council SPOT-CHECK GREEN on Ready-flip (coverage-model gate per ADR 0093 Rev 4).
-- [ ] PR description references the 12 SignupPage + 6 VerifyEmailPage tests from PR 2 as the unit-tier; PR 3's contribution is the integration + e2e tier.
+- [ ] PR description references the 12 SignupPage + 6 VerifyEmailPage + 9 per-discriminator tests from PR 2 as the unit-tier; PR 3's contribution is the integration + e2e tier.
 - [ ] Pre-flight commit-message check (Amendment K) clean.
+
+#### 4.4.4 MSW-vs-real-Bridge parity test (Rev 2 — test-eng T6 B2)
+
+File: `sunfish/apps/web/src/api/__tests__/onboarding-msw-parity.test.ts`. Single test suite, 9 test cases (one per discriminator):
+
+```typescript
+describe('MSW handlers byte-for-byte match real Bridge', () => {
+  for (const discriminator of Object.values(SignupDiscriminator)) {
+    it(`${discriminator}: MSW response equals Bridge response`, async () => {
+      // 1. Drive Bridge handler down the error path matching `discriminator`.
+      const bridgeResponse = await fireBridgeErrorPath(discriminator);
+      // 2. Drive MSW handler down the same path.
+      const mswResponse = await fireMswErrorPath(discriminator);
+      // 3. Byte-for-byte body + status + Retry-After header equality.
+      expect(mswResponse.status).toBe(bridgeResponse.status);
+      expect(await mswResponse.json()).toEqual(await bridgeResponse.json());
+      expect(mswResponse.headers.get('Retry-After'))
+        .toBe(bridgeResponse.headers.get('Retry-After'));
+    });
+  }
+});
+```
+
+Helper `fireBridgeErrorPath` spins up the in-memory test-env Bridge + sends a crafted request that lands on the named discriminator's error branch. Helper `fireMswErrorPath` invokes the MSW handler via `msw/server.use` + `fetch`. Test passes iff every (body, status, headers) tuple matches.
+
+#### 4.4.5 H2 RATIFY 3-path equality test (Rev 2)
+
+File: `sunfish/apps/web/e2e/onboarding-h2-equality.spec.ts`. Playwright spec:
+
+```typescript
+test('signup with fresh / unverified-existing / verified-existing emails return identical 202 envelopes', async ({ request }) => {
+  const responses = await Promise.all([
+    request.post('/api/v1/auth/signup', { data: freshSignupBody }),
+    request.post('/api/v1/auth/signup', { data: unverifiedExistingSignupBody }),
+    request.post('/api/v1/auth/signup', { data: verifiedExistingSignupBody }),
+  ]);
+  // All 3 must be 202.
+  for (const r of responses) expect(r.status()).toBe(202);
+  // All 3 must have IDENTICAL envelope shape (the email_dispatch_id values differ;
+  // strip them before equality; ensure no other fields leak the email-state).
+  const bodies = await Promise.all(responses.map(r => r.json()));
+  const stripped = bodies.map(b => ({ ...b, email_dispatch_id: 'REDACTED' }));
+  expect(stripped[0]).toEqual(stripped[1]);
+  expect(stripped[1]).toEqual(stripped[2]);
+});
+```
+
+#### 4.4.6 Constant-work latency floor test (Rev 2 — sec-eng D)
+
+File: `signal-bridge/Sunfish.Bridge.Tests/Onboarding/SignupHandlerTimingTests.cs`. Bridge integration test (NOT Playwright — runs in test-env Bridge directly to avoid network noise):
+
+```csharp
+[Fact]
+public async Task SignupHandler_constant_work_p95_latency_within_25_percent_across_H2_paths()
+{
+    const int iterations = 100;
+    var freshLatencies = await RunSignupBatch(freshEmailFactory, iterations);
+    var unverifiedLatencies = await RunSignupBatch(unverifiedExistingEmailFactory, iterations);
+    var verifiedLatencies = await RunSignupBatch(verifiedExistingEmailFactory, iterations);
+
+    var p50Fresh = Percentile(freshLatencies, 0.50);
+    var p50Unverified = Percentile(unverifiedLatencies, 0.50);
+    var p50Verified = Percentile(verifiedLatencies, 0.50);
+
+    var p50Range = Math.Max(p50Fresh, Math.Max(p50Unverified, p50Verified)) -
+                   Math.Min(p50Fresh, Math.Min(p50Unverified, p50Verified));
+    var p50Mid = (p50Fresh + p50Unverified + p50Verified) / 3;
+    Assert.True(p50Range / p50Mid < 0.25,
+        $"p50 latency variance {p50Range/p50Mid:P} exceeds 25% floor; " +
+        $"constant-work discipline (sec-eng D) likely regressed.");
+
+    // Same assertion for p95.
+}
+```
+
+CI flake-resilience: if CI runner variance proves higher than ~25%, the bound loosens to `+/- 35%`; floor remains `+/- 50%` as the absolute regression detector. Engineer's PR 1 ratifies the actual bound based on first 5 CI runs.
 
 ---
 
@@ -1611,7 +1744,27 @@ When all 4 PRs land, the cumulative cohort coverage matrix:
 | `Playwright mock-email-inbox: BodyText not in server log; in-memory store carries link` | PR 3 | ADR 0096 #6 + dev-inbox | e2e |
 | `MSW contract handlers byte-for-byte mirror server DTO shapes` | PR 3 | Amendment M (forward-watch) | contract |
 
-**Cumulative test count target:** ~25 new tests across substrate-DI / handler / page / e2e layers.
+**Cumulative test count target (Rev 2 fold):** ~63 new tests across substrate-DI / handler / page / e2e layers (expanded from Rev 1's ~25). Distribution:
+
+| PR | Tier | Test count | Notes |
+|---|---|---|---|
+| PR 0 | Substrate-DI integration | 5 | §4.1.5 (routing + AllowAnonymous + rate-limit floor + Origin reject + length-cap reject) |
+| PR 0 | Substrate primitive unit | 6 | §4.2.7 MutableTenantContextSeedTests (T3 fold) |
+| PR 0 | EF migration smoke | 1 | apply + rollback for AddOnboardingFieldsToTenantRegistration |
+| PR 1 | Handler integration | 13 | §4.2.6 baseline 9 + sec-eng C one-shot + sec-eng D constant-work + audit-emission test + auth-mismatch test |
+| PR 1 | Production-guard | 14 | §4.2.5 M1-M14 (T1 expansion + sec-eng H factory-registered M3/M4) |
+| PR 1 | ProblemDetails per-discriminator (backend) | 9 | §4.2.6.PD (T2 fold) |
+| PR 2 | RTL SignupPage | 12 | §4.3.4 baseline (#5 reshaped post-H2 RATIFY) |
+| PR 2 | RTL VerifyEmailPage | 6 | §4.3.5 baseline |
+| PR 2 | Per-discriminator RTL | 9 | §4.3.4.PD (T2 fold) |
+| PR 2 | Const-export contract | 1 | cross-stack TS-vs-C# const equality |
+| PR 3 | Playwright e2e | 3 | §4.4.1 (happy-path + rate-limit + mock-inbox) |
+| PR 3 | MSW-vs-Bridge parity | 9 | §4.4.4 (T6 B2 fold; one per discriminator) |
+| PR 3 | H2 RATIFY 3-path equality | 1 | §4.4.5 (Rev 2) |
+| PR 3 | Constant-work latency floor | 1 (1 test, 2 assertions: p50 + p95) | §4.4.6 (sec-eng D fold) |
+| **Cumulative** | | **~63 tests** | substrate-tier coverage-precision lift per test-eng T1+T2+T3+T6 |
+
+Sister cohort precedent: cohort-4 audit-trail-viewer (W#60) shipped with ~45 cumulative tests at similar surface area; W#79's larger count reflects the new substrate primitives + ProblemDetails per-discriminator discipline (the highest-value bug-prevention investment per Amendment J).
 
 ---
 
@@ -1747,6 +1900,33 @@ Per ADR 0093 Rev 4 §"Adversarial Brief" + the pattern-emergence cadence (V11 #1
 - **Threat 3:** Retry-After header dropped on 429. Closed by integration test asserting Retry-After present on every 429 response.
 
 **Promotion to STANDING:** when W#79 + W#82 + post-MVP webhook-receiver bootstrap all consume the non-permissive-floor + Retry-After + per-entity-key shape.
+
+### 6.3 Rev 2 forward-watches (non-blocking; tracked for future cohorts)
+
+Per the 3-council triple-AMBER fold, these forward-watches retain status post-Rev-2 (no Rev 2 amendment required; each is deferred to a named future PR or substrate-touch):
+
+**From sec-eng verdict (Gaps I, J, K):**
+- **FW-sec-eng-I — OOB notification per-victim-email rate-limit.** H2 OOB notification dispatch needs per-victim-email-per-day quota (~1 email/email/24h) to prevent attacker-driven amplification on a victim inbox. SignupHandler §4.2.1 ships an IdempotencyKey shape (`"oob-existing-{tenantId}-{date:yyyy-MM-dd}"`) that the email substrate's dedup uses; PR 1 SPOT-CHECK verifies the substrate honors the dedup key. If substrate-tier dedup doesn't materialize, surface at PR 1 SPOT-CHECK + lift to per-email rate-limit at handler tier.
+- **FW-sec-eng-J — Origin validation single-apex-host assumption.** §3.6 + ADR 0095 Step 2 PR substrate-tier work; W#79 hand-off assumes `TenantResolutionOptions.AllowedApexHosts` (allowlist) shape; Engineer's Step 2 PR SPOT-CHECK verifies. If Step 2 ships single-host shape, surface as Step 2 SPOT-CHECK finding.
+- **FW-sec-eng-K — VerifyEmailHandler CAPTCHA omission rationale.** Rev 2 includes inline comment block in §4.2.2 STEP 1 (already specced; verify-email originates from emailed link → token-signature replaces CAPTCHA as bot-defense surface). No further fold needed.
+
+**From .NET-arch verdict (FW-1 through FW-6):**
+- **FW-A1 — Async-disposable reconciliation.** Folded into §4.2.1 inline note (Rev 2; see "Note (FW-A1 reconciliation)" above).
+- **FW-C2 — §A0 cited-symbol audit Step 3 analyzer status.** §A0 cited-symbol audit (referenced at §4.1.4 + §6.1 Decision 6) should mark "Engineer's Step 3 analyzer in-flight; W#79 ships before analyzer; doc-comment-discipline applies during Step 1-2 window." Engineer's PR 0 description ratifies.
+- **FW-E1 — §3.9 step 6 AMBER-vs-RED conditional.** Folded into §3.9 cascade table (Rev 2; "expects AMBER if FED-Cycle-1-commit-clean-banner; expects RED if FED-Cycle-1-commit-silently-hides-dead-code").
+- **FW-H1 — Cumulative test count target.** Updated post-fold from ~25 to ~63 per §5; test-eng-council coverage-model verdict.
+- **FW-5 — ADR 0049 audit substrate bootstrap-scope compatibility.** D5 + D5.a sub-ruling address; Engineer's PR 0 ships SystemTenant sentinel + partition routing if ADR 0049 doesn't yet support. SPOT-CHECK verifies.
+- **FW-6 — OpenAPI/Swagger metadata for 3 new endpoints.** §4.1.1 `OnboardingEndpoints.cs` has `.WithName(...)` but no `.WithOpenApi()` or `.Produces<SignupAcceptedResponse>(202)`. Engineer's Step 2 Bridge pipeline branch PR decides OpenAPI metadata posture for bootstrap-branch endpoints; W#79 follows whatever Step 2 ratifies. Forward-watch only.
+
+**From test-eng verdict (FW-1, FW-2, FW-3):**
+- **FW-MSW — MSW byte-for-byte drift detection at scale.** §4.4.4 MSW-vs-Bridge parity test (Rev 2 fold) covers the W#79 surface; as W#80 (site-key) + W#82 (invitations) + future onboarding endpoints land, hand-authored MSW drift compounds. ONR evaluates OpenAPI-driven MSW generation at W#80 hand-off authoring; the per-discriminator const-export pattern (§3.5) is the seed for that lift.
+- **FW-Fixtures — Fixture-builder factoring across W#79 PRs.** §5 ~63 cumulative tests construct `SignupRequest`, `VerifyEmailRequest`, `EmailMessage`, `TenantRegistration` fixtures. Stage-06 SPOT-CHECK on PR 1 verifies Engineer ships `SignupRequestBuilder`, `VerifyEmailRequestBuilder`, `TestEmailMessage`, `TestTenantRegistration` fixture builders in `signal-bridge/Sunfish.Bridge.Tests/Onboarding/Fixtures/` — minimum 4 builders for the 4 surfaces.
+- **FW-IClock — Verify-email token-expired test infrastructure.** §3.5 `verification_token_expired` discriminator coverage (PD7) requires either `IClock` / `TimeProvider` abstraction with `FakeClock` OR hand-issued expired tokens (sign-with-past-`exp`). Rev 2 spec defers to Engineer's PR 1 — recommended: pre-signed expired-token fixtures (simpler; lower substrate-touch). Pattern likely emerges as `pattern-substrate-time-abstraction` first-instance candidate at a future cohort.
+
+**Additional Rev 2 forward-watches:**
+- **Constant-work timing-floor pattern emergence (sec-eng D resolution).** Hand-off's sec-eng D resolution (constant-work signup discipline) introduces a pattern that will recur in invitation-accept (W#82) + any future public-facing flow with branch-asymmetric handler logic. Forward-watch for pattern promotion to `pattern-constant-work-discipline` first-instance at W#82.
+- **ADR 0097 PasswordHasher Substrate.** Sec-eng dual-council MANDATORY per Admiral H8 ruling. When ONR scaffolds, the F3 / F4 amendments (hash-version-tagging + rehash-on-next-login per .NET-arch K2) fold into ADR 0097's migration-path section.
+- **Decorator-pattern mock detection (sec-eng H sub-concern 2).** Folded as Pattern 1 Threat 6 forward-watch in §6.2; promoted at next-substrate-touch on ADR 0096 (likely Step 2 amendment if Engineer's mock-inspection walks decorators).
 
 ---
 
