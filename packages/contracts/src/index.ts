@@ -6,6 +6,8 @@
  *  - accounting: LedgerEntry, JournalEntry, BankTransaction, PLSummary, PLLineItem, OutstandingInvoice
  *  - tenant    : Tenant, Lease, PaymentRecord, MessageThread
  *  - sync      : SyncStatus, OfflineQueueEntry, ConflictRecord
+ *  - bundles   : BusinessCaseBundleManifest, BundleCategory, BundleStatus, DeploymentMode,
+ *                ProviderCategory, ProviderRequirement, MinimumSpec
  *
  * Re-exports from @sunfish/ui-adapters-react contracts surface:
  *  - Integration Atlas types (ADR 0067)
@@ -21,3 +23,7 @@ export * from './sync.js'
 // Kept in sync with ADR 0067 (Integrations) and ADR 0063-A1.1 (SystemRequirements).
 export * from './integrations.js'
 export * from './system-requirements.js'
+
+// Bundle manifest contracts — mirrors C# BusinessCaseBundleManifest (ADR 0007 + A1).
+// Canonical source: packages/foundation-catalog/Bundles/BusinessCaseBundleManifest.cs
+export * from './bundles.js'
