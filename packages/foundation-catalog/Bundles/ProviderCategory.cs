@@ -30,6 +30,12 @@ public enum ProviderCategory
     /// <summary>Identity providers (OIDC / SAML).</summary>
     IdentityProvider = 7,
 
+    /// <summary>CAPTCHA / bot-protection providers (Cloudflare Turnstile, reCAPTCHA, hCaptcha). Added per ADR 0096 Step 1.</summary>
+    Captcha = 10,
+
+    /// <summary>Transactional email providers (Postmark, Mailgun, SendGrid). Added per ADR 0096 Step 1.</summary>
+    TransactionalEmail = 11,
+
     /// <summary>Other provider categories not otherwise enumerated.</summary>
     Other = 99,
 }
