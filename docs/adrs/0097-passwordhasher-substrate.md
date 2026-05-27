@@ -45,7 +45,7 @@ amendments: []
 
 # ADR 0097 — PasswordHasher Substrate
 
-**Status:** Proposed (Revision 1; awaiting pre-merge dual-council attestation per ADR 0069 + H9. AMBER amendments will fold into Revision 2 per the ADR 0095 R2 / 0096 R2 / 0098 R2 precedent).
+**Status:** Proposed (Revision 2; awaiting dual-council re-attestation. Rev 1 dual-council AMBER produced 6 sec-eng substrate amendments (S1-S6), 6 .NET-arch load-bearing amendments (A1-A6), and 9 .NET-arch clarifications (C1-C9) — all folded into Rev 2 per the ADR 0095 R2 / 0096 R2 / 0098 R2 precedent).
 **Date:** 2026-05-27
 **Resolves:** W#79 sub-cohort 1 H8 disposition (`coordination/inbox/admiral-ruling-2026-05-26T0035Z-w79-stage-05-9-halts-resolved.md` §H8) — pre-production hardening commitment that swaps the W#79 MVP-ship `IPasswordHasher<UserEntity>` PBKDF2-HMAC-SHA256 default for an OWASP-canonical Argon2id-backed implementation **before W#79 reaches production**. This ADR is the deferred-with-commitment. Codifies the substrate as a Tier-1 domain-block primitive with cross-tier reuse of ADR 0096's mock-first + production-guard discipline at the Tier-1 boundary. W#79 sub-cohort 1 ships at MVP with PBKDF2 V3 default; W#79 Step 2 (this ADR's Step 2) swaps the composition-root registration to Argon2id pre-production via a zero-handler-tier-change DI substitution.
 **Council inputs:** Revision 1 forwards to dual-council. Sec-eng dual-council MANDATORY (per H9 + W#79 H8); .NET-architect dual-council MANDATORY (per H9). Promotion path: both councils self-attest GREEN via inbox status on Revision 1 → Admiral promotes ADR to `Accepted`. If a council returns AMBER, Admiral folds amendments into Revision 2 (ADR 0095 R2 / 0096 R2 / 0098 R2 precedent). **Step 1 (foundation-password-hashing substrate package) PR carries its own mandatory dual-council SPOT-CHECK at PR-open** per H9 — independent council pull on the cryptographic-primitive surface. **Step 2 (W#79 SignupHandler composition-root cutover) PR carries sec-eng MANDATORY SPOT-CHECK** for the substitution-correctness invariant.
@@ -58,6 +58,7 @@ amendments: []
 | Rev | Date | Author | Summary |
 |---|---|---|---|
 | 1 | 2026-05-27 | Admiral | Initial draft. Folds ONR scaffold (Option C — Argon2id via Konscious + retain `IPasswordHasher<TUser>` interface + version-tagged hash output for migration detection + Tier-1 domain-block placement) and Admiral 11-halt ruling (all 11 RATIFY-ONR-RECOMMENDATION). Codifies new `packages/foundation-password-hashing/` substrate package (Halt 3) carrying `Argon2idPasswordHasher<TUser>` + `Argon2idHashOptions` + `MockPasswordHasher<TUser>` + `IMockPasswordHasher` marker + `MockPasswordHasherProductionGuardAssertion` IHostedService + DI helpers `AddSunfishPasswordHashing<TUser>` + `AddSunfishMockPasswordHashing<TUser>`. Argon2id parameters pinned at OWASP minimum m=19456 KiB / t=2 / p=1 (Halt 1). NuGet library: `Konscious.Security.Cryptography.Argon2` v1.3.1 (Halt 2). Mock-first discipline applied at Tier-1 boundary via fresh `IMockPasswordHasher` marker family (Halt 4; distinct from ADR 0096's `IMockVendorProvider` — cross-tier reuse, not interface conflation). Hash output: Konscious PHC string format `$argon2id$v=19$m=...,t=...,p=...$<salt>$<hash>` (Halt 6). Migration: lazy rehash-on-next-login (Halt 5; bulk-rehash impossible by physics — no plaintext retrievable). No pepper at MVP; nullable `Argon2idHashOptions.Pepper` field reserved for future secret-store substrate (Halt 7). Pre-production sequencing: Steps 1-2 merge before W#79 reaches production-customer onboarding (Halt 8). Council cadence: sec-eng + .NET-architect dual-council MANDATORY on ADR text + Step 1; sec-eng MANDATORY SPOT-CHECK on Step 2 (Halt 9). Backward-compat: `Argon2idPasswordHasher.VerifyHashedPassword` delegates legacy V3 PBKDF2 byte[] format to a privately-composed `Microsoft.AspNetCore.Identity.PasswordHasher<TUser>` fallback; returns `PasswordVerificationResult.SuccessRehashNeeded` on legacy-hash verify success (Halt 10). Options binding: `IOptions<Argon2idHashOptions>` singleton snapshot — substrate-tier parameter changes ship via deployment, not runtime config reload (Halt 11). Status: Proposed (awaiting dual-council). |
+| 2 | 2026-05-27 | Admiral | Dual-council AMBER fold. Folds .NET-architect load-bearing amendments A1-A6: A1 TFM pin `net11.0` (strikes "netstandard2.0 or net9.0+" ambiguity per fleet `Directory.Build.props` convention); A2 CPM addition for `Microsoft.AspNetCore.Identity.Core` to `Directory.Packages.props` (fleet-scope side effect explicit); A3 closed-generic `ServiceDescriptor` reflection idiom (`IsGenericType && GetGenericTypeDefinition() == typeof(IPasswordHasher<>)`) spelled out for the production-guard scan; A4 `services.Replace` (not `AddSingleton`) inside `AddSunfishPasswordHashing<TUser>` per ADR 0096 R2 §D1c amendment #2 precedent — makes Step 2 cutover idempotent; A5 sync-over-async via `Task.Run(() => ...).GetAwaiter().GetResult()` hop (Option B; Microsoft documented safe substrate-tier pattern) — closes Blazor-Server SynchronizationContext deadlock-class hazard; A6 third DI helper `AddSunfishPasswordHashingSubstrate(this IServiceCollection)` per ADR 0096 `AddSunfishVendorProviderSubstrate` precedent — registers `MockPasswordHasherProductionGuardAssertion` + `Argon2idParameterFloorAssertion` IHostedServices exactly once via `TryAddEnumerable`. Folds sec-eng substrate amendments S1-S6: S1 pepper application via Argon2 `KnownSecret` property (RFC 9106 §3.1 `K` parameter; Konscious's native secret-value surface) — XOR-into-password-bytes rejected as non-canonical; S2 `MockPasswordHasher` returns the constant string `"mock-hash"` (no password-derived material; Floor 7 satisfied by construction); S3 new `Argon2idParameterFloorAssertion : IHostedService` enforces Floor 3/4/5 non-substitutable-downward at startup; S4 Konscious supply-chain posture floors — `packages.lock.json` + `RestoreLockedMode` + RFC 9106 §5 reference-vector parity tests (≥3) at Step 1 PR scope; S5 Floor 8 primitive-selection assertion (Argon2id-not-Argon2i-not-Argon2d reflective verification); S6 Floor 6 input-length bounds (`hashedPassword.Length ≤ 1024`, `providedPassword.Length ≤ 4096`, `Pepper.Length ≤ 64`). Folds .NET-arch clarifications C1-C9: `ServiceLifetime` parameter on `AddSunfishPasswordHashing<TUser>` (C1); `init`-only setters on `Argon2idHashOptions` (C2); `IValidateOptions<Argon2idHashOptions>` floor enforcement at bind time (C3); captured-snapshot-post-Build convention cited (C4); `ReadOnlySpan<char>` PHC parsing (C5); `CryptographicOperations.FixedTimeEquals` Span-typed overload (C6); `(int)options.MemoryKib` cast site for Konscious's `MemorySize` API (C7); `RandomNumberGenerator.Fill(Span<byte>)` modern static API (C8); C9 absorbed by S2. Q1 (sync-over-async): A5 Option B Task.Run hop — RESOLVED. Q4 (unified `SuccessRehashNeeded`): CONFIRM unified-trigger treatment; no `PasswordVerificationResultExtended`. Q7 (csproj package-ref set): 5 PackageReferences (`Microsoft.AspNetCore.Identity.Core` + `Konscious.Security.Cryptography.Argon2` + `Microsoft.Extensions.DependencyInjection.Abstractions` + `Microsoft.Extensions.Hosting.Abstractions` + `Microsoft.Extensions.Options`); NU1510 NoWarn per `foundation-authorization` precedent — RESOLVED. Q2/Q3/Q5/Q6 sec-eng-primary resolutions folded into spec text per S1/S2 amendments + open-questions update. Status: Proposed (awaiting dual-council re-attestation). |
 
 Promotion path: both councils self-attest GREEN via inbox status on Revision 1 → Admiral promotes ADR to `Accepted`. If a council returns AMBER (likely — substrate-tier cryptography ADRs invariably surface load-bearing amendments at first attestation per ADR 0095 R2 / 0096 R2 / 0098 R2 precedent), Admiral folds amendments into Revision 2 and re-attests. **Step 1 implementation PR carries its own mandatory dual-council SPOT-CHECK at PR-open** (per H9) — independent council pull on the new cryptographic-primitive substrate surface. **Step 2 implementation PR carries sec-eng MANDATORY SPOT-CHECK** for composition-root cutover correctness (the substitution invariant — zero handler-tier callsite changes — is verifiable by mechanical inspection of the diff).
 
@@ -646,19 +647,49 @@ authored post-ADR Acceptance).
 Scope:
 
 - New package `packages/foundation-password-hashing/`:
-  - `Sunfish.Foundation.PasswordHashing.csproj` — netstandard2.0 or net9.0+
-    (Engineer picks at authoring time per fleet TFM convention); references
-    `Microsoft.AspNetCore.Identity.Core` (for `IPasswordHasher<TUser>` interface
+  - `Sunfish.Foundation.PasswordHashing.csproj` — **TFM: `net11.0` per fleet
+    `Directory.Build.props` convention** (A1 LOAD-BEARING). The csproj does NOT
+    declare an explicit `<TargetFramework>` element — it inherits the
+    unconditional `<TargetFramework>net11.0</TargetFramework>` from
+    `shipyard/Directory.Build.props` line 5. Engineer does NOT pick at authoring
+    time; analyzer-style `netstandard2.0` targeting is the documented exception
+    class (Roslyn analyzers only — `packages/foundation-wayfinder-analyzers/`,
+    `packages/foundation-ships-office.analyzers/`) and does NOT apply to this
+    substrate. The fleet preview.4 era pins every `Microsoft.Extensions.*`
+    family member to `11.0.0-preview.4.26230.115` in
+    `Directory.Packages.props`; dropping below `net11.0` would lose access to
+    these versions.
+  - **CPM addition required (A2 LOAD-BEARING).**
+    `Microsoft.AspNetCore.Identity.Core` is NOT currently in
+    `shipyard/Directory.Packages.props` (verified zero matches for
+    "Microsoft.AspNetCore.Identity" / "Identity.Core"). Step 1 PR adds the
+    `<PackageVersion Include="Microsoft.AspNetCore.Identity.Core" Version="11.0.0-preview.4.26230.115" />`
+    entry pinned to the preview.4 cohort band (matching the rest of the
+    `Microsoft.AspNetCore.*` family). The CPM-prop change is **fleet-scope**;
+    the substrate csproj then declares `<PackageReference Include="Microsoft.AspNetCore.Identity.Core" />`
+    without an inline Version. Without this prerequisite, the first
+    substrate-package restore fails with NU1604 ("no version specified").
+  - **csproj `<PackageReference>` set — 5 references minimal (Q7 RESOLVED via
+    A1 + A2 + clarification):**
+    `Microsoft.AspNetCore.Identity.Core` (BCL `IPasswordHasher<TUser>` interface
     + `PasswordVerificationResult` enum + the BCL `PasswordHasher<TUser>` for
-    legacy-V3 fallback verify); references `Konscious.Security.Cryptography.Argon2`
-    v1.3.1 (per Halt 2); references `Microsoft.Extensions.Hosting.Abstractions`
-    (for `IHostedService`) + `Microsoft.Extensions.DependencyInjection.Abstractions`
-    (for `ServiceDescriptor` / `IServiceCollection` / `services.Replace`) +
-    `Microsoft.Extensions.Options.ConfigurationExtensions` (for
-    `IOptions<Argon2idHashOptions>` binding). NU1510 suppression with explanatory
-    comment block per the `foundation-authorization` precedent (reference template
-    shipyard commit `b4475df`; see fleet-conventions "NU1510 — keep the
-    PackageRef, suppress the warning").
+    legacy-V3 fallback verify);
+    `Konscious.Security.Cryptography.Argon2` (per Halt 2; v1.3.1 band; CPM-pin);
+    `Microsoft.Extensions.DependencyInjection.Abstractions` (for
+    `ServiceDescriptor` / `IServiceCollection` / `services.Replace` /
+    `TryAddEnumerable` — all live in the Abstractions surface on the modern
+    BCL); `Microsoft.Extensions.Hosting.Abstractions` (for `IHostedService`);
+    `Microsoft.Extensions.Options` (for `IOptions<Argon2idHashOptions>` —
+    the substrate consumes `IOptions<T>` only; configuration binding via
+    `IConfiguration.GetSection(...)` is a composition-root concern, not a
+    substrate-package concern, so
+    `Microsoft.Extensions.Options.ConfigurationExtensions` is NOT required).
+    **`Microsoft.Extensions.DependencyInjection` (the non-Abstractions
+    package) is NOT required** — the substrate package consumes only the
+    Abstractions surface. NU1510 NoWarn (`<NoWarn>CS1591;NU1510</NoWarn>`)
+    follows the `packages/foundation-authorization/Sunfish.Foundation.Authorization.csproj`
+    lines 13-21 precedent per fleet-conventions "NU1510 — keep the PackageRef,
+    suppress the warning" (reference template shipyard commit `b4475df`).
   - `Argon2idPasswordHasher.cs` —
     `public sealed class Argon2idPasswordHasher<TUser> : IPasswordHasher<TUser> where TUser : class`.
     Ctor: `(IOptions<Argon2idHashOptions> options)` — captures the options
