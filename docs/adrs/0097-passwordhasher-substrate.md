@@ -581,13 +581,22 @@ The substrate codifies the following minimum-floors as load-bearing
 substrate-tier invariants. Step 1 sec-eng SPOT-CHECK confirms these; Step 2
 PR adoption assumes them. Each floor is **non-substitutable downward** —
 implementations MAY tighten (higher m, higher t) but MUST NOT loosen.
+**Floors 3, 4, 5 (and the salt/hash-length floors 1, 2) are enforced at
+host startup via `Argon2idParameterFloorAssertion : IHostedService`** (S3
+sec-eng substrate amendment; see §"Implementation roadmap Step 1"); the
+non-substitutable-downward property is substrate-tier-enforced, not
+documentation discipline. The validator
+`Argon2idHashOptionsValidator : IValidateOptions<Argon2idHashOptions>` is
+the defense-in-depth companion at the `IOptions<T>` validation layer (C3
+clarification).
 
 1. **Salt length floor: 16 bytes minimum** (`Argon2idHashOptions.SaltLengthBytes`
    default 16). Generated via
-   `System.Security.Cryptography.RandomNumberGenerator.GetBytes(saltLengthBytes)`
-   — cryptographically random. NO custom RNG; NO process-shared RNG; the BCL
-   `RandomNumberGenerator` is the only acceptable source per OWASP cheatsheet
-   + RFC 9106.
+   `System.Security.Cryptography.RandomNumberGenerator.Fill(saltSpan)`
+   (Span-typed, allocation-free per .NET-canonical post-net5; C8
+   clarification) — cryptographically random. NO custom RNG; NO process-shared
+   seeded RNG; the BCL `RandomNumberGenerator` is the only acceptable source
+   per OWASP cheatsheet + RFC 9106.
 
 2. **Hash output length floor: 32 bytes minimum** (`Argon2idHashOptions.HashLengthBytes`
    default 32). Matches Argon2id-1.3 default; encodes to ~43 base64 chars in
@@ -606,30 +615,80 @@ implementations MAY tighten (higher m, higher t) but MUST NOT loosen.
    Higher parallelism does not improve security but consumes more CPU per
    request; substrate default p=1 matches OWASP cheatsheet.
 
-6. **No password truncation.** Unlike bcrypt's 72-byte truncation behavior,
-   Argon2id has no length cap; the substrate MUST NOT truncate, hash, or
-   pre-digest the input password before passing to Konscious's `Argon2id` constructor.
+6. **No password truncation + input-length bounding (S6 sec-eng substrate
+   amendment).** Unlike bcrypt's 72-byte truncation behavior, Argon2id has
+   no length cap; the substrate MUST NOT truncate, hash, or pre-digest the
+   input password before passing to Konscious's `Argon2id` constructor.
    `Encoding.UTF8.GetBytes(password)` is the canonical conversion path
    (matches Konscious's expected input shape; matches OWASP cheatsheet's
-   "treat password as UTF-8 bytes" guidance).
+   "treat password as UTF-8 bytes" guidance). **Substrate-tier defense-in-
+   depth input-length floors (S6):** `VerifyHashedPassword` MUST short-
+   circuit-`Failed` when `hashedPassword.Length > 1024` (PHC strings are well
+   under 200 chars; 1024 is a generous ceiling that prevents the verify path
+   from becoming a DoS surface for malicious long-input callers).
+   `HashPassword` MUST throw `ArgumentException` and `VerifyHashedPassword`
+   MUST return `Failed` when `providedPassword.Length > 4096` (4 KiB is
+   generously above the W#79 ≥12-char minimum + plausible passphrase
+   ceiling; complements the W#79 handler-tier input-length cap with
+   substrate-tier defense). `Argon2idHashOptions.Pepper.Length` MUST be
+   bounded ≤ 64 bytes when bound at composition-root (forward-watch floor
+   for post-secret-store-substrate-ADR future enablement; the
+   `Argon2idParameterFloorAssertion` per S3 asserts this at
+   `StartAsync`).
 
 7. **No-log-password discipline.** Plaintext passwords MUST NOT appear in log
    messages, exception messages, or trace events emitted from the substrate.
    Adapter exceptions wrapping verification failures MUST scrub any
-   password-derived material before re-throwing.
+   password-derived material before re-throwing. **Floor 7 corollary
+   (S2 sec-eng substrate amendment):** the `MockPasswordHasher<TUser>`
+   stored hash format embeds NO password-derived material — the
+   constant-string format `"mock-hash"` carries zero side-channel-leakage
+   from the mock. The substrate-tier discipline is zero-side-channel-leakage
+   from the mock, not "minimal-side-channel-leakage."
 
-8. **Constant-work / timing-attack mitigation discipline.** The Argon2id
-   primitive itself provides timing-attack resistance for the hash computation
-   (Argon2id is the side-channel-resistant variant per RFC 9106). The substrate
-   inherits this — no additional timing-equalization is required at the
-   substrate tier. The W#79 sec-eng D constant-work discipline at the
-   SignupHandler tier is a separate concern (the handler unconditionally
-   invokes `HashPassword` even when email is taken; ADR 0097 substrate does not
+8. **Constant-work / timing-attack mitigation discipline + Argon2id-
+   specifically primitive selection (S5 sec-eng substrate amendment).** The
+   Argon2id primitive itself provides timing-attack resistance for the hash
+   computation (Argon2id is the side-channel-resistant variant per RFC 9106;
+   data-independent memory access pattern for the first half of the
+   computation, data-dependent for the second half). The substrate inherits
+   this — no additional timing-equalization is required at the substrate
+   tier. The W#79 sec-eng D constant-work discipline at the SignupHandler
+   tier is a separate concern (the handler unconditionally invokes
+   `HashPassword` even when email is taken; ADR 0097 substrate does not
    participate in this discipline beyond providing the primitive).
+   **Argon2id-specifically primitive selection assertion (S5
+   LOAD-BEARING).** The Konscious library exposes three Argon2 variants —
+   `Argon2i` (data-independent; side-channel-resistant; GPU-non-resistant),
+   `Argon2d` (data-dependent; GPU-resistant; side-channel-vulnerable),
+   `Argon2id` (hybrid; OWASP-recommended for password storage). A typo in
+   the substrate code that instantiated the wrong variant would NOT be
+   caught by the PHC string format (the format string `$argon2id$v=19$...`
+   is hardcoded; the wire format does NOT cross-verify the primitive).
+   Step 1 unit-test surface MUST include a primitive-selection assertion
+   test: instantiate `Argon2idPasswordHasher<TUser>`; invoke `HashPassword`
+   against a known seed; reflectively-or-by-substrate-assertion verify the
+   underlying Argon2 variant invoked is
+   `Konscious.Security.Cryptography.Argon2id` specifically (not `Argon2i`
+   or `Argon2d`). Without this floor, the Argon2id-specifically property is
+   documentation discipline rather than substrate-tier-enforced;
+   primitive-selection drift is the load-bearing risk.
 
-These eight floors are written assuming Argon2id as the canonical algorithm;
-future substrate-tier hardening (raising the m floor per OWASP guidance update)
-would amend Floor 3 specifically without touching the other seven.
+9. **Pepper application via Argon2 `KnownSecret` (S1 sec-eng substrate
+   amendment).** Pepper application MUST use Konscious's
+   `Argon2id.KnownSecret` property (RFC 9106 §3.1 `K` parameter — Argon2's
+   canonical secret-value surface that mixes the secret into the hash
+   construction in a cryptographically well-defined manner); MUST NOT XOR
+   the pepper into the password bytes (undefined semantics for non-
+   overlapping ranges; the algorithm natively supports the secret-value
+   surface); MUST NOT HMAC-key the pepper-over-password before passing to
+   Argon2id (the in-primitive application is the canonical OWASP-cheatsheet
+   path for an Argon2-aware implementation). The XOR-into-password-bytes
+   pattern is REJECTED as non-canonical — see Q3 RESOLVED disposition.
+
+These nine floors are written assuming Argon2id as the canonical algorithm;
+future substrate-tier hardening (raising the m floor per OWASP guidance
+update) would amend Floor 3 specifically without touching the other eight.
 
 ## Implementation roadmap
 
@@ -696,28 +755,59 @@ Scope:
     snapshot. Composes a private `Microsoft.AspNetCore.Identity.PasswordHasher<TUser>`
     instance constructed via `new PasswordHasher<TUser>(Options.Create(new PasswordHasherOptions { CompatibilityMode = PasswordHasherCompatibilityMode.IdentityV3 }))`
     for legacy-V3 fallback verify. `HashPassword(TUser user, string password)`:
-    generates 16-byte salt via `RandomNumberGenerator.GetBytes(saltLengthBytes)`;
-    instantiates `Konscious.Security.Cryptography.Argon2id(Encoding.UTF8.GetBytes(password))`;
-    sets `Salt = salt`, `Iterations = options.Iterations`,
-    `MemorySize = options.MemoryKib`, `DegreeOfParallelism = options.DegreeOfParallelism`;
-    if `options.Pepper is not null`, XORs the pepper into the password bytes
-    before passing to Argon2id (future-enablement path; null at MVP per Halt 7);
-    computes 32-byte hash via `await argon2id.GetBytesAsync(options.HashLengthBytes)`
-    (called synchronously via `.GetAwaiter().GetResult()` from the synchronous
-    `IPasswordHasher<TUser>.HashPassword` interface contract — Konscious does not
-    expose a synchronous variant); formats the PHC string
+    enforces the input-length floor first (S6 sec-eng substrate amendment) —
+    if `password.Length > 4096` throws `ArgumentException` naming the offending
+    parameter (substrate-tier complement to the W#79 handler-tier input-length
+    cap); generates 16-byte salt via
+    `RandomNumberGenerator.Fill(saltSpan)` (Span-typed, allocation-free per
+    .NET-canonical post-net5; C8 clarification); instantiates
+    `Konscious.Security.Cryptography.Argon2id(Encoding.UTF8.GetBytes(password))`;
+    sets `Salt = salt`, `Iterations = (int)options.Iterations`,
+    `MemorySize = (int)options.MemoryKib` (C7 — Konscious `MemorySize` is
+    `int`; the `uint` options field is cast at the assignment site; safe for
+    all values up to `int.MaxValue`; OWASP-floor 19456 is well within range),
+    `DegreeOfParallelism = (int)options.DegreeOfParallelism`;
+    if `options.Pepper is not null`, **sets `argon2id.KnownSecret = options.Pepper`**
+    per RFC 9106 §3.1 `K` (secret value) parameter — Argon2's canonical
+    secret-value surface that mixes the secret into the hash construction in a
+    cryptographically well-defined manner (S1 sec-eng substrate amendment;
+    `Konscious.Security.Cryptography.Argon2id.KnownSecret` property is the
+    load-bearing primitive). The XOR-into-password-bytes pattern is
+    REJECTED as non-canonical (undefined semantics for non-overlapping ranges;
+    reinvents what the algorithm natively supports — see Floor 9 in
+    §"Cryptographic floor requirements"). Pepper is null at MVP per Halt 7;
+    future-enablement uses `KnownSecret` once secret-store substrate lands.
+    Computes 32-byte hash via Microsoft's documented safe sync-over-async
+    substrate-tier pattern:
+    `Task.Run(() => argon2id.GetBytesAsync((int)options.HashLengthBytes)).GetAwaiter().GetResult()`
+    (A5 LOAD-BEARING; Option B from the .NET-arch council's Q1 disposition —
+    the `Task.Run` hop forces the awaited continuation to escape any caller's
+    `SynchronizationContext` by hopping to a pool thread first, eliminating
+    the Blazor-Server SynchronizationContext deadlock-class hazard regardless
+    of Konscious's internal `ConfigureAwait` choice; cost is one additional
+    thread-pool hop per signup, negligible against the ~50-100 ms Argon2id
+    wall-clock; cites Microsoft's "How to: Implement synchronous methods using
+    asynchronous methods" documented pattern). Formats the PHC string
     `$argon2id$v=19$m={m},t={t},p={p}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}`
     and returns. `VerifyHashedPassword(TUser user, string hashedPassword, string providedPassword)`:
-    inspects the `hashedPassword` prefix:
+    enforces input-length floors first (S6 sec-eng substrate amendment) —
+    if `hashedPassword.Length > 1024` returns `Failed` without parsing (PHC
+    strings are well under 200 chars; 1024 is a generous defense-in-depth
+    ceiling); if `providedPassword.Length > 4096` returns `Failed`. Then
+    inspects the `hashedPassword` prefix using `ReadOnlySpan<char>` slicing
+    for allocation-free parsing on the hot path (C5 clarification):
     - **PHC string** (begins with `"$argon2id$"`): parses the format via a
-      private `TryParsePhcString(string, out Argon2idPhcParts)` helper; recomputes
-      Argon2id with the parsed parameters + salt; constant-time-compares the
-      recomputed hash bytes with the stored hash bytes via
-      `CryptographicOperations.FixedTimeEquals`; if match: if the parsed
-      parameters meet OR exceed the current `options` floor, returns
-      `PasswordVerificationResult.Success`; if any parsed parameter is below the
-      corresponding `options` floor (`m < options.MemoryKib` OR `t < options.Iterations`
-      OR `p < options.DegreeOfParallelism`), returns
+      private `TryParsePhcString(ReadOnlySpan<char>, out Argon2idPhcParts)`
+      helper; recomputes Argon2id with the parsed parameters + salt;
+      constant-time-compares the recomputed hash bytes with the stored hash
+      bytes via `CryptographicOperations.FixedTimeEquals(ReadOnlySpan<byte>, ReadOnlySpan<byte>)`
+      (C6 — the .NET 11 Span-typed overload is the canonical surface; `byte[]`
+      converts implicitly but explicit `ReadOnlySpan<byte>` typing is clearer);
+      if match: if the parsed parameters meet OR exceed the current `options`
+      floor, returns `PasswordVerificationResult.Success`; if any parsed
+      parameter is below the corresponding `options` floor
+      (`m < options.MemoryKib` OR `t < options.Iterations` OR
+      `p < options.DegreeOfParallelism`), returns
       `PasswordVerificationResult.SuccessRehashNeeded` (parameter-floor upgrade
       trigger).
     - **Legacy V3 byte[] format** (Base64-decodes to non-zero-length array
@@ -729,6 +819,20 @@ Scope:
     - **Unrecognized / corrupt**: returns `PasswordVerificationResult.Failed`
       (do NOT throw — corrupt-hash on verify is an authentication failure,
       not a substrate error; matches BCL `PasswordHasher<TUser>` behavior).
+    **Unified `SuccessRehashNeeded` trigger semantics (Q4 RESOLVED — CONFIRM).**
+    Both the legacy-V3-success case (algorithm upgrade) and the
+    below-floor-parameter-success case (parameter upgrade) return the same
+    `PasswordVerificationResult.SuccessRehashNeeded` value. The unified trigger
+    is the correct .NET-canonical design — the BCL `PasswordVerificationResult`
+    enum is the contract surface; introducing a `PasswordVerificationResultExtended`
+    would break the W#79 sec-eng A invariant (handler-tier code already
+    switches on the BCL enum). The W#80 login handler treats both cases
+    identically (rehash + persist). If a future audit-event-emission
+    discrimination requirement surfaces (Q6 territory; application-tier per
+    sec-eng disposition), the discrimination can be implemented at the W#80
+    handler tier by parsing the stored hash format (PHC string vs legacy V3
+    byte[]) before the `VerifyHashedPassword` call. NO
+    `PasswordVerificationResultExtended` extension at substrate tier.
   - `Argon2idHashOptions.cs` — DI-bound options record / class:
     `public sealed class Argon2idHashOptions` with mutable properties
     `MemoryKib` (uint; default 19456), `Iterations` (uint; default 2),
@@ -739,17 +843,26 @@ Scope:
     `Action<Argon2idHashOptions>? configure` parameter.
   - `MockPasswordHasher.cs` —
     `public sealed class MockPasswordHasher<TUser> : IPasswordHasher<TUser>, IMockPasswordHasher where TUser : class`.
-    `HashPassword(TUser user, string password)` returns
-    `$"mock-hash-of-len-{password.Length}"` (deterministic; NOT the password
-    itself; the password length is the only non-sensitive proxy for hash
-    deterministic-ness; MUST NOT include any password-derived material).
-    `VerifyHashedPassword(TUser user, string hashedPassword, string providedPassword)`:
-    parses the stored mock-hash via simple string-prefix check; returns
-    `Success` iff `hashedPassword == $"mock-hash-of-len-{providedPassword.Length}"`;
+    **`HashPassword(TUser user, string password)` returns the constant string
+    `"mock-hash"`** (S2 sec-eng substrate amendment — zero password-derived
+    material; the substrate-tier Floor 7 least-information-leakage discipline
+    is satisfied by construction). The constant-string format embeds NO
+    password-derived signal (no length, no first-byte, no character class
+    proxy) — even when a load-test deployment legitimately ships with
+    `SUNFISH_ALLOW_MOCK_PASSWORD_HASHER=true`, the stored mock-hashes carry
+    zero cohort-attack credential-strength-histogram leakage.
+    **`VerifyHashedPassword(TUser user, string hashedPassword, string providedPassword)`:**
+    returns `Success` iff `hashedPassword == "mock-hash" && !string.IsNullOrEmpty(providedPassword)`;
     returns `Failed` otherwise. NEVER returns `SuccessRehashNeeded` — mock
-    hashes are not subject to the parameter-floor upgrade discipline.
+    hashes are not subject to the parameter-floor upgrade discipline. This
+    satisfies the SignupHandler unit-test surface's test-discrimination need
+    (the handler depends only on whether HashPassword + VerifyHashedPassword
+    round-trip succeeds; not on which password was hashed).
     **Log discipline (substrate-tier floor):** the mock MUST NOT log the
     plaintext password or any password-derived material (matches Floor 7 above).
+    **Q2 RESOLVED — sec-eng-primary.** Constant-string format chosen over the
+    length-leak alternative; the cohort-attack credential-strength-histogram
+    concern is the load-bearing rationale.
   - `IMockPasswordHasher.cs` — empty marker interface; `MockPasswordHasher<TUser>`
     carries it. Xmldoc explicitly documents (a) the distinction from
     ADR 0096's `IMockVendorProvider` marker (PasswordHasher is Tier-1, not
@@ -1103,16 +1216,23 @@ complicating `SuccessRehashNeeded` discrimination.
   reached. Mitigation: explicit Step 1a/1b decomposition in the W#79
   hand-off authoring if Engineer flags.
 
-- **Risk R2 — Sync-over-async on `Konscious.Argon2id.GetBytesAsync`.** The
-  BCL `IPasswordHasher<TUser>.HashPassword` interface is synchronous;
-  Konscious exposes Argon2id hash computation as async (`GetBytesAsync`).
-  The substrate bridges via `.GetAwaiter().GetResult()` per Microsoft's
-  documented sync-over-async-acceptable pattern at substrate-tier
-  single-thread-pool boundaries. Mitigation: .NET-architect council attests
-  the interop pattern at Step 1 PR; if council overrides to require fully
-  async path, `IPasswordHasher<TUser>` would need a new async-friendly
-  wrapper interface (out of scope for ADR 0097 R1; would amend the ADR +
-  W#79 sec-eng A invariant).
+- **Risk R2 — Sync-over-async on `Konscious.Argon2id.GetBytesAsync`.
+  MITIGATED in Rev 2.** The BCL `IPasswordHasher<TUser>.HashPassword`
+  interface is synchronous; Konscious exposes Argon2id hash computation as
+  async (`GetBytesAsync`). The substrate bridges via
+  `Task.Run(() => argon2id.GetBytesAsync(...)).GetAwaiter().GetResult()`
+  per Microsoft's documented safe sync-over-async substrate-tier pattern
+  (A5 LOAD-BEARING; .NET-architect Q1 disposition Option B). The
+  `Task.Run` hop forces the awaited continuation to escape any caller's
+  `SynchronizationContext` by hopping to a pool thread first, eliminating
+  the Blazor-Server SynchronizationContext deadlock-class hazard
+  regardless of Konscious's internal `ConfigureAwait` choice. Substrate-
+  tier cost: one additional thread-pool hop per signup; negligible against
+  the ~50-100 ms Argon2id wall-clock. Step 1 PR includes a deadlock-safety
+  test invoking `HashPassword` from a thread whose
+  `SynchronizationContext.Current` is set to a single-thread dispatcher
+  (simulating Blazor Server) and asserts the call completes without
+  deadlock.
 
 - **Risk R3 — `RandomNumberGenerator.GetBytes` thread-safety + RNG-seed
   freshness.** The BCL `RandomNumberGenerator` is thread-safe + uses the OS
