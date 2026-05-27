@@ -942,3 +942,295 @@ This is the lazy-rehash-on-next-login mechanism per Halt 5 / Halt 10. ADR 0097
 provides the trigger primitive; W#80 ships the consumer integration. Audit-event
 emission on rehash (`user_password_hash_upgraded`) is an ADR 0049 enum-extension
 candidate forwarded to W#80 territory.
+
+## Alternatives considered (rejections)
+
+**Alt A — Keep PBKDF2 V3 (Option A in §Considered options).** REJECTED per
+Halt 1 / Halt 8 disposition. OWASP cheatsheet 2026-05-27: PBKDF2 acceptable
+only for FIPS-mandated environments; Sunfish has no FIPS-mandate. The W#79 H8
+commitment forecloses this option.
+
+**Alt B — Migrate to bcrypt (Option B in §Considered options).** REJECTED.
+bcrypt is OWASP's "fallback when Argon2id unavailable" tier; Argon2id IS
+available via Konscious. No compensating advantage over Argon2id.
+
+**Alt C — Argon2id with non-generic `IPasswordHasher` wrapper (Option D in
+§Considered options).** REJECTED per D2 / Halt 4 rationale. Violates W#79
+sec-eng A invariant (would introduce a handler-tier callsite change);
+speculative future-proofing for "if Sunfish ever drops ASP.NET Identity
+entirely."
+
+**Alt D — Argon2id with full ADR 0096 Tier-2 vendor-substrate discipline
+(Option E in §Considered options).** REJECTED per D1 / Halt 4 rationale.
+Argon2id is not a vendor surface; Tier-2 vendor-substrate pattern presumes a
+swap surface that doesn't exist for cryptographic primitives. Cross-tier
+reuse of the mock-first discipline at Tier-1 (Option F) is the cleaner move
+— borrows the discipline pattern without conflating the substrate semantics.
+
+**Alt E — Skip the mock entirely; tests use the real
+`Argon2idPasswordHasher<TUser>` with reduced parameters (m=1024, t=1, p=1)
+for speed.** REJECTED per Halt 4 rationale. Reduced-parameter Argon2id at
+m=1024 KiB / t=1 / p=1 is still tens-of-milliseconds per hash on cold-cache;
+the mock's deterministic no-op shape is meaningfully faster at scale. More
+importantly, "use the real algorithm at reduced parameters" makes tests
+exercise the algorithm-correctness path that is better covered by dedicated
+cryptographic unit tests; the SignupHandler unit-test surface benefits from
+algorithm-opacity, not algorithm-correctness.
+
+**Alt F — Co-locate in `packages/foundation-authorization/` (Sub-option β).**
+REJECTED per Halt 3. `foundation-authorization` is authorization-context
+resolution; PasswordHasher is authentication-credential-storage. Cluster
+confusion is the load-bearing concern.
+
+**Alt G — Co-locate in `packages/foundation-integrations/` (Sub-option γ).**
+REJECTED per Halt 3. `foundation-integrations` is provider-neutrality for
+external vendor surfaces; Argon2id is an internal cryptographic primitive.
+
+**Alt H — Enable pepper at MVP via
+`IConfiguration["Sunfish:Argon2id:Pepper"]`.** REJECTED per Halt 7. Pepper is
+optional defense-in-depth per OWASP cheatsheet; pepper rotation + compromise
+semantics require a secret-store substrate that does not yet exist. The
+`Argon2idHashOptions.Pepper` nullable field is reserved for future enablement
+once the secret-store substrate ADR lands.
+
+**Alt I — Eager bulk-rehash background job.** REJECTED. Physically impossible
+without retrievable plaintext.
+
+**Alt J — Hybrid: lazy-on-login + force-password-reset email to all users with
+PBKDF2 hashes within N days.** REJECTED at MVP. UX cost (forced password
+reset annoys users) without compensating compliance posture (PBKDF2-100k is
+OWASP-acceptable; the upgrade improves margin, not closes a vulnerability).
+May be revisited as a W#80+ application-tier flow if a compliance audit
+demands it.
+
+**Alt K — `IOptionsMonitor<Argon2idHashOptions>` runtime-reloadable.**
+REJECTED per Halt 11 / D7. Substrate-tier parameter changes are
+deployment-tier events; runtime reload introduces a mid-running window where
+hashes-in-flight use different parameters than newly-issued ones,
+complicating `SuccessRehashNeeded` discrimination.
+
+## Consequences
+
+**Positive:**
+
+- **Argon2id production-safety is codified at substrate tier**, not
+  documentation discipline. The W#79 H8 commitment is satisfied by construction:
+  Step 2 composition-root substitution makes Argon2id the default; Step 1
+  substrate package provides the algorithm + the production-safety invariants.
+- **Lazy migration is automatic.** `SuccessRehashNeeded` is the canonical
+  trigger; W#80's login handler observes + rehashes; existing PBKDF2-V3 hashes
+  upgrade on next login without user-visible operation. Bulk-rehash is
+  physically impossible; lazy is the only safe path.
+- **Self-describing PHC string format supports future parameter hardening
+  without forced reset.** When the substrate-tier floor rises (m=19 → m=46 →
+  m=64), the verify path detects below-floor hashes via embedded parameter
+  inspection + returns `SuccessRehashNeeded` automatically.
+- **Mock-first discipline at Tier-1 unlocks fast-test-loop substantially.**
+  SignupHandler unit tests avoid Argon2id's tens-of-milliseconds-per-hash cost;
+  fleet-scale test suite penalty avoided. The
+  `MockPasswordHasherProductionGuardAssertion` closes the silent-mock-leak
+  foot-gun permanently.
+- **Cross-tier reuse of ADR 0096's discipline pattern is the cheapest
+  application of the mock-first invariant at Tier-1.** ~80-100 LOC investment
+  for permanent foot-gun closure; no Tier-2 vendor-substrate conflation.
+- **The W#79 sec-eng A + .NET-arch K1 invariant is preserved by construction.**
+  Step 2 is a one-line composition-root substitution with zero handler-tier
+  callsite changes; the substrate's value proposition is exactly this property.
+- **Future password-policy primitives have a clean cluster home.**
+  `packages/foundation-password-hashing/` is the substrate-tier home for
+  password-related primitives; future HIBP integration or password-strength
+  meter primitives can co-locate without further cluster decisions.
+
+**Negative / costs:**
+
+- **One new package** (`packages/foundation-password-hashing/`) ships at
+  pre-production. Engineering hours: ~2-3 days for Step 1 (substrate +
+  comprehensive tests); ~0.5-1 day for Step 2 (one-line substitution + W#79
+  sec-eng D timing re-tune + integration assertion).
+- **New external NuGet dependency**
+  (`Konscious.Security.Cryptography.Argon2` v1.3.1). Supply-chain risk
+  mitigated by MIT license + OWASP endorsement + ~700k downloads + no
+  transitive runtime dependencies beyond BCL.
+- **Argon2id at OWASP-minimum parameters costs ~50-100 ms per `HashPassword`
+  call** vs PBKDF2-100k's ~10-30 ms. Wall-clock budget impact at the
+  SignupHandler tier; absorbed by the W#79 sec-eng D constant-work discipline
+  (unconditional cost on every request); the integration-test latency
+  threshold may need re-tuning post-Step-2-cutover per scaffold §2.2 Gap 4.
+- **Dual-council MANDATORY review on this ADR + Step 1 PR** adds ~30-min
+  dispatch latency per PR. Pre-paid against the Rev-2-with-strengthening
+  churn pattern ADR 0095 / ADR 0096 / ADR 0098 demonstrated.
+- **Mocks ship in the same substrate package as contracts.** Non-Sunfish
+  consumers (none today) would take a small dependency on the mock + the
+  production-guard assertion they may never use. Marginal; not a real cost.
+
+**Risks:**
+
+- **Risk R1 — Step 1 PR scope.** Step 1 covers a lot (Argon2id concrete +
+  mock + marker + production-guard IHostedService + DI helpers + options
+  binding + comprehensive tests). Engineer may split into Step 1a
+  (substrate types) + Step 1b (mock-first discipline) if scope threshold
+  reached. Mitigation: explicit Step 1a/1b decomposition in the W#79
+  hand-off authoring if Engineer flags.
+
+- **Risk R2 — Sync-over-async on `Konscious.Argon2id.GetBytesAsync`.** The
+  BCL `IPasswordHasher<TUser>.HashPassword` interface is synchronous;
+  Konscious exposes Argon2id hash computation as async (`GetBytesAsync`).
+  The substrate bridges via `.GetAwaiter().GetResult()` per Microsoft's
+  documented sync-over-async-acceptable pattern at substrate-tier
+  single-thread-pool boundaries. Mitigation: .NET-architect council attests
+  the interop pattern at Step 1 PR; if council overrides to require fully
+  async path, `IPasswordHasher<TUser>` would need a new async-friendly
+  wrapper interface (out of scope for ADR 0097 R1; would amend the ADR +
+  W#79 sec-eng A invariant).
+
+- **Risk R3 — `RandomNumberGenerator.GetBytes` thread-safety + RNG-seed
+  freshness.** The BCL `RandomNumberGenerator` is thread-safe + uses the OS
+  CSPRNG; per-call seeding is automatic. No mitigation needed; substrate-tier
+  assertion verifies the BCL primitive is used.
+
+- **Risk R4 — Production-guard false-positive when load-tests deploy with
+  the mock intentionally.** Mitigation:
+  `SUNFISH_ALLOW_MOCK_PASSWORD_HASHER=true` opt-out env var is the
+  documented escape hatch; load-test infrastructure docs must reference it
+  (parallel to ADR 0096's `SUNFISH_ALLOW_MOCK_PROVIDERS` documentation).
+
+- **Risk R5 — Argon2id wall-clock cost at OWASP-minimum exceeds W#79 latency
+  budget on a degraded host.** Argon2id is memory-bound; a host under
+  memory pressure may pay 2-5× the nominal hash cost. Mitigation: W#79
+  sec-eng D integration-test latency budget re-tuned at Step 2; if the
+  budget is unachievable at OWASP-minimum parameters on production-class
+  hardware, the substrate parameters tunable via `Argon2idHashOptions`
+  allow temporary hardening reduction (but NOT below OWASP minimum per
+  Floor 3) pending host capacity uplift. Future ADR amendment if persistent.
+
+## Open questions (forwarded to dual-council attestation)
+
+These seven questions are explicitly NOT pre-empted by this Revision 1 draft;
+they route to dual-council attestation at this ADR's PR-open per the H9
+MANDATORY dual-council. ONR named several of these as scaffold §8
+forward-watch items; ADR 0097 R1 surfaces them as open questions where
+council judgment is the appropriate authority.
+
+**Q1 — Sync-over-async on `Konscious.Argon2id.GetBytesAsync` from synchronous
+`IPasswordHasher<TUser>.HashPassword`.** The BCL interface is synchronous;
+Konscious's API is async-only. The substrate uses `.GetAwaiter().GetResult()`
+per Microsoft's documented pattern for substrate-tier single-thread-pool
+boundaries. **Council (.NET-architect):** validate the interop pattern is
+acceptable at substrate-tier; if not, propose async-wrapper amendment for
+Rev 2.
+
+**Q2 — `MockPasswordHasher.HashPassword` deterministic format.** The
+recommended format is `$"mock-hash-of-len-{password.Length}"` — leaks
+password length but nothing else; password length is the only non-sensitive
+deterministic proxy. **Council (sec-eng):** validate the length-leak is
+acceptable in dev/test posture (the production-guard ensures this never
+ships to production without explicit opt-out); if not, propose an
+alternative deterministic-but-content-free shape (e.g., a constant string).
+
+**Q3 — `Argon2idHashOptions.Pepper` future-enablement shape.** Reserved as
+nullable `byte[]?` at MVP. Future pepper substrate (post-secret-store-ADR)
+would XOR the pepper into the password bytes before passing to Argon2id.
+**Council (sec-eng):** confirm the XOR-prefix application pattern is the
+correct OWASP-conformant pepper application (vs HMAC-derived pepper-
+augmented key, etc.); ratify the future-enablement shape so it's not
+surprising when secret-store substrate lands.
+
+**Q4 — PHC string parameter-floor upgrade vs algorithm-version upgrade
+discrimination.** The verify path returns `SuccessRehashNeeded` in two
+distinct cases: (a) legacy V3 PBKDF2 byte[] format succeeded via fallback
+(algorithm upgrade); (b) PHC string parsed with below-floor parameters
+(parameter upgrade). The two cases are semantically distinct; the W#80
+login handler treats them identically (rehash on either trigger). **Council
+(.NET-architect):** confirm the unified-trigger treatment is correct, OR
+propose a `PasswordVerificationResultExtended` enum with separate
+`AlgorithmRehashNeeded` / `ParameterRehashNeeded` values (would require a
+non-BCL contract; substantial scope expansion). Admiral prior: unified
+trigger is the simpler design + matches BCL semantics; no enum extension at
+MVP.
+
+**Q5 — Argon2id default parameter floor against modern x86-64 hardware
+calibration.** OWASP cheatsheet 2026-05-27 names m=19 MiB / t=2 / p=1 as the
+minimum; on production-class hardware (modern x86-64; 32+ GB RAM;
+sub-microsecond memory bandwidth), the wall-clock cost is ~50-100 ms.
+**Council (sec-eng):** confirm m=19 MiB is the correct production default
+(vs raising preemptively to m=46 or m=64 to stay ahead of the next OWASP
+guidance update); the production-tier parameter is
+`Argon2idHashOptions.MemoryKib` which can be raised per deployment without
+substrate amendment.
+
+**Q6 — Audit-event emission on hash upgrade.** Should the W#80 login handler
+emit `user_password_hash_upgraded` audit event when `SuccessRehashNeeded` is
+observed + rehash succeeds? ADR 0049 enum extension; primarily a W#80
+territory question. **Council (sec-eng):** confirm whether the audit-event
+emission is a substrate-tier concern (ADR 0097 would dispatch a
+fire-from-substrate audit event on rehash) or an application-tier concern
+(W#80 emits at the handler tier after observing `SuccessRehashNeeded`).
+Admiral prior: application-tier per ADR 0095 / ADR 0096 substrate-tier
+no-audit-emission precedent; substrate does not own the
+`IAuditEventEmitter` dispatch path.
+
+**Q7 — Step 1 csproj package-ref strategy.** The substrate package needs
+`Microsoft.AspNetCore.Identity.Core`, `Konscious.Security.Cryptography.Argon2`,
+`Microsoft.Extensions.Hosting.Abstractions`,
+`Microsoft.Extensions.DependencyInjection.Abstractions`,
+`Microsoft.Extensions.Options.ConfigurationExtensions`. **Council
+(.NET-architect):** confirm the package-ref set is minimal + correct for a
+netstandard2.0 OR net9.0+ target (Engineer picks the TFM at authoring time);
+confirm NU1510 suppression strategy is correct per fleet convention; confirm
+the `Microsoft.AspNetCore.Identity.Core` reference is the right contract
+source (vs alternative ways to obtain `IPasswordHasher<TUser>` interface).
+
+## Revisit triggers
+
+This ADR is revisited (Rev 2 or follow-up amendment) when any of:
+
+1. **OWASP cheatsheet parameter floor rises** (m=19 → m=46 → m=64 etc.). The
+   substrate-tier default in `Argon2idHashOptions` is updated; existing
+   hashes auto-upgrade via `SuccessRehashNeeded` on next login per D6 /
+   §"Migration mechanism." ADR amendment carries the new floor +
+   cross-references the OWASP guidance source.
+2. **A FIPS-mandate posture is adopted by Sunfish.** Argon2id is not
+   FIPS-validated; the substrate would need a FIPS-mode toggle that falls
+   back to PBKDF2-HMAC-SHA256. FORWARD-WATCH; out of ADR 0097 R1 scope.
+3. **Secret-store substrate ADR lands** (currently does not exist).
+   `Argon2idHashOptions.Pepper` future-enablement would amend ADR 0097 to
+   require the pepper substrate dependency + define rotation semantics.
+4. **A second Tier-1 substrate adopts the mock-first discipline.** The
+   cross-tier reuse pattern would amend ADR 0097's §"Substrate / layering
+   notes" cross-tier mock-marker family discipline to add the new substrate
+   as a worked example.
+5. **`Konscious.Security.Cryptography.Argon2` is deprecated, archived, or
+   has a security advisory.** Substrate-tier dependency posture change; ADR
+   amendment names the replacement library + migration path.
+6. **The `IPasswordHasher<TUser>` BCL interface is deprecated by
+   ASP.NET Core.** ASP.NET Identity roadmap is stable as of 2026-05-27;
+   future deprecation would amend ADR 0097's interface-retention decision.
+7. **W#80 login handler integration surfaces a new substrate requirement.**
+   E.g., audit-event emission from substrate (Q6 council resolution may go
+   either way); per-tenant parameter override (out-of-scope at MVP;
+   forward-watch).
+
+## References
+
+- ONR scaffold (predecessor research): `shipyard/icm/01_discovery/research/onr-adr-0097-passwordhasher-substrate-scaffold.md` (1167 lines; via the sibling shipyard PR 167; the scaffold was moved to the canonical ADR location in this same branch per the ADR 0096 R2 / ADR 0098 R2 same-branch authoring pattern)
+- ONR status beacon: `coordination/inbox/onr-status-2026-05-27T1428Z-adr-0097-passwordhasher-substrate-scaffold-complete.md`
+- Admiral 11-halt ruling: `coordination/inbox/admiral-ruling-2026-05-27T1430Z-adr-0097-passwordhasher-11-halts-resolved.md`
+- W#79 H8 disposition (this ADR's source trigger): `coordination/inbox/admiral-ruling-2026-05-26T0035Z-w79-stage-05-9-halts-resolved.md`
+- W#79 Stage-05 hand-off Rev 2 (sec-eng A + .NET-arch K1 + sec-eng D invariants): `shipyard/.worktrees/onr-w79-stage-05-handoff/icm/05_implementation-plan/cohort-w79-hand-off.md`
+- ADR 0013 Foundation.Integrations (provider-neutrality discipline; spirit-not-letter for this substrate): `docs/adrs/0013-foundation-integrations.md`
+- ADR 0049 AuditEvent (forward-watch — `user_password_hash_upgraded` enum-extension candidate at W#80 layer): `docs/adrs/0049-audit-event.md`
+- ADR 0091 ITenantContext Divergence Resolution (R2 / A1 startup-assertion precedent for the Tier-1 mock production-guard): `docs/adrs/0091-itenantcontext-divergence-resolution.md`
+- ADR 0095 Bootstrap Context (substrate-tier ADR cadence + SignupHandler runs in bootstrap scope): `docs/adrs/0095-bootstrap-context.md`
+- ADR 0096 Tier-2 Vendor-Provider Substrate (cross-tier mock-first discipline pattern; distinct marker family): `docs/adrs/0096-tier-2-vendor-provider-substrate.md`
+- ADR 0098 Block-Naming Generalization (substrate-tier ADR Rev 2 cadence precedent; dual-council MANDATORY): `docs/adrs/0098-block-naming-generalization.md`
+- OWASP Password Storage Cheat Sheet (retrieved 2026-05-27): https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+- OWASP Application Security Verification Standard 4.0.3 §2.4 "Credential Storage Requirements" (2024-10): https://owasp.org/www-project-application-security-verification-standard/
+- IETF RFC 9106 "Argon2 Memory-Hard Function for Password Hashing and Proof-of-Work Applications" (2021-09): https://datatracker.ietf.org/doc/rfc9106/
+- NIST SP 800-63B-3 "Digital Identity Guidelines: Authentication and Lifecycle Management" §5.1.1.2 (2017-06; errata current 2026-05-27): https://pages.nist.gov/800-63-3/sp800-63b.html
+- Konscious.Security.Cryptography.Argon2 NuGet v1.3.1: https://www.nuget.org/packages/Konscious.Security.Cryptography.Argon2
+- Konscious.Security.Cryptography GitHub source: https://github.com/kmaragon/Konscious.Security.Cryptography
+- ASP.NET Core Identity `PasswordHasher<TUser>` source (legacy V3 PBKDF2 fallback contract): https://github.com/dotnet/aspnetcore/blob/main/src/Identity/Extensions.Core/src/PasswordHasher.cs
+- Cerebrum: `feedback_tier2_vendor_mock_first` — Tier-2 substrate discipline pattern (cross-tier reuse precedent at Tier-1 boundary)
+- Cerebrum: `feedback_prefer_cleanest_long_term_option` — substrate-tier own-package decision rationale
+- Cerebrum: `project_fleet_ruleset_config` — fleet ruleset posture (auto-merge fires on CI-green)
+- Slotting-architecture three-tier taxonomy survey (the sibling shipyard slotting-architecture recommendation document) — Tier-1 domain-block discipline scoping for this substrate
