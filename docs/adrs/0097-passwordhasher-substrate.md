@@ -575,6 +575,34 @@ the pattern; the marker is the substrate's instance of the pattern. Forward
 ADR amendments to substrate-tier ADRs that adopt mock-first should follow this
 discipline.
 
+**Supply-chain posture (S4 sec-eng substrate amendment).** Three substrate-
+tier supply-chain floors govern the Konscious dependency:
+
+- **Konscious maintenance posture.** `Konscious.Security.Cryptography.Argon2`
+  v1.3.1 dates to late 2022; the maintenance posture is "stable, spec-
+  conformant, not actively developed" rather than "active maintenance." This
+  is acceptable for cryptographic primitive libraries that conform to a
+  stable spec (RFC 9106 §5 reference vectors are immutable; spec-drift is
+  not a concern for the algorithm itself). The substrate's Revisit Trigger
+  #5 (`Konscious deprecated, archived, or security advisory`) governs the
+  replacement decision.
+- **RFC 9106 reference-vector parity floor.** Step 1 PR unit-test surface
+  MUST include at least 3 RFC 9106 §5 reference-vector parity tests pinned
+  to the published test vectors (input password + salt + parameters →
+  expected hash output). Without these, a future Konscious bump that
+  silently drifts from spec conformance would not be caught at substrate
+  tier — a real bug-class that has shipped in cryptographic libraries
+  before. The reference vectors are immutable spec-tier discipline.
+- **NuGet package integrity floor.** Step 1 csproj MUST commit a
+  `packages.lock.json` AND enable `<RestoreLockedMode>true</RestoreLockedMode>`.
+  Substrate-tier cryptographic-primitive dependency bumps require explicit
+  ADR amendment, not silent `dotnet restore` regeneration. This floor
+  codifies the supply-chain discipline that fleet-conventions reference
+  template (`foundation-authorization` NU1510 suppression) is silent on —
+  ADR 0097 IS the substrate that establishes this floor for cryptographic-
+  primitive substrate dependencies. Forward-watch: future Tier-1
+  cryptographic-primitive substrate ADRs inherit this floor.
+
 ## Cryptographic floor requirements
 
 The substrate codifies the following minimum-floors as load-bearing
@@ -749,6 +777,14 @@ Scope:
     follows the `packages/foundation-authorization/Sunfish.Foundation.Authorization.csproj`
     lines 13-21 precedent per fleet-conventions "NU1510 — keep the PackageRef,
     suppress the warning" (reference template shipyard commit `b4475df`).
+  - **Supply-chain pinning floor (S4 sec-eng substrate amendment).** Step 1
+    csproj MUST commit a `packages.lock.json` AND set
+    `<RestoreLockedMode>true</RestoreLockedMode>`. Substrate-tier
+    cryptographic-primitive dependency bumps require explicit ADR amendment,
+    not silent `dotnet restore` regeneration. This is the substrate that
+    establishes this floor for cryptographic-primitive substrate dependencies;
+    forward-watch — future Tier-1 cryptographic-primitive substrate ADRs
+    inherit this floor.
   - `Argon2idPasswordHasher.cs` —
     `public sealed class Argon2idPasswordHasher<TUser> : IPasswordHasher<TUser> where TUser : class`.
     Ctor: `(IOptions<Argon2idHashOptions> options)` — captures the options
@@ -833,14 +869,29 @@ Scope:
     handler tier by parsing the stored hash format (PHC string vs legacy V3
     byte[]) before the `VerifyHashedPassword` call. NO
     `PasswordVerificationResultExtended` extension at substrate tier.
-  - `Argon2idHashOptions.cs` — DI-bound options record / class:
-    `public sealed class Argon2idHashOptions` with mutable properties
-    `MemoryKib` (uint; default 19456), `Iterations` (uint; default 2),
-    `DegreeOfParallelism` (uint; default 1), `SaltLengthBytes` (uint; default
-    16), `HashLengthBytes` (uint; default 32), `Pepper` (`byte[]?`; default
-    null). Bound via standard `services.Configure<Argon2idHashOptions>(...)` or
-    via the `AddSunfishPasswordHashing<TUser>(...)` extension's optional
-    `Action<Argon2idHashOptions>? configure` parameter.
+  - `Argon2idHashOptions.cs` — DI-bound options class with `init`-only
+    setters (C2 clarification — `init`-only is the .NET-canonical compromise
+    between `IConfiguration` binding compatibility and post-bind immutability;
+    verified to work with `OptionsBuilder<T>.Bind` per the BCL mechanism):
+
+    ```csharp
+    public sealed class Argon2idHashOptions
+    {
+        public uint MemoryKib { get; init; } = 19456;          // OWASP minimum (Halt 1; Floor 3)
+        public uint Iterations { get; init; } = 2;             // OWASP minimum (Halt 1; Floor 4)
+        public uint DegreeOfParallelism { get; init; } = 1;    // OWASP minimum (Halt 1; Floor 5)
+        public uint SaltLengthBytes { get; init; } = 16;       // Floor 1
+        public uint HashLengthBytes { get; init; } = 32;       // Floor 2
+        public byte[]? Pepper { get; init; }                   // null at MVP (Halt 7); ≤64 bytes when set (S6 / Floor 6)
+    }
+    ```
+
+    Bound via standard `services.Configure<Argon2idHashOptions>(...)` or via
+    the `AddSunfishPasswordHashing<TUser>(...)` extension's optional
+    `Action<Argon2idHashOptions>? configure` parameter. Validated at bind time
+    via `Argon2idHashOptionsValidator : IValidateOptions<Argon2idHashOptions>`
+    (C3) and enforced at host startup via `Argon2idParameterFloorAssertion`
+    (S3).
   - `MockPasswordHasher.cs` —
     `public sealed class MockPasswordHasher<TUser> : IPasswordHasher<TUser>, IMockPasswordHasher where TUser : class`.
     **`HashPassword(TUser user, string password)` returns the constant string
@@ -877,22 +928,70 @@ Scope:
     Ctor: `(IServiceCollection services)` — captures the
     `IServiceCollection` reference at composition-root build time via the
     captured-snapshot pattern (matching ADR 0096's
-    `MockProviderProductionGuardAssertion` precedent). On `StartAsync`:
+    `MockProviderProductionGuardAssertion` precedent). The captured reference
+    is effectively frozen post-`BuildServiceProvider` per
+    `Microsoft.Extensions.DependencyInjection` convention (C4 clarification —
+    mutating the collection after `Build` is technically allowed by the BCL
+    but discouraged; ADR 0097 inherits ADR 0096's "treat the captured
+    `IServiceCollection` as immutable post-Build" convention explicitly). On
+    `StartAsync`:
     - If
       `string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Production", StringComparison.OrdinalIgnoreCase)`
       is false, return immediately.
     - If
       `bool.TryParse(Environment.GetEnvironmentVariable("SUNFISH_ALLOW_MOCK_PASSWORD_HASHER"), out var optOut) && optOut`
       is true, return immediately.
-    - Else: iterate the captured `IServiceCollection`; for each
-      `ServiceDescriptor` whose `ServiceType` is a closed generic over
-      `IPasswordHasher<>` AND whose `ImplementationType` (or
-      `ImplementationInstance?.GetType()`) implements `IMockPasswordHasher`,
-      throw `MockPasswordHasherInProductionException(descriptor.ServiceType,
-      descriptor.ImplementationType ?? descriptor.ImplementationInstance!.GetType())`.
+    - Else: iterate the captured `IServiceCollection` using the **canonical
+      closed-generic discrimination idiom** (A3 LOAD-BEARING):
+
+      ```csharp
+      foreach (var descriptor in _capturedServices)
+      {
+          if (!descriptor.ServiceType.IsGenericType) continue;
+          if (descriptor.ServiceType.GetGenericTypeDefinition() != typeof(IPasswordHasher<>)) continue;
+
+          var concreteType = descriptor.ImplementationType
+              ?? descriptor.ImplementationInstance?.GetType();
+          if (concreteType is null) continue; // factory-only, out of scope (matches ADR 0096 discipline)
+          if (!typeof(IMockPasswordHasher).IsAssignableFrom(concreteType)) continue;
+
+          throw new MockPasswordHasherInProductionException(
+              descriptor.ServiceType,
+              concreteType);
+      }
+      ```
+
       Per generic-host behavior on hosted-service startup failure, the host's
       `RunAsync` throws and the process exits non-zero before serving the
       first request.
+    - **Why the closed-generic check at the ServiceType, not the
+      ImplementationType.** `typeof(IPasswordHasher<>).IsAssignableFrom(typeof(MockPasswordHasher<UserEntity>))`
+      returns `false` (open-generic vs closed-generic assignability is
+      asymmetric in .NET reflection). The discrimination MUST be on the
+      descriptor's ServiceType via `IsGenericType` + `GetGenericTypeDefinition()
+      == typeof(IPasswordHasher<>)`. The marker check
+      (`typeof(IMockPasswordHasher).IsAssignableFrom(concreteType)`) is on
+      the implementation type — which IS the correct assignability direction.
+      This is a subtle .NET reflection trap; spec-tier discipline pre-empts
+      it. ADR 0096's `MockProviderProductionGuardAssertion` does NOT face
+      this complication because `IMockVendorProvider` is non-generic and the
+      Tier-2 contracts (`IEmailProvider`, `ICaptchaVerifier`) are
+      non-generic; ADR 0097 introduces the first fleet instance of a
+      closed-generic-over-open-generic discrimination via `ServiceDescriptor`
+      scan.
+    - **Factory-only registrations are out of scope** — matches ADR 0096's
+      `MockProviderProductionGuardAssertion` factory-only discipline
+      (`packages/foundation-integrations/DependencyInjection/MockProviderProductionGuardAssertion.cs`
+      lines 55-66 + 119-128). A factory registration like
+      `services.AddSingleton<IPasswordHasher<UserEntity>>(_ => new MockPasswordHasher<UserEntity>())`
+      bypasses the descriptor-scan (`ImplementationType` is null;
+      `ImplementationInstance` is also null because the factory has not yet
+      been invoked at the StartAsync timestamp). The spec MUST require
+      type-based registration via the constrained
+      `AddSunfishMockPasswordHashing<TUser>` helper to guarantee the
+      assertion's scan sees the mock; the generic constraint on the helper
+      (`where TUser : class` + the type-parameter-pair signature) prevents
+      raw factory registration through the substrate's blessed entry point.
     - **Why `ServiceDescriptor` scan, not `IServiceProvider.GetServices<IMockPasswordHasher>()`**:
       marker-only interfaces are not resolvable from `IServiceProvider` unless
       the mock concretes are ALSO registered against `IMockPasswordHasher`
@@ -902,29 +1001,140 @@ Scope:
       services carry the marker." This mirrors ADR 0091 R2 A1 / ADR 0095 R2
       A3 / ADR 0096 R2 precedent: assertions inspect the registration tree,
       not the runtime resolution tree.
+  - **`DependencyInjection/Argon2idParameterFloorAssertion.cs`** (S3 sec-eng
+    substrate amendment) —
+    `public sealed class Argon2idParameterFloorAssertion : IHostedService`.
+    Ctor: `(IOptions<Argon2idHashOptions> options)` — captures the bound
+    options snapshot at composition-root build time. On `StartAsync`: assert
+    `options.MemoryKib >= 19456` (Floor 3); `options.Iterations >= 2`
+    (Floor 4); `options.DegreeOfParallelism >= 1` (Floor 5; allow higher but
+    not lower); `options.SaltLengthBytes >= 16` (Floor 1);
+    `options.HashLengthBytes >= 32` (Floor 2); IF `options.Pepper is not null`,
+    `options.Pepper.Length <= 64` (S6 / Floor 6 future-enablement pepper
+    bound). On any violation, throw
+    `Argon2idBelowFloorException(parameterName, expectedFloor, actualValue)`
+    naming the offending parameter + expected floor + actual value. Per
+    generic-host behavior on hosted-service startup failure, the host's
+    `RunAsync` throws and the process exits non-zero before serving the
+    first request. **This is the load-bearing write-path enforcement floor**
+    — the substrate's non-substitutable-downward property (§"Cryptographic
+    floor requirements" preamble) becomes substrate-tier-enforced at startup
+    rather than documentation discipline. Composition-root misconfiguration
+    of `Argon2idHashOptions.MemoryKib = 1024` (1 MiB; below the m=19456 KiB
+    floor) is no longer silent — the assertion catches it at startup and
+    the process exits before serving the first request. Closes the
+    "parameter-downgrade foot-gun" by construction. Companion to the
+    `Argon2idHashOptionsValidator : IValidateOptions<Argon2idHashOptions>`
+    (C3 clarification) — the `IValidateOptions<T>` mechanism fires at first
+    `IOptions<T>` resolution, which may be lazy; the `IHostedService`
+    assertion fires unconditionally at host startup. Both are defense-in-depth
+    against the same downgrade foot-gun.
+  - **`Argon2idHashOptionsValidator.cs`** (C3 clarification) —
+    `internal sealed class Argon2idHashOptionsValidator : IValidateOptions<Argon2idHashOptions>`.
+    Implements `Validate(string? name, Argon2idHashOptions options)`
+    returning `ValidateOptionsResult.Fail` listing every below-floor parameter
+    + descriptive error message when any floor is violated; returns
+    `ValidateOptionsResult.Success` otherwise. Registered automatically by
+    `AddSunfishPasswordHashing<TUser>` via
+    `services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<Argon2idHashOptions>, Argon2idHashOptionsValidator>())`.
+    Provides the same floor enforcement as `Argon2idParameterFloorAssertion`
+    at the `IOptions<T>` validation layer (companion defense-in-depth; the
+    IHostedService is the host-startup catch, the validator is the
+    options-resolution catch).
+  - **`Argon2idBelowFloorException.cs`** (S3 sec-eng substrate amendment) —
+    typed exception carrying `ParameterName`, `ExpectedFloor`, `ActualValue`
+    properties. Message format: `"Argon2idHashOptions.{parameterName} value {actualValue} is below the substrate-tier floor of {expectedFloor}. Substrate parameters are non-substitutable downward per ADR 0097 §'Cryptographic floor requirements'. Either remove the configuration override or raise the value at-or-above the substrate floor."`.
   - `DependencyInjection/PasswordHashingServiceCollectionExtensions.cs`:
-    - `AddSunfishPasswordHashing<TUser>(this IServiceCollection services, Action<Argon2idHashOptions>? configure = null) where TUser : class`:
-      binds `IOptions<Argon2idHashOptions>` (applying `configure` if non-null);
-      registers `Argon2idPasswordHasher<TUser>` as the `IPasswordHasher<TUser>`
-      concrete (singleton — Argon2id is stateless per request; salt is
-      generated per `HashPassword` call from the BCL RNG; the singleton
-      lifetime is correct).
-    - `AddSunfishMockPasswordHashing<TUser>(this IServiceCollection services) where TUser : class`:
+    **Three DI helpers — substrate-init separation per ADR 0096
+    `AddSunfishVendorProviderSubstrate` precedent** (A6 LOAD-BEARING):
+    - **`AddSunfishPasswordHashingSubstrate(this IServiceCollection services)`** —
+      substrate-init helper invoked exactly once at composition-root assembly
+      time. Registers `MockPasswordHasherProductionGuardAssertion` as
+      `IHostedService` and `Argon2idParameterFloorAssertion` (S3 sec-eng
+      substrate amendment) as `IHostedService`. Both registrations use
+      `services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService>(...))`
+      with factory-with-capture form so the assertions receive the captured
+      `IServiceCollection` reference at composition-root build time
+      (`TryAddSingleton<IHostedService, T>()` is REJECTED — it deduplicates on
+      the `IHostedService` ServiceType alone, which would silently drop the
+      second of two distinct hosted-service registrations; `TryAddEnumerable`
+      deduplicates on the `(IHostedService, T)` pair, which is the correct
+      dedup semantic for IHostedService registrations across multiple substrate
+      packages). Matches ADR 0096's `AddSunfishVendorProviderSubstrate`
+      pattern at
+      `packages/foundation-integrations/DependencyInjection/VendorProviderServiceCollectionExtensions.cs`
+      lines 66-75. Xmldoc explicitly documents the "substrate-init helper
+      distinct from per-contract registration" convention.
+    - **`AddSunfishPasswordHashing<TUser>(this IServiceCollection services, Action<Argon2idHashOptions>? configure = null, ServiceLifetime lifetime = ServiceLifetime.Singleton) where TUser : class`**
+      (C1 — `ServiceLifetime` parameter for symmetry with ADR 0096's
+      `AddSunfishVendorProvider<TContract, TConcrete>` signature; defaults to
+      Singleton per G7): binds `IOptions<Argon2idHashOptions>` (applying
+      `configure` if non-null) AND registers
+      `Argon2idHashOptionsValidator : IValidateOptions<Argon2idHashOptions>` to
+      fail-fast at startup when configured values fall below the substrate
+      floors (C3 clarification + S3 sec-eng amendment substrate-tier
+      backstop). Registers `Argon2idPasswordHasher<TUser>` as the
+      `IPasswordHasher<TUser>` concrete via
+      **`services.Replace(ServiceDescriptor.Describe(typeof(IPasswordHasher<TUser>), typeof(Argon2idPasswordHasher<TUser>), lifetime))`**
+      (A4 LOAD-BEARING — NOT `services.AddSingleton`; the `Replace` semantics
+      make the Step 2 composition-root cutover idempotent against any prior
+      `IPasswordHasher<TUser>` registration — mirrors ADR 0096 R2 §D1c
+      amendment #2 `services.Replace` discipline; closes the foot-gun where
+      Engineer-author judgment about "delete the prior line first" would
+      otherwise determine correctness). Argon2id is stateless per request
+      (salt is generated per `HashPassword` call from the BCL RNG); the
+      Singleton default lifetime is correct.
+    - **`AddSunfishMockPasswordHashing<TUser>(this IServiceCollection services) where TUser : class`**:
       registers `MockPasswordHasher<TUser>` as the `IPasswordHasher<TUser>`
-      concrete (singleton); registers
-      `MockPasswordHasherProductionGuardAssertion` as `IHostedService`
-      (singleton) idempotently (`TryAddSingleton` on the hosted-service
-      registration so multiple calls — one per `TUser` — register the
-      assertion once, not twice). The assertion is the load-bearing piece
-      that makes the mock-first discipline production-safe by construction.
+      concrete via `services.Replace(ServiceDescriptor.Singleton<IPasswordHasher<TUser>, MockPasswordHasher<TUser>>())`
+      (same `services.Replace` discipline as the real-helper for the same
+      reason — idempotency). The IHostedService production-guard assertion
+      registration is NOT performed here — `AddSunfishPasswordHashingSubstrate`
+      is the canonical single-point-of-registration for IHostedService
+      assertions per A6. The xmldoc on `AddSunfishMockPasswordHashing<TUser>`
+      explicitly directs callers to invoke `AddSunfishPasswordHashingSubstrate`
+      first (or rely on a composition-root convention that does so).
+      The generic constraint requires types implementing both
+      `IPasswordHasher<TUser>` and `IMockPasswordHasher` — only mock concretes
+      can register via this helper, closing the mock-without-marker
+      compile-time foot-gun.
 - Unit tests in `packages/foundation-password-hashing/tests/Sunfish.Foundation.PasswordHashing.Tests.csproj`:
   - `Argon2idPasswordHasherTests`:
     - hash + verify round-trip at OWASP minimum parameters (deterministic via
       fixed-salt test seam — option to inject `Func<byte[]> saltGenerator` for
       testability, or use a fixture-level deterministic seam).
-    - hash + verify round-trip with `Pepper` set (future-enablement test;
-      verify pepper applied + verify with same pepper succeeds + verify with
-      different pepper fails).
+    - hash + verify round-trip with `Pepper` set via `KnownSecret` (S1
+      future-enablement test; verify pepper applied via Argon2's canonical
+      secret-value surface — `argon2id.KnownSecret = options.Pepper` — and
+      verify with same pepper succeeds while verify with different pepper
+      fails; verify XOR-into-password-bytes is NOT the application path).
+    - **RFC 9106 §5 reference-vector parity (≥3 vectors; S4 sec-eng substrate
+      amendment).** Pin at least three reference vectors from the published
+      RFC 9106 §5 test vectors (input password + salt + parameters → expected
+      hash output). Verifies Konscious's adherence to the immutable spec;
+      catches silent spec-drift on future Konscious bumps. Without these,
+      a real bug-class that has shipped in cryptographic libraries before
+      (e.g., Bouncy Castle spec-drift bugs) would not be caught at
+      substrate tier.
+    - **Argon2id primitive-selection assertion (S5 sec-eng substrate
+      amendment).** Reflective verification that
+      `Argon2idPasswordHasher<TUser>.HashPassword` instantiates
+      `Konscious.Security.Cryptography.Argon2id` specifically (not `Argon2i`
+      or `Argon2d`). The wire-format PHC prefix is hardcoded and does NOT
+      cross-verify the primitive; a typo in the substrate code that
+      instantiated the wrong variant would NOT be caught by current tests.
+      Test pattern: type-substrate-assertion that the instantiated Argon2
+      variant's `FullName` equals `"Konscious.Security.Cryptography.Argon2id"`.
+      Without this floor, Floor 8's side-channel-resistance property is
+      documentation discipline rather than substrate-tier-enforced;
+      primitive-selection drift is the load-bearing risk.
+    - **Input-length bounding (S6 sec-eng substrate amendment).**
+      `hashedPassword.Length > 1024` returns `Failed` without parsing (PHC
+      strings are well under 200 chars; defense-in-depth ceiling);
+      `providedPassword.Length > 4096` returns `Failed` on verify and throws
+      `ArgumentException` on hash (substrate-tier complement to the W#79
+      handler-tier input-length cap); `Argon2idHashOptions.Pepper.Length > 64`
+      throws via `Argon2idParameterFloorAssertion` at startup.
     - parameter-floor upgrade: verify a hash made at m=19456 against an
       `Argon2idHashOptions` floor of m=46080 returns `SuccessRehashNeeded`
       (not `Success`).
@@ -940,12 +1150,22 @@ Scope:
       that's tolerant of timing variance — the substrate-tier assertion is
       that the BCL primitive is used, not a timing-equivalence empirical test
       that would be flaky in CI).
+    - Blazor-Server SynchronizationContext deadlock-safety (A5 LOAD-BEARING).
+      Test pattern: invoke `HashPassword` from a thread whose
+      `SynchronizationContext.Current` is set to a single-thread dispatcher
+      (simulating Blazor Server); assert the call completes without deadlock.
+      The `Task.Run` hop is the load-bearing mechanism.
   - `MockPasswordHasherTests`:
-    - hash + verify round-trip with deterministic mock format.
-    - verify fails on length mismatch.
+    - hash + verify round-trip with constant-string mock format
+      (`"mock-hash"`; S2 sec-eng substrate amendment).
+    - verify fails on empty providedPassword.
+    - verify fails on mismatched hashedPassword (non-`"mock-hash"`).
     - verify never returns `SuccessRehashNeeded` (mock is not subject to
       parameter-floor upgrade).
     - mock NEVER logs the plaintext password (test via log-capture fixture).
+    - **mock format MUST NOT embed any password-derived material** — assert
+      via reflection that the stored hash string is literally `"mock-hash"`
+      regardless of input password (S2 — verifies Floor 7 by construction).
   - `MockPasswordHasherProductionGuardAssertionTests`:
     - non-prod bypass (`ASPNETCORE_ENVIRONMENT=Development`).
     - opt-out env-var bypass (`SUNFISH_ALLOW_MOCK_PASSWORD_HASHER=True` /
@@ -954,7 +1174,15 @@ Scope:
     - prod-with-mock-no-opt-out throws `MockPasswordHasherInProductionException`
       naming the offending service type.
     - prod-with-real-only passes.
+    - **closed-generic discrimination idiom (A3 LOAD-BEARING).** Test
+      pattern: register a non-`IPasswordHasher<>` mock service alongside a
+      mock `IPasswordHasher<UserEntity>` registration; assert the assertion
+      scans correctly via `IsGenericType + GetGenericTypeDefinition() ==
+      typeof(IPasswordHasher<>)` and only flags the password-hasher mock,
+      not the unrelated service. Verifies the asymmetric open-vs-closed
+      generic assignability discipline.
     - integration test: `WebApplicationBuilder().Build()` with
+      `AddSunfishPasswordHashingSubstrate()` +
       `AddSunfishMockPasswordHashing<UserEntity>()` +
       `ASPNETCORE_ENVIRONMENT=Production` (no opt-out) asserts
       `IHost.StartAsync` throws `MockPasswordHasherInProductionException`.
@@ -968,17 +1196,53 @@ Scope:
       `ASPNETCORE_ENVIRONMENT` + `SUNFISH_ALLOW_MOCK_PASSWORD_HASHER` across
       the test lifecycle (xUnit `[Collection]` discipline or
       constructor/Dispose pair) — same pattern as ADR 0096 Step 1 tests.
+  - **`Argon2idParameterFloorAssertionTests`** (S3 sec-eng substrate
+    amendment) — each floor parameter has below-floor / at-floor /
+    above-floor coverage:
+    - `MemoryKib = 1024` (below Floor 3) throws
+      `Argon2idBelowFloorException` naming `MemoryKib`, `expectedFloor=19456`,
+      `actualValue=1024`.
+    - `MemoryKib = 19456` (at Floor 3) passes.
+    - `MemoryKib = 46080` (above Floor 3) passes.
+    - same shape for `Iterations` (Floor 4; floor 2), `DegreeOfParallelism`
+      (Floor 5; floor 1), `SaltLengthBytes` (Floor 1; floor 16),
+      `HashLengthBytes` (Floor 2; floor 32), `Pepper.Length` (Floor 6
+      future-enablement bound; ceiling 64).
+    - integration test: `WebApplicationBuilder().Build()` with
+      `AddSunfishPasswordHashingSubstrate()` +
+      `AddSunfishPasswordHashing<UserEntity>(o => o.MemoryKib = 1024)` +
+      `ASPNETCORE_ENVIRONMENT=Production` asserts `IHost.StartAsync` throws
+      `Argon2idBelowFloorException`.
+  - **`Argon2idHashOptionsValidatorTests`** (C3 clarification) — defense-in-
+    depth at the `IOptions<T>` validation layer:
+    - each below-floor parameter case yields
+      `ValidateOptionsResult.Fail` with a descriptive message.
+    - at-floor and above-floor cases yield `ValidateOptionsResult.Success`.
+    - multiple simultaneous below-floor parameters yield a single
+      `ValidateOptionsResult.Fail` listing all violations.
   - `PasswordHashingServiceCollectionExtensionsTests`:
+    - `AddSunfishPasswordHashingSubstrate()` registers
+      `MockPasswordHasherProductionGuardAssertion` AND
+      `Argon2idParameterFloorAssertion` as `IHostedService` exactly once
+      (A6 LOAD-BEARING; `TryAddEnumerable` semantics — calling twice yields
+      one of each, not two of each).
     - `AddSunfishPasswordHashing<UserEntity>()` registers
       `Argon2idPasswordHasher<UserEntity>` as
-      `IPasswordHasher<UserEntity>` singleton.
+      `IPasswordHasher<UserEntity>` singleton via `services.Replace`.
     - `AddSunfishPasswordHashing<UserEntity>(o => o.MemoryKib = 46080)`
       applies the configure delegate.
-    - `AddSunfishMockPasswordHashing<UserEntity>()` registers the mock + the
-      production-guard assertion.
+    - `AddSunfishPasswordHashing<UserEntity>` `services.Replace` idempotency
+      (A4 LOAD-BEARING): register the BCL `PasswordHasher<UserEntity>` first;
+      then call `AddSunfishPasswordHashing<UserEntity>`; assert only the
+      Argon2id concrete is registered (the BCL line is displaced).
+    - `AddSunfishMockPasswordHashing<UserEntity>()` registers the mock via
+      `services.Replace`.
     - calling both `AddSunfishMockPasswordHashing<UserEntity>` AND
-      `AddSunfishMockPasswordHashing<OtherUser>` registers the assertion
-      idempotently (`TryAddSingleton`).
+      `AddSunfishMockPasswordHashing<OtherUser>` after a single
+      `AddSunfishPasswordHashingSubstrate` call yields one of each
+      production-guard assertion + floor assertion (not two of each).
+    - `AddSunfishPasswordHashing<UserEntity>(lifetime: ServiceLifetime.Scoped)`
+      (C1) registers the concrete with the requested lifetime.
 - Documentation:
   - xmldoc on every introduced type per ADR 0069 §A0 discipline.
   - `IMockPasswordHasher` xmldoc explicitly names (a) the distinction from
@@ -1010,17 +1274,11 @@ after Step 1 merges + W#79 sub-cohort 1 reaches the production-prep gate).
 Scope (one-line composition-root substitution; zero handler-tier changes):
 
 In `Sunfish.Bridge.Onboarding.DependencyInjection` (or wherever the W#79
-substrate registration lives at cutover time), replace:
-
-```csharp
-// W#79 MVP-ship (PBKDF2 V3 default)
-services.AddSingleton<IPasswordHasher<UserEntity>, PasswordHasher<UserEntity>>();
-```
-
-with:
+substrate registration lives at cutover time), the cutover adds two lines:
 
 ```csharp
 // ADR 0097 production cutover (Argon2id at OWASP minimum)
+services.AddSunfishPasswordHashingSubstrate();  // IHostedService assertions (A6 LOAD-BEARING)
 services.AddSunfishPasswordHashing<UserEntity>(options =>
 {
     options.MemoryKib = 19456;        // OWASP minimum (Halt 1)
@@ -1028,6 +1286,14 @@ services.AddSunfishPasswordHashing<UserEntity>(options =>
     options.DegreeOfParallelism = 1;
 });
 ```
+
+**The W#79 MVP-era `services.AddSingleton<IPasswordHasher<UserEntity>,
+PasswordHasher<UserEntity>>()` line MAY be deleted at cutover time as code-
+review hygiene, but is NOT required to be deleted** (A4 LOAD-BEARING — the
+`services.Replace` semantics inside `AddSunfishPasswordHashing<TUser>`
+displace any prior `IPasswordHasher<UserEntity>` registration idempotently;
+the substitution is correctness-stable regardless of Engineer-author
+judgment about deletion order).
 
 The substitution is **mechanical**. The W#79 sec-eng A + .NET-arch K1
 invariant ("interface, NEVER static; ADR 0097 future Argon2id swap requires
@@ -1254,82 +1520,112 @@ complicating `SuccessRehashNeeded` discrimination.
   allow temporary hardening reduction (but NOT below OWASP minimum per
   Floor 3) pending host capacity uplift. Future ADR amendment if persistent.
 
-## Open questions (forwarded to dual-council attestation)
+## Open questions (Rev 2 — all seven RESOLVED via dual-council attestation)
 
-These seven questions are explicitly NOT pre-empted by this Revision 1 draft;
-they route to dual-council attestation at this ADR's PR-open per the H9
-MANDATORY dual-council. ONR named several of these as scaffold §8
-forward-watch items; ADR 0097 R1 surfaces them as open questions where
-council judgment is the appropriate authority.
+The seven Q's from Rev 1 are RESOLVED via the .NET-architect + sec-eng
+dual-council AMBER verdicts. Rev 2 folds the dispositions into the spec
+text above; the questions remain in the ADR for traceability.
 
 **Q1 — Sync-over-async on `Konscious.Argon2id.GetBytesAsync` from synchronous
-`IPasswordHasher<TUser>.HashPassword`.** The BCL interface is synchronous;
-Konscious's API is async-only. The substrate uses `.GetAwaiter().GetResult()`
-per Microsoft's documented pattern for substrate-tier single-thread-pool
-boundaries. **Council (.NET-architect):** validate the interop pattern is
-acceptable at substrate-tier; if not, propose async-wrapper amendment for
-Rev 2.
+`IPasswordHasher<TUser>.HashPassword`. RESOLVED — Option B (Task.Run hop).**
+.NET-architect Q1 disposition: the substrate uses
+`Task.Run(() => argon2id.GetBytesAsync(...)).GetAwaiter().GetResult()` per
+Microsoft's documented safe sync-over-async substrate-tier pattern (A5
+LOAD-BEARING). The `Task.Run` hop forces the awaited continuation to escape
+any caller's `SynchronizationContext` by hopping to a pool thread first,
+eliminating the Blazor-Server SynchronizationContext deadlock-class hazard
+regardless of Konscious's internal `ConfigureAwait` choice. Cost is one
+additional thread-pool hop per signup; negligible against the ~50-100 ms
+Argon2id wall-clock. Sec-eng Q1-adjacent: substrate-tier safety property
+holds because Argon2id is memory-bound (no actual I/O wait inside the
+async); the sync-over-async pattern is safe for THIS substrate but the
+property is non-obvious — Option B closes the deadlock-class hazard by
+construction. See §"Implementation roadmap Step 1"
+`Argon2idPasswordHasher.HashPassword` spec.
 
-**Q2 — `MockPasswordHasher.HashPassword` deterministic format.** The
-recommended format is `$"mock-hash-of-len-{password.Length}"` — leaks
-password length but nothing else; password length is the only non-sensitive
-deterministic proxy. **Council (sec-eng):** validate the length-leak is
-acceptable in dev/test posture (the production-guard ensures this never
-ships to production without explicit opt-out); if not, propose an
-alternative deterministic-but-content-free shape (e.g., a constant string).
+**Q2 — `MockPasswordHasher.HashPassword` deterministic format. RESOLVED —
+constant string `"mock-hash"`.** Sec-eng-primary Q2 disposition: zero
+password-derived material in mock format (S2 sec-eng substrate amendment).
+The constant-string format embeds NO password-derived signal — even when
+a load-test deployment legitimately ships with
+`SUNFISH_ALLOW_MOCK_PASSWORD_HASHER=true`, the stored mock-hashes carry
+zero cohort-attack credential-strength-histogram leakage. The
+length-bucket alternative was rejected; the substrate-tier discipline is
+zero-side-channel-leakage, not minimal-side-channel-leakage. .NET-architect
+C9 concurs. See §"Implementation roadmap Step 1" `MockPasswordHasher.cs`
+spec.
 
-**Q3 — `Argon2idHashOptions.Pepper` future-enablement shape.** Reserved as
-nullable `byte[]?` at MVP. Future pepper substrate (post-secret-store-ADR)
-would XOR the pepper into the password bytes before passing to Argon2id.
-**Council (sec-eng):** confirm the XOR-prefix application pattern is the
-correct OWASP-conformant pepper application (vs HMAC-derived pepper-
-augmented key, etc.); ratify the future-enablement shape so it's not
-surprising when secret-store substrate lands.
+**Q3 — `Argon2idHashOptions.Pepper` future-enablement shape. RESOLVED —
+Argon2 `KnownSecret` (RFC 9106 §3.1 `K` parameter).** Sec-eng-primary Q3
+disposition: pepper application uses Konscious's `Argon2id.KnownSecret`
+property — Argon2's canonical secret-value surface that mixes the secret
+into the hash construction in a cryptographically well-defined manner (S1
+sec-eng substrate amendment). The XOR-into-password-bytes pattern in Rev 1
+was rejected as non-canonical (undefined semantics for non-overlapping
+ranges; reinvents what the algorithm natively supports). HMAC-SHA256(pepper,
+password)-then-Argon2id is an alternative but uses the secret outside the
+primitive; substrate-tier discipline prefers the in-primitive application.
+See §"Implementation roadmap Step 1" `Argon2idPasswordHasher.HashPassword`
+spec + §"Cryptographic floor requirements" Floor 9.
 
 **Q4 — PHC string parameter-floor upgrade vs algorithm-version upgrade
-discrimination.** The verify path returns `SuccessRehashNeeded` in two
-distinct cases: (a) legacy V3 PBKDF2 byte[] format succeeded via fallback
-(algorithm upgrade); (b) PHC string parsed with below-floor parameters
-(parameter upgrade). The two cases are semantically distinct; the W#80
-login handler treats them identically (rehash on either trigger). **Council
-(.NET-architect):** confirm the unified-trigger treatment is correct, OR
-propose a `PasswordVerificationResultExtended` enum with separate
-`AlgorithmRehashNeeded` / `ParameterRehashNeeded` values (would require a
-non-BCL contract; substantial scope expansion). Admiral prior: unified
-trigger is the simpler design + matches BCL semantics; no enum extension at
-MVP.
+discrimination. RESOLVED — CONFIRM unified-trigger treatment.** .NET-
+architect Q4 disposition: the BCL `PasswordVerificationResult` enum is the
+contract surface; introducing a `PasswordVerificationResultExtended` would
+break the W#79 sec-eng A invariant (handler-tier code already switches on
+the BCL enum). The unified trigger is the correct .NET-canonical design —
+both upgrade classes have the same handler-tier response (call
+`HashPassword(...)` again + persist the result). If a future audit-event-
+emission discrimination requirement surfaces (Q6 territory; application-
+tier per sec-eng disposition), the discrimination can be implemented at the
+W#80 handler tier by parsing the stored hash format (PHC string vs legacy
+V3 byte[]) before the `VerifyHashedPassword` call. NO
+`PasswordVerificationResultExtended` extension at substrate tier. See
+§"Implementation roadmap Step 1" `Argon2idPasswordHasher.VerifyHashedPassword`
+spec.
 
-**Q5 — Argon2id default parameter floor against modern x86-64 hardware
-calibration.** OWASP cheatsheet 2026-05-27 names m=19 MiB / t=2 / p=1 as the
-minimum; on production-class hardware (modern x86-64; 32+ GB RAM;
-sub-microsecond memory bandwidth), the wall-clock cost is ~50-100 ms.
-**Council (sec-eng):** confirm m=19 MiB is the correct production default
-(vs raising preemptively to m=46 or m=64 to stay ahead of the next OWASP
-guidance update); the production-tier parameter is
-`Argon2idHashOptions.MemoryKib` which can be raised per deployment without
-substrate amendment.
+**Q5 — Argon2id default parameter floor calibration. RESOLVED — m=19 MiB
+correct at MVP.** Sec-eng-primary Q5 disposition: m=19 MiB is the right
+substrate default at MVP per OWASP cheatsheet 2026-05-27. Raising
+preemptively to m=46 MiB without a hardware-capacity uplift creates
+needless signup-latency cost without compensating security gain at MVP
+scale. The parameter-floor upgrade mechanism via `SuccessRehashNeeded`
+makes future hardening a deployment-tier operation, not a forced-reset
+event. Deployment-tier tuning via `Argon2idHashOptions.MemoryKib` per
+deployment is the canonical hardening path. Forward-watch on OWASP
+cheatsheet floor-raise (Revisit Trigger #1). See §"Cryptographic floor
+requirements" Floor 3.
 
-**Q6 — Audit-event emission on hash upgrade.** Should the W#80 login handler
-emit `user_password_hash_upgraded` audit event when `SuccessRehashNeeded` is
-observed + rehash succeeds? ADR 0049 enum extension; primarily a W#80
-territory question. **Council (sec-eng):** confirm whether the audit-event
-emission is a substrate-tier concern (ADR 0097 would dispatch a
-fire-from-substrate audit event on rehash) or an application-tier concern
-(W#80 emits at the handler tier after observing `SuccessRehashNeeded`).
-Admiral prior: application-tier per ADR 0095 / ADR 0096 substrate-tier
-no-audit-emission precedent; substrate does not own the
-`IAuditEventEmitter` dispatch path.
+**Q6 — Audit-event emission on hash upgrade. RESOLVED — application-tier
+(NOT substrate-tier).** Sec-eng-primary Q6 disposition: substrate-no-
+audit-emission precedent per ADR 0095 / ADR 0096 (sister substrate ADRs
+do not own `IAuditEventEmitter` dispatch). The W#80 login handler is the
+correct tier for emitting `user_password_hash_upgraded` on
+`SuccessRehashNeeded`-then-rehash. ADR 0097 substrate does NOT participate
+in audit-event emission; this is a deliberate substrate-tier discipline
+(substrates own primitives; handlers own audit). Forward-watch: ADR 0049
+enum extension at W#80 hand-off (`user_password_hash_upgraded` audit event
+constant).
 
-**Q7 — Step 1 csproj package-ref strategy.** The substrate package needs
-`Microsoft.AspNetCore.Identity.Core`, `Konscious.Security.Cryptography.Argon2`,
-`Microsoft.Extensions.Hosting.Abstractions`,
-`Microsoft.Extensions.DependencyInjection.Abstractions`,
-`Microsoft.Extensions.Options.ConfigurationExtensions`. **Council
-(.NET-architect):** confirm the package-ref set is minimal + correct for a
-netstandard2.0 OR net9.0+ target (Engineer picks the TFM at authoring time);
-confirm NU1510 suppression strategy is correct per fleet convention; confirm
-the `Microsoft.AspNetCore.Identity.Core` reference is the right contract
-source (vs alternative ways to obtain `IPasswordHasher<TUser>` interface).
+**Q7 — Step 1 csproj package-ref strategy. RESOLVED — 5 PackageReferences
+(Abstractions-only set + NU1510 NoWarn).** .NET-architect Q7 disposition:
+the corrected minimal set is
+`Microsoft.AspNetCore.Identity.Core` (per A2 CPM addition) +
+`Konscious.Security.Cryptography.Argon2` (per Halt 2) +
+`Microsoft.Extensions.DependencyInjection.Abstractions` (for
+`ServiceDescriptor` / `IServiceCollection` / `services.Replace` /
+`TryAddEnumerable` — all live in the Abstractions surface) +
+`Microsoft.Extensions.Hosting.Abstractions` (for `IHostedService`) +
+`Microsoft.Extensions.Options` (for `IOptions<Argon2idHashOptions>`). The
+`Microsoft.Extensions.Options.ConfigurationExtensions` reference from Rev 1
+is NOT required at the substrate tier — configuration binding via
+`IConfiguration.GetSection(...)` happens at the composition root, not in
+the substrate package. The `Microsoft.Extensions.DependencyInjection`
+(non-Abstractions) reference from Rev 1 is also NOT required. TFM is
+`net11.0` per A1 (fleet convention; no Engineer-author choice). NU1510
+NoWarn (`<NoWarn>CS1591;NU1510</NoWarn>`) per the
+`foundation-authorization` precedent. See §"Implementation roadmap Step 1"
+csproj scope.
 
 ## Revisit triggers
 
