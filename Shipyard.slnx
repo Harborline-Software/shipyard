@@ -96,6 +96,10 @@
     <Project Path="packages/foundation-multitenancy/Sunfish.Foundation.MultiTenancy.csproj" />
     <Project Path="packages/foundation-multitenancy/tests/tests.csproj" />
   </Folder>
+  <Folder Name="/foundation/agreements/">
+    <Project Path="packages/foundation-agreements/Sunfish.Foundation.Agreements.csproj" />
+    <Project Path="packages/foundation-agreements/tests/Sunfish.Foundation.Agreements.Tests.csproj" />
+  </Folder>
   <Folder Name="/foundation/events/">
     <Project Path="packages/foundation-events/Sunfish.Foundation.Events.csproj" />
     <Project Path="packages/foundation-events/tests/Sunfish.Foundation.Events.Tests.csproj" />
