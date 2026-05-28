@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Foundation.Agreements</PackageId>
+    <Description>Cross-vertical agreement substrate (IAgreement + IContractTerm + IParty + AgreementStatus) per ADR 0098. Vertical blocks (blocks-leases today; future blocks-brand-deals, blocks-license-agreements) implement IAgreement. Shape alpha: interfaces + enum only; zero external PackageReferences; one ProjectReference to foundation-multitenancy for the IMustHaveTenant marker chain.</Description>
+    <PackageTags>sunfish;foundation;agreements;contract;substrate;cross-vertical</PackageTags>
+  </PropertyGroup>
+  <!-- Shape alpha (ADR 0098 §6 Step 1 / A9 / Admiral pre-ruling P4): interfaces+enum ONLY.
+       ZERO external PackageReferences. ONE ProjectReference to foundation-multitenancy (the
+       IMustHaveTenant marker extension per A1). No DI helper at Step 1 — consumers wire concrete
+       IAgreement implementations in their own composition roots; an AddSunfishAgreements<T> helper
+       is additive in a later Step if a vertical-block adoption surfaces a concrete DI need. -->
+  <ItemGroup>
+    <ProjectReference Include="..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Foundation.Agreements.Tests" />
+  </ItemGroup>
+</Project>
