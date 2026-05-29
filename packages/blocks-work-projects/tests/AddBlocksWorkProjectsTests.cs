@@ -18,6 +18,7 @@ public sealed class AddBlocksWorkProjectsTests
 
         Assert.NotNull(sp.GetRequiredService<IProjectService>());
         Assert.NotNull(sp.GetRequiredService<IProjectReadModel>());
+        Assert.NotNull(sp.GetRequiredService<IProjectTimelineReadModel>());
         Assert.NotNull(sp.GetRequiredService<ITimeEntryService>());
         Assert.NotNull(sp.GetRequiredService<ITimeApprovalService>());
         Assert.NotNull(sp.GetRequiredService<IRemodelProjectService>());

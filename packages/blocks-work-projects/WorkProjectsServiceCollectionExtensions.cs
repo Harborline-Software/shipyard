@@ -36,6 +36,7 @@ public static class WorkProjectsServiceCollectionExtensions
 
         // Read models
         services.AddSingleton<IProjectReadModel, InMemoryProjectReadModel>();
+        services.AddSingleton<IProjectTimelineReadModel, InMemoryProjectTimelineReadModel>();
 
         // Cross-cluster contract stubs (TryAddSingleton — sweep-friendly)
         services.TryAddSingleton<IDomainEventPublisher, NoopDomainEventPublisher>();
