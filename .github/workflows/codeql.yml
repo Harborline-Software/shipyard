@@ -3,29 +3,20 @@ name: CodeQL
 on:
   push:
     branches: [main]
-    paths:
-      - "**/*.cs"
-      - "**/*.csproj"
-      - "**/global.json"
-      - "**/Directory.Packages.props"
-      - "**/Directory.Build.props"
-      - "**/Directory.Build.targets"
   pull_request:
     branches: [main]
-    paths:
-      - "**/*.cs"
-      - "**/*.csproj"
-      - "**/global.json"
-      - "**/Directory.Packages.props"
-      - "**/Directory.Build.props"
-      - "**/Directory.Build.targets"
   schedule:
     # Weekly scan every Monday at 04:30 UTC
     - cron: "30 4 * * 1"
 
-# Only runs when C# source or project configuration changes. PRs that touch
-# only docs, ADRs, or TypeScript skip this job. The weekly cron still covers
-# all code unconditionally.
+# `Analyze (csharp)` is a ruleset-required check, so the job must run (and
+# post its result) on every PR — a path-filtered workflow would never post
+# the required check on non-C# PRs and would block the PR forever.
+#
+# Instead the job always runs but the expensive build + analyze STEPS are
+# gated on a path filter: PRs that touch only docs/ADRs/TypeScript complete
+# the job in seconds (filter step only) while still satisfying the required
+# check. Pushes to main and the weekly cron always analyze unconditionally.
 
 jobs:
   analyze:
@@ -39,19 +30,41 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Detect C# changes
+        id: changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            csharp:
+              - "**/*.cs"
+              - "**/*.csproj"
+              - "**/global.json"
+              - "**/Directory.Packages.props"
+              - "**/Directory.Build.props"
+              - "**/Directory.Build.targets"
+
       - uses: actions/setup-dotnet@v5
+        if: github.event_name != 'pull_request' || steps.changes.outputs.csharp == 'true'
         with:
           global-json-file: global.json
 
       - name: Initialize CodeQL
+        if: github.event_name != 'pull_request' || steps.changes.outputs.csharp == 'true'
         uses: github/codeql-action/init@v4
         with:
           languages: csharp
 
       - name: Build
+        if: github.event_name != 'pull_request' || steps.changes.outputs.csharp == 'true'
         run: dotnet build packages/foundation/Sunfish.Foundation.csproj
 
       - name: Perform CodeQL Analysis
+        if: github.event_name != 'pull_request' || steps.changes.outputs.csharp == 'true'
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:csharp
+
+      - name: No C# changes — analysis skipped
+        if: github.event_name == 'pull_request' && steps.changes.outputs.csharp != 'true'
+        run: echo "No C# source or project changes in this PR; CodeQL analysis skipped (required check satisfied)."
