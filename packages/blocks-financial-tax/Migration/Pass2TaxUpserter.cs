@@ -115,25 +115,64 @@ public sealed class Pass2TaxUpserter : IPass2TaxUpserter
 
         // Synthesize the category jurisdiction (best-effort; user reviews
         // post-import). Categoryless templates get a placeholder. Per
-        // importer-spec §4.2 sub-pass 2 each rate row is its OWN TaxRate; a
-        // multi-row template represents a jurisdictional breakdown (state +
-        // county + ...), so each row beyond the first gets a distinct child
-        // jurisdiction. This also keeps the (TaxCode, Jurisdiction)
-        // same-effective-date overlap detector from rejecting legitimate
-        // multi-component imports.
+        // importer-spec §4.2 sub-pass 2 each rate row is its OWN TaxRate. An
+        // ERPNext multi-row `taxes` table is a stack of charge components on
+        // the SAME scope (charge_type OnSubtotal/Compound/Inclusive), NOT a
+        // jurisdictional breakdown — ERPNext does not model jurisdictions. So
+        // every row beyond the first gets a distinct SYNTHETIC placeholder at
+        // the SAME level as row 0 (a flat, honestly-labelled "reconcile later"
+        // node — matching the legacy ErpnextTaxImporter precedent). This keeps
+        // the (TaxCode, Jurisdiction) same-effective-date overlap detector from
+        // rejecting a legitimate multi-row import without inventing County/level
+        // hierarchy the source lacks.
         var categoryJurisdiction = await SynthesizeJurisdictionAsync(source.TaxCategory, cancellationToken)
             .ConfigureAwait(false);
 
+        // Pre-load existing rates for this TaxCode so the fan-out is idempotent
+        // on re-import (Updated path re-runs the loop): a rate with the same
+        // (TaxCodeId, JurisdictionId, EffectiveDate) is left in place rather
+        // than appended (ADR 0100 idempotency — re-run never duplicate-inserts
+        // child rows). Tax records carry no PII; only structural keys read here.
+        var existingRates = await _rates.GetAllForTaxCodeAsync(upserted.Id, cancellationToken)
+            .ConfigureAwait(false);
+
         var rowIndex = 0;
+        var zeroRateDrops = 0;     // ERPNext informational 0-rate rows (counted, not logged).
+        var unresolvedAccountDrops = 0; // account_head Pass-1 didn't seed (counted, not logged).
+        var validationDrops = 0;   // ITaxRateLookup.UpsertAsync structured rejects (counted, not logged).
+        var ratesWritten = 0;
+        var ratesUnchanged = 0;
         foreach (var row in source.Rates)
         {
-            if (row.Rate <= 0m) continue; // ERPNext often carries 0-rate informational rows.
+            if (row.Rate <= 0m)
+            {
+                zeroRateDrops++; // ERPNext often carries 0-rate informational rows.
+                continue;
+            }
             var account = await _accounts.GetAsync(new FL.GLAccountId(row.AccountHead), cancellationToken)
                 .ConfigureAwait(false);
-            if (account is null) continue; // Pass 1 should have seeded it; drop silently.
+            if (account is null)
+            {
+                // Pass 1 should have seeded it; count the drop so re-import
+                // diffing + the reconcile report can surface it (no PII logged).
+                unresolvedAccountDrops++;
+                continue;
+            }
 
             var rowJurisdiction = await ResolveRowJurisdictionAsync(
                 categoryJurisdiction, rowIndex, cancellationToken).ConfigureAwait(false);
+            rowIndex++;
+
+            // Idempotency: a rate already present for this
+            // (TaxCodeId, JurisdictionId, EffectiveDate) needs no write.
+            var alreadyPresent = existingRates.Any(r =>
+                r.JurisdictionId == rowJurisdiction.Id
+                && r.EffectiveDate == HistoryEffectiveDate);
+            if (alreadyPresent)
+            {
+                ratesUnchanged++;
+                continue;
+            }
 
             var candidate = TaxRate.Create(
                 taxCodeId: upserted.Id,
@@ -141,11 +180,23 @@ public sealed class Pass2TaxUpserter : IPass2TaxUpserter
                 ratePercent: row.Rate,
                 effectiveDate: HistoryEffectiveDate,
                 payableAccountId: account.Id);
-            await _rates.UpsertAsync(candidate, cancellationToken).ConfigureAwait(false);
-            rowIndex++;
+            var result = await _rates.UpsertAsync(candidate, cancellationToken).ConfigureAwait(false);
+            if (result.Error != TaxRateValidationError.None || result.Rate is null)
+            {
+                // A structured (non-throwing) validation reject — wrong payable
+                // subtype, date-range overlap, etc. The TaxCode still imports,
+                // but the dropped rate MUST leave a count for the reconcile
+                // report (C2/C5 silent-drop guard). Count only — never log the
+                // record contents / account values (real-financial-domain).
+                validationDrops++;
+                continue;
+            }
+            ratesWritten++;
         }
 
-        var detail = $"Imported with {source.Rates.Count} rate row(s).";
+        var detail = BuildDetail(
+            source.Rates.Count, ratesWritten, ratesUnchanged,
+            zeroRateDrops, unresolvedAccountDrops, validationDrops);
         return isInsert
             ? new ImportOutcome<TaxCode>.Inserted(upserted, detail)
             : new ImportOutcome<TaxCode>.Updated(upserted, detail);
@@ -199,10 +250,13 @@ public sealed class Pass2TaxUpserter : IPass2TaxUpserter
 
     /// <summary>
     /// Row 0 uses the category jurisdiction directly (the common single-row
-    /// case). Each subsequent row gets a distinct child jurisdiction (a
-    /// jurisdictional breakdown component) parented under the category — so the
-    /// per-(TaxCode, Jurisdiction) same-effective-date overlap detector does not
-    /// reject a legitimate multi-component template.
+    /// case). Each subsequent row of an ERPNext multi-row <c>taxes</c> stack
+    /// gets a distinct FLAT placeholder at the SAME level as row 0 — ERPNext
+    /// does not model jurisdictions, so these are synthetic "reconcile later"
+    /// nodes, NOT a fabricated County hierarchy. Reused on re-import by stable
+    /// name lookup at the category level (mirrors the category-synthesis path),
+    /// so the fan-out is idempotent and the same-effective-date overlap
+    /// detector never rejects a legitimate multi-row template.
     /// </summary>
     private async Task<TaxJurisdiction> ResolveRowJurisdictionAsync(
         TaxJurisdiction categoryJurisdiction,
@@ -211,14 +265,50 @@ public sealed class Pass2TaxUpserter : IPass2TaxUpserter
     {
         if (rowIndex == 0) return categoryJurisdiction;
 
+        // Stable synthetic name for re-use across re-imports (component N at the
+        // same level as the category node — flat, not a hierarchy).
+        var componentName = $"{categoryJurisdiction.Name} (component {rowIndex + 1})";
+        var siblings = await _jurisdictions.GetByLevelAsync(categoryJurisdiction.Level, cancellationToken)
+            .ConfigureAwait(false);
+        var match = siblings.FirstOrDefault(j =>
+            string.Equals(j.Name, componentName, StringComparison.OrdinalIgnoreCase));
+        if (match is not null) return match;
+
         var component = TaxJurisdiction.Create(
-            level: JurisdictionLevel.County,
+            level: categoryJurisdiction.Level,
             isoCountry: categoryJurisdiction.IsoCountry,
-            name: $"{categoryJurisdiction.Name} (component {rowIndex + 1})",
-            parentJurisdictionId: categoryJurisdiction.Id,
-            notes: "Synthesized per-row breakdown component from an ERPNext multi-row tax template (review post-import).");
+            name: componentName,
+            notes: "Synthesized placeholder for a component row of an ERPNext multi-row tax template (review post-import).");
         await _jurisdictions.UpsertAsync(component, cancellationToken).ConfigureAwait(false);
         return component;
+    }
+
+    /// <summary>
+    /// Compose the audit/reconcile detail string. Reports rate rows written,
+    /// rows left unchanged on a re-import (idempotency), and each dropped-row
+    /// category by COUNT only — never the rate value, account, or any record
+    /// content (real-financial-domain: no PII / financial-record contents
+    /// logged). The drop counts let A6 reconcile + re-import diffing surface
+    /// invisible rate-level drops that the TaxCode-granularity census misses.
+    /// </summary>
+    private static string BuildDetail(
+        int sourceRowCount,
+        int ratesWritten,
+        int ratesUnchanged,
+        int zeroRateDrops,
+        int unresolvedAccountDrops,
+        int validationDrops)
+    {
+        var detail = $"Imported with {sourceRowCount} rate row(s): "
+            + $"{ratesWritten} written, {ratesUnchanged} unchanged.";
+        var drops = zeroRateDrops + unresolvedAccountDrops + validationDrops;
+        if (drops > 0)
+        {
+            detail += $" Dropped {drops} rate row(s) "
+                + $"(zero-rate: {zeroRateDrops}, unresolved-account: {unresolvedAccountDrops}, "
+                + $"validation-reject: {validationDrops}) — review reconcile report.";
+        }
+        return detail;
     }
 
     private static ImportOutcome<TaxCode> Reject(

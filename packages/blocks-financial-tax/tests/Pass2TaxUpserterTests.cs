@@ -20,6 +20,11 @@ public class Pass2TaxUpserterTests
 {
     private const string PayableAccountId = "erp-account-tax-payable";
 
+    /// <summary>A Liability account whose subtype is NOT TaxesPayable — exercises
+    /// the structured <see cref="TaxRateValidationError.PayableAccountWrongSubtype"/>
+    /// reject that the fan-out must count (Amendment 1) rather than swallow.</summary>
+    private const string WrongSubtypeAccountId = "erp-account-ap-not-tax";
+
     private sealed class Fx
     {
         public InMemoryAccountResolver Accounts { get; } = new();
@@ -41,6 +46,20 @@ public class Pass2TaxUpserterTests
                 subtype: FL.AccountSubtype.TaxesPayable,
                 currency: "USD");
             Accounts.Upsert(payable);
+
+            // A Liability account whose subtype is wrong for a tax rate. The
+            // service-layer UpsertAsync returns a structured PayableAccountWrongSubtype
+            // reject (non-throwing) — the fan-out must count it, not swallow it.
+            var wrongSubtype = FL.GLAccount.Create(
+                id: new FL.GLAccountId(WrongSubtypeAccountId),
+                chartId: Chart,
+                code: "2100",
+                name: "Accounts payable",
+                type: FL.GLAccountType.Liability,
+                subtype: FL.AccountSubtype.AccountsPayable,
+                currency: "USD");
+            Accounts.Upsert(wrongSubtype);
+
             Rates = new InMemoryTaxRateLookup(Accounts);
             Sut = new Pass2TaxUpserter(Codes, Rates, Jurisdictions, Accounts);
         }
@@ -177,6 +196,121 @@ public class Pass2TaxUpserterTests
 
         var jurisdictions = await fx.Jurisdictions.GetByLevelAsync(JurisdictionLevel.State);
         Assert.Contains(jurisdictions, j => j.Name == "(uncategorized ERPNext tax)");
+    }
+
+    [Fact]
+    public async Task Upsert_MultiRow_ComponentJurisdiction_IsFlatNotCountyHierarchy()
+    {
+        // Fidelity guard: ERPNext multi-row taxes are stacked charge components
+        // on the SAME scope, not a jurisdictional breakdown. The synthetic
+        // per-row placeholder must be a FLAT node at the category's own level
+        // (no fabricated County hierarchy, no parent FK) — matching the legacy
+        // ErpnextTaxImporter precedent + keeping the "reconcile later" story honest.
+        var fx = new Fx();
+        await fx.Sut.UpsertTaxTemplateAsync(
+            Source("VA-Multi-1", taxName: "VA Combined", taxCategory: "Virginia", rates: new[]
+            {
+                (PayableAccountId, 4m, false),
+                (PayableAccountId, 1m, false),
+            }),
+            fx.Chart);
+
+        // Both the category node and the component node are State-level.
+        var states = await fx.Jurisdictions.GetByLevelAsync(JurisdictionLevel.State);
+        Assert.Equal(2, states.Count);
+        var component = Assert.Single(states, j => j.Name == "Virginia (component 2)");
+        Assert.Equal(JurisdictionLevel.State, component.Level);
+        Assert.Null(component.ParentJurisdictionId); // flat, not parented under a County
+        // No County-level invention.
+        var counties = await fx.Jurisdictions.GetByLevelAsync(JurisdictionLevel.County);
+        Assert.Empty(counties);
+    }
+
+    // ── Idempotency of the rate + jurisdiction fan-out (Amendment 2) ──────────
+
+    [Fact]
+    public async Task Upsert_MultiRowReImportedAtNewerModified_DoesNotDuplicateRatesOrJurisdictions()
+    {
+        // Re-import a 2-row template at an advancing `modified`. The TaxCode
+        // takes the Updated path (which re-runs the fan-out); rate count +
+        // synthetic-jurisdiction count must BOTH stay at 2 (ADR 0100 idempotency
+        // — re-run never duplicate-inserts child rows).
+        var fx = new Fx();
+        var rates = new[]
+        {
+            (PayableAccountId, 4m, false),
+            (PayableAccountId, 1m, false),
+        };
+
+        var first = await fx.Sut.UpsertTaxTemplateAsync(
+            Source("VA-Multi-2", modified: "2026-01-01 00:00:00", taxName: "VA Combined", taxCategory: "Virginia", rates: rates),
+            fx.Chart);
+        var codeId = ((TaxOutcome.Inserted)first).Record.Id;
+
+        var second = await fx.Sut.UpsertTaxTemplateAsync(
+            Source("VA-Multi-2", modified: "2026-02-01 00:00:00", taxName: "VA Combined", taxCategory: "Virginia", rates: rates),
+            fx.Chart);
+        Assert.IsType<TaxOutcome.Updated>(second);
+
+        var allRates = await fx.Rates.GetAllForTaxCodeAsync(codeId);
+        Assert.Equal(2, allRates.Count); // not 4
+        var states = await fx.Jurisdictions.GetByLevelAsync(JurisdictionLevel.State);
+        Assert.Equal(2, states.Count);  // category + one component, not 3
+    }
+
+    // ── Silent-drop guard (Amendment 1): drops are counted in the detail ──────
+
+    [Fact]
+    public async Task Upsert_ZeroRateRow_IsDroppedAndCountedInDetail()
+    {
+        var fx = new Fx();
+        var outcome = await fx.Sut.UpsertTaxTemplateAsync(
+            Source("VA-Zero-1", taxName: "VA Zero", rates: new[]
+            {
+                (PayableAccountId, 5m, false),
+                (PayableAccountId, 0m, false), // ERPNext informational row
+            }),
+            fx.Chart);
+
+        var inserted = Assert.IsType<TaxOutcome.Inserted>(outcome);
+        var persisted = await fx.Rates.GetAllForTaxCodeAsync(inserted.Record.Id);
+        Assert.Single(persisted); // only the 5% row
+        Assert.Contains("zero-rate: 1", inserted.Detail);
+        Assert.Contains("Dropped 1 rate row", inserted.Detail);
+    }
+
+    [Fact]
+    public async Task Upsert_WrongSubtypePayableAccount_RateDroppedButCountedNotSwallowed()
+    {
+        // The fan-out previously discarded ITaxRateLookup.UpsertAsync's result,
+        // silently swallowing a wrong-subtype payable account (a C2/C5 silent
+        // drop invisible to the TaxCode-granularity census). The TaxCode still
+        // imports; the dropped rate MUST leave a count in the detail.
+        var fx = new Fx();
+        var outcome = await fx.Sut.UpsertTaxTemplateAsync(
+            Source("VA-WrongSub-1", taxName: "VA WrongSub", rates: new[]
+            {
+                (WrongSubtypeAccountId, 5m, false),
+            }),
+            fx.Chart);
+
+        var inserted = Assert.IsType<TaxOutcome.Inserted>(outcome);
+        var persisted = await fx.Rates.GetAllForTaxCodeAsync(inserted.Record.Id);
+        Assert.Empty(persisted); // rate rejected by the service-layer validator
+        Assert.Contains("validation-reject: 1", inserted.Detail);
+        Assert.Contains("Dropped 1 rate row", inserted.Detail);
+    }
+
+    [Fact]
+    public async Task Upsert_UnresolvableAccount_DropIsCountedInDetail()
+    {
+        var fx = new Fx();
+        var outcome = await fx.Sut.UpsertTaxTemplateAsync(
+            Source("VA-NoAcct-1", taxName: "VA NoAcct", rates: new[] { ("nonexistent-account", 5m, false) }),
+            fx.Chart);
+
+        var inserted = Assert.IsType<TaxOutcome.Inserted>(outcome);
+        Assert.Contains("unresolved-account: 1", inserted.Detail);
     }
 
     // ── Reject path ───────────────────────────────────────────────────────
