@@ -28,6 +28,10 @@
     <Project Path="packages/foundation-session/Sunfish.Foundation.Session.csproj" />
     <Project Path="packages/foundation-session/tests/Sunfish.Foundation.Session.Tests.csproj" />
   </Folder>
+  <Folder Name="/foundation/password-hashing/">
+    <Project Path="packages/foundation-password-hashing/Sunfish.Foundation.PasswordHashing.csproj" />
+    <Project Path="packages/foundation-password-hashing/tests/Sunfish.Foundation.PasswordHashing.Tests.csproj" />
+  </Folder>
   <Folder Name="/foundation/design-tokens/">
     <Project Path="packages/foundation-design-tokens/Sunfish.Foundation.DesignTokens.csproj" />
     <Project Path="packages/foundation-design-tokens/tests/Sunfish.Foundation.DesignTokens.Tests.csproj" />
