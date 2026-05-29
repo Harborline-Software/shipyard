@@ -251,6 +251,10 @@
     <Project Path="packages/blocks-financial-payments/Sunfish.Blocks.FinancialPayments.csproj" />
     <Project Path="packages/blocks-financial-payments/tests/Sunfish.Blocks.FinancialPayments.Tests.csproj" />
   </Folder>
+  <Folder Name="/blocks/migration-erpnext/">
+    <Project Path="packages/blocks-migration-erpnext/Sunfish.Blocks.Migration.Erpnext.csproj" />
+    <Project Path="packages/blocks-migration-erpnext/tests/Sunfish.Blocks.Migration.Erpnext.Tests.csproj" />
+  </Folder>
   <Folder Name="/blocks/reports/">
     <Project Path="packages/blocks-reports/Sunfish.Blocks.Reports.csproj" />
     <Project Path="packages/blocks-reports/tests/Sunfish.Blocks.Reports.Tests.csproj" />

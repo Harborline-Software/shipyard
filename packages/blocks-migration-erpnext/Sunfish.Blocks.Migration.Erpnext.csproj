@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Blocks.Migration.Erpnext</PackageId>
+    <RootNamespace>Sunfish.Blocks.Migration.Erpnext</RootNamespace>
+    <Description>A0 ERPNext extraction adapter (read side) — the cross-cluster host package for the ERPNext-&gt;Sunfish importer's source-read half (ADR 0100, Workstream A0). Owns the IErpnextSourceExtractor seam (read-only; IAsyncEnumerable of the frozen Erpnext*Source DTOs), the v1 sole impl MariaDbDumpExtractor (composes the foundation-import ISourceReader/SourceRow primitives — no reimplemented dump parsing, no DB connection), the versioned ERPNext-v15 ErpnextDocTypeMap (unknown DocTypes routed to a counted _unmapped census, never silently dropped), and the USD-only single-currency guard. Sits ABOVE the blocks-* clusters in the DAG so it can reference all seven Migration DTO namespaces up the graph; no cluster depends on it.</Description>
+    <PackageTags>sunfish;migration;erpnext;extraction;import;clean-room;blocks</PackageTags>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Blocks.Migration.Erpnext.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- foundation-import primitives this adapter COMPOSES (ISourceReader / SourceRow /
+         MariaDbDumpSourceReader / ImportCensus) — no reimplementation of dump parsing. -->
+    <ProjectReference Include="..\foundation-import\Sunfish.Foundation.Import.csproj" />
+    <!-- The seven cluster Migration DTO namespaces this cross-cluster extractor populates
+         (referenced UP the DAG; no cluster references back — the .NET-arch (G) acyclic geometry). -->
+    <ProjectReference Include="..\blocks-financial-ledger\Sunfish.Blocks.FinancialLedger.csproj" />
+    <ProjectReference Include="..\blocks-financial-ar\Sunfish.Blocks.FinancialAr.csproj" />
+    <ProjectReference Include="..\blocks-financial-ap\Sunfish.Blocks.FinancialAp.csproj" />
+    <ProjectReference Include="..\blocks-financial-payments\Sunfish.Blocks.FinancialPayments.csproj" />
+    <ProjectReference Include="..\blocks-financial-periods\Sunfish.Blocks.FinancialPeriods.csproj" />
+    <ProjectReference Include="..\blocks-financial-tax\Sunfish.Blocks.FinancialTax.csproj" />
+    <ProjectReference Include="..\blocks-people-foundation\Sunfish.Blocks.People.Foundation.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+</Project>
