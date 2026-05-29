@@ -1,0 +1,11 @@
+# Defensive gitignore: real financial data must never enter the repo tree (ADR 0100 C4/C9).
+# The primary control is the out-of-tree dump path supplied via CLI flag/env var;
+# these patterns are the belt-and-suspenders backstop against accidental in-tree copies.
+
+# mysqldump output
+*.sql
+*-dump.sql
+
+# Import source staging areas
+import-source/
+restore-workdir/

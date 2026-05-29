@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Sunfish.Blocks.Migration.Erpnext</RootNamespace>
+    <Description>A0 ERPNext extraction-adapter (read side). Implements the IErpnextSourceExtractor seam (ADR 0100 C6): restores a mysqldump into an ephemeral throwaway DB and issues parameterized read-only SELECTs to stream the frozen Erpnext*Source DTOs. Cross-cluster host package — sits above all blocks-* clusters in the DAG. Dual-council MANDATORY: sec-eng + .NET-arch (H8).</Description>
+    <!-- CS1591: XML doc warnings suppressed for internal helpers.
+         NU1510 suppressed per fleet convention: direct PackageReference required
+         after preview.4 NuGet resolution shift. -->
+    <NoWarn>CS1591;NU1510</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Cross-cluster DTO references — the seven frozen Erpnext*Source namespaces -->
+    <ProjectReference Include="..\blocks-financial-ledger\Sunfish.Blocks.FinancialLedger.csproj" />
+    <ProjectReference Include="..\blocks-financial-ar\Sunfish.Blocks.FinancialAr.csproj" />
+    <ProjectReference Include="..\blocks-financial-ap\Sunfish.Blocks.FinancialAp.csproj" />
+    <ProjectReference Include="..\blocks-people-foundation\Sunfish.Blocks.People.Foundation.csproj" />
+    <ProjectReference Include="..\blocks-financial-periods\Sunfish.Blocks.FinancialPeriods.csproj" />
+    <ProjectReference Include="..\blocks-financial-tax\Sunfish.Blocks.FinancialTax.csproj" />
+    <!-- Foundation-import for outcome types, census, and access-mode descriptor -->
+    <ProjectReference Include="..\foundation-import\Sunfish.Foundation.Import.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Blocks.Migration.Erpnext.Tests" />
+  </ItemGroup>
+</Project>
