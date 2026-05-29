@@ -17,6 +17,8 @@
     <!-- W#72 PR 3 — direct refs for test-stub instantiation (ArAgingService, InMemoryInvoiceRepository, InMemoryPartyRepository). -->
     <ProjectReference Include="..\..\blocks-financial-ar\Sunfish.Blocks.FinancialAr.csproj" />
     <ProjectReference Include="..\..\blocks-people-foundation\Sunfish.Blocks.People.Foundation.csproj" />
+    <!-- AP Aging Summary cartridge tests — ApAgingService + InMemoryBillRepository. -->
+    <ProjectReference Include="..\..\blocks-financial-ap\Sunfish.Blocks.FinancialAp.csproj" />
     <!-- W#72 PR 6 — direct refs for test-stub instantiation (InMemoryLeaseService). -->
     <ProjectReference Include="..\..\blocks-leases\Sunfish.Blocks.Leases.csproj" />
     <!-- Cohort-2 PR 0a — StubTenantContext requires foundation-multitenancy. -->

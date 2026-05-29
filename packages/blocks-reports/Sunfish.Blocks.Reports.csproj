@@ -22,6 +22,8 @@
     <!-- W#72 PR 3 — AR Aging Summary cartridge consumes AR aging + party read surfaces. -->
     <ProjectReference Include="..\blocks-financial-ar\Sunfish.Blocks.FinancialAr.csproj" />
     <ProjectReference Include="..\blocks-people-foundation\Sunfish.Blocks.People.Foundation.csproj" />
+    <!-- AP Aging Summary cartridge consumes AP aging service (bills/vendors). -->
+    <ProjectReference Include="..\blocks-financial-ap\Sunfish.Blocks.FinancialAp.csproj" />
     <!-- W#72 PR 6 — Rent Roll v2 cartridge consumes lease service for unit + tenant data. -->
     <ProjectReference Include="..\blocks-leases\Sunfish.Blocks.Leases.csproj" />
   </ItemGroup>
