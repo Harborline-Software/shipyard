@@ -47,7 +47,7 @@ co-pre-authorized: false  # substrate-defining ADR; ADR text carries MANDATORY d
 
 # ADR 0101 — Asset-Management Bundle Substrate
 
-**Status:** Proposed — Rev 1. P3 future-roadmap (post-MVP). Substrate-defining: this ADR pins the
+**Status:** Proposed — Rev 2. P3 future-roadmap (post-MVP). Substrate-defining: this ADR pins the
 domain model the asset-management reference bundle's cockpit + Bridge endpoints will build on, and
 decides **where that domain lives** (greenfield `blocks-assets` vs. promotion of the existing
 `blocks-property-equipment` Equipment domain). Dual-council MANDATORY (security-engineering +
@@ -68,6 +68,19 @@ resulting design fork before any C1 build begins.
 **Predecessor WBS:** `shipyard/icm/05_implementation-plan/post-mvp-wbs-2026-05-29.md` (ONR;
 shipyard#181 Workstream C, units C1.1–C1.4). **Its C1.1 "partial / gap-fill" framing is corrected
 by this ADR.**
+
+**Changelog:**
+
+- **Rev 2 — council fold (2026-05-29):** Folded the dual-council verdicts. .NET-architect AMBER:
+  resolved OQ-1 (greenfield-now, unify-later — both councils + author concur; strengthened by the
+  3-cluster `EquipmentId` blast-radius finding), OQ-2 (D4 twin-nullable `WorkOrder.Asset` +
+  at-most-one `{Equipment, Asset}` invariant + guard; no `MaintainableRef`), OQ-3 (D2 `AssetCategory`
+  SHALL ship closed enum first-slice, registry-backed follow-up); amendments A3 (`AssetLifecycleEvent`
+  drops the `Property` snapshot), A4 (string-typed `featureDefaults` at the C1.4 gate), A5
+  (Consequences names the inspections cluster). security-engineering GREEN: folded two advisories
+  into the C1.2 build-gate (per-handler manual CSRF on mutating routes; static-error-strings only).
+  Status stays Proposed; re-attestation pending.
+- **Rev 1 — initial draft (2026-05-29).**
 
 ---
 
@@ -178,14 +191,25 @@ never vendor-swapped). The first-slice domain:
   `AcquisitionReceiptRef`, `ExpectedUsefulLifeYears`, `LifecycleState`, `Warranty`
   (`WarrantyTerm?`), `Location` (free-text — NOT a `PropertyId`; see D3), `Notes`,
   `PrimaryPhotoBlobRef`, `CreatedAt`, `DisposedAt`, `DisposalReason`. Soft-delete via `DisposedAt`.
-- **`AssetCategory`** — a registry-backed category (fleet-vehicle, manufacturing-equipment,
-  facility-asset, IT-hardware, …) replacing the property-flavored fixed `EquipmentClass` enum.
-  First-slice may ship a closed enum + a `TODO` to back it with the schema registry (mirrors the
-  `EquipmentClass` OQ-A2 deferral); a registry-backed category is the cleaner long-term path.
+- **`AssetCategory`** (OQ-3 RESOLVED, .NET-architect AMBER) — a category (fleet-vehicle,
+  manufacturing-equipment, facility-asset, IT-hardware, …) replacing the property-flavored fixed
+  `EquipmentClass` enum. The first slice **SHALL ship a closed enum**, mirroring the `EquipmentClass`
+  OQ-A2 deferral precedent and keeping C1.1 in-memory + side-effect-free. **Registry backing is a
+  named follow-up unit, NOT part of the C1.1 substrate PR** — `AssetCategory` is to be backed by
+  `kernel-schema-registry.ISchemaRegistry` (which exists — `packages/kernel-schema-registry/ISchemaRegistry.cs`)
+  in a subsequent unit, so the C1.1 build does not gold-plate a registry integration into the
+  substrate. This honors the fleet "prefer cleanest long-term option" directive on the *target* while
+  keeping the first slice mechanical.
 - **`AssetLifecycleEvent` : `IMustHaveTenant`** — append-only, `EventId`, `Asset` (`AssetId`),
   `TenantId`, `EventType`, `OccurredAt`, `RecordedBy`, `Notes`, `Metadata`. Mirrors
   `EquipmentLifecycleEvent`. `AssetLifecycleEventType`: `Acquired, Deployed, Serviced, Inspected,
   WarrantyClaimed, Depreciated, Transferred, Replaced, Disposed, PhotoAdded, NotesUpdated`.
+  **A3 (shape divergence the build must NOT blind-mirror, .NET-architect AMBER):** the incumbent
+  `EquipmentLifecycleEvent` carries a **required `PropertyId Property` snapshot** field;
+  `AssetLifecycleEvent` **deliberately DROPS it** — the greenfield `Asset` is property-agnostic (D3),
+  so there is no `Property` to snapshot. Because C1.1 is told to "mirror `EquipmentLifecycleEvent`,"
+  a build agent copying the precedent **must not** reintroduce a `Property` snapshot field; doing so
+  would resurrect the property coupling D3 forbids.
 - **`LifecycleState`** — the asset's current lifecycle status (e.g. `Draft, Active, InMaintenance,
   Retired, Disposed`); transitions are recorded as `AssetLifecycleEvent`s.
 - **`DepreciationSchedule` + `DepreciationMethod`** — `DepreciationMethod` enum (`StraightLine,
@@ -209,18 +233,32 @@ correlation reference, but the asset domain does not depend on `blocks-propertie
 `blocks-property-equipment`. **`blocks-assets` MUST NOT take a project/package reference on
 `blocks-property-equipment`** (avoid a property-coupling on a property-agnostic block).
 
-**D4 — Maintenance link: extend `WorkOrder`, do not fork it.** Maintenance work today targets
-`WorkOrder.Equipment` (`EquipmentId?`). For asset-management, a work order may target an `Asset`
-that is not property `Equipment`. Resolution: add an **optional** `WorkOrder.Asset` (`AssetId?`)
-alongside the existing `Equipment` FK (both nullable; at most one set in practice), OR introduce a
-unifying `MaintainableRef`. **This is an OPEN QUESTION for .NET-architect council** (OQ-2) — it
-touches the shipped `blocks-maintenance.WorkOrder` contract and must not be decided unilaterally.
+**D4 — Maintenance link: extend `WorkOrder` with a twin-nullable FK, do not fork it (OQ-2
+RESOLVED, .NET-architect AMBER).** Maintenance work today targets `WorkOrder.Equipment`
+(`EquipmentId?`). For asset-management, a work order may target an `Asset` that is not property
+`Equipment`. **Resolution:** add an **optional** `WorkOrder.Asset` (`AssetId?`) alongside the
+existing `Equipment` FK (both init-only, both default null) — a non-breaking additive change to the
+shipped `WorkOrder` contract, consistent with how `Equipment` itself was added (ADR 0053 Phase 3/5).
+Do **NOT** introduce a unifying `MaintainableRef`: it has **zero precedent** in the codebase, and a
+new unifying ref type is itself a speculative-generality move with its own design + invariant
+burden; defer it to the eventual OQ-1 unification ADR (its natural home).
+
+The two FKs carry an **at-most-one invariant: a `WorkOrder` references at most one of
+`{Equipment, Asset}`** (both may be null — an unlinked work order is valid — but not both set).
+Nothing structurally prevents both being set, so C1.2 / the maintenance contract owner **SHALL add a
+guard** — a record-level validation or a documented constructor check — that rejects a `WorkOrder`
+with both FKs populated. This invariant and its guard requirement are part of the D4 contract the
+C1 build inherits.
 
 **D5 — Bundle activation is the last step, gated on cockpit + endpoints.** `asset-management.bundle.json`
 flips `status: Draft` -> `Active` (and `maturity: Scaffold` -> a higher tier) only in C1.4, after the
 substrate (C1.1), Bridge endpoints (C1.2), and cockpit (C1.3) land. C1.4 also reconciles the
 manifest's aspirational module keys (`sunfish.blocks.contacts`, `…communications`, etc.) to the
-shipped block names per ADR 0098.
+shipped block names per ADR 0098. **A4 (C1.4 gate, .NET-architect AMBER):** the bundle
+`featureDefaults` are typed as JSON **strings** (`"true"`/`"false"`), NOT booleans — C1.4's
+feature-key reconciliation and any "feature key satisfied" check **must compare against the string
+values**, not coerce to `bool`, or the "no Draft-only feature key left unsatisfied" gate will
+misfire.
 
 ### The C1.1 -> C1.4 build ladder (implementation plan)
 
@@ -230,7 +268,7 @@ strictly sequential (each gates the next):
 | Unit | Scope | Repo/layer | Gate (PASS/FAIL) | Council |
 |---|---|---|---|---|
 | **C1.1** | **Substrate (greenfield).** Build the D2 asset domain in `blocks-assets`: `Asset`, `AssetCategory`, `AssetId`, `AssetLifecycleEvent(+Type)`, `LifecycleState`, `DepreciationSchedule(+Method)`, `WarrantyTerm`, `IAssetRepository`, `IAssetLifecycleEventStore`, in-memory impls, DI extension. All `IMustHaveTenant`; tenant-scoped repos; `Money` for cost basis. | shipyard `blocks-assets` | PASS = domain + in-memory repos + DI compile & test-green; every entity `IMustHaveTenant`; repos reject `TenantId.System`; no dependency on `blocks-property-equipment`. | test-eng (substrate); **.NET-architect (this ADR)** |
-| **C1.2** | **Asset Bridge endpoints.** `GET/POST/PUT /api/v1/assets`, `/assets/{id}`, `POST /assets/{id}/lifecycle` (lifecycle transition). Tenant scope resolved from the **Authorization facade `ITenantContext`** (ADR 0091 R2; NOT the MultiTenancy variant — signal-bridge#34 trap). | signal-bridge | PASS = endpoints reject requests without a resolved tenant; load path filters by `ITenantContext.TenantId`; no cross-tenant read possible. | **security-engineering (tenant-scope on load/endpoint path) — MANDATORY** |
+| **C1.2** | **Asset Bridge endpoints.** `GET/POST/PUT /api/v1/assets`, `/assets/{id}`, `POST /assets/{id}/lifecycle` (lifecycle transition). Tenant scope resolved from the **Authorization facade `ITenantContext`** (ADR 0091 R2; NOT the MultiTenancy variant — signal-bridge#34 trap). **Sec-eng build-gate requirements (GREEN advisory, Rev 2):** (a) each **mutating** route (`POST/PUT /api/v1/assets`, `POST /assets/{id}/lifecycle`) MUST make the **per-handler MANUAL CSRF call** (`await antiforgery.ValidateRequestAsync(httpContext)` inside the handler) — the Bridge has **NO** global `UseAntiforgery`, so a new cookie-auth mutating route that omits the manual call ships CSRF-exposed; (b) error responses MUST use **static error strings only** — do NOT reflect asset-payload contents (custodian, location, cost) back in error bodies or logs. | signal-bridge | PASS = endpoints reject requests without a resolved tenant; load path filters by `ITenantContext.TenantId`; no cross-tenant read possible; mutating routes call manual CSRF validation; error responses are static strings (no payload reflection). | **security-engineering (tenant-scope + manual-CSRF + static-error-string) — MANDATORY** |
 | **C1.3** | **Asset cockpit React pages.** Asset list, asset detail, lifecycle timeline, warranty-expiry view, maintenance-link panel. 2–3 PRs (list+detail, lifecycle, warranty). Avoid the bare `Assets` component param (.NET 10 `ComponentBase.Assets` collision — use `Items`/`AssetItems`). | sunfish web | PASS = pages bind only to the C1.2 endpoints; no direct DB/tenant access in the client; pattern-009 PAIR with C1.2. | **pattern-009 PAIR** (security-engineering SPOT-CHECK on the Bridge+frontend pair) |
 | **C1.4** | **Bundle activation.** `asset-management.bundle.json` `Draft`->`Active`; reconcile aspirational module keys to shipped block names (ADR 0098); bump `maturity`. | shipyard `foundation-catalog` | PASS = manifest validates against the ADR 0007 schema; every `requiredModules` key maps to a shipped package; no Draft-only feature key left unsatisfied. | none |
 
@@ -255,10 +293,14 @@ strictly sequential (each gates the next):
 - **Two physical-asset domains coexist** (`Equipment` for property-scoped, `Asset` for general).
   This is a deliberate near-term duplication. A future ADR could unify them (promote `Asset` to a
   domain-general core that `Equipment` specializes) — but that is a larger refactor touching the
-  shipped property + maintenance clusters and is explicitly **out of scope** here. Flagged as a
-  revisit condition.
-- The `WorkOrder.Asset` vs. `WorkOrder.Equipment` link (D4) modifies a shipped maintenance contract;
-  resolution deferred to council (OQ-2).
+  shipped **property, maintenance, AND inspections** clusters (A5 correction: `grep EquipmentId`
+  shows `blocks-inspections` is a third `EquipmentId` consumer — `EquipmentConditionAssessment`,
+  `MoveInOutDelta`, `RecordEquipmentConditionRequest`, `IInspectionsService` — so the promote-up-front
+  blast radius is **three** shipped clusters, not the two Rev 1 named), and it is explicitly **out of
+  scope** here. Flagged as a revisit condition.
+- The `WorkOrder.Asset` link (D4) modifies a shipped maintenance contract. Resolved in Rev 2 (OQ-2,
+  .NET-architect AMBER): additive twin-nullable `AssetId?` beside `Equipment`, with an at-most-one
+  `{Equipment, Asset}` invariant + guard. Additive/non-breaking, but C1.2 must implement the guard.
 - The `blocks-assets` package now carries both a file-catalog surface and an asset domain — a mild
   cohesion smell. Acceptable: the catalog is a thin UI block; the domain is the substantive content.
 
@@ -271,8 +313,9 @@ strictly sequential (each gates the next):
   shared `Asset` core ADR supersedes the per-block duplication); (c) the depreciation feature needs
   a tax-jurisdiction provider (would promote depreciation method selection to a tier-2
   category-provider).
-- **Kill trigger:** if dual-council returns RED on the property-agnostic-domain decision, do not
-  build C1.1; re-author at Rev 2.
+- **Kill trigger:** RED from either council on the property-agnostic-domain decision would block the
+  C1.1 build and force a re-author. This did NOT fire — .NET-architect returned AMBER (folded into
+  Rev 2) and security-engineering returned GREEN; the property-agnostic decision stands.
 
 ---
 
@@ -290,25 +333,55 @@ Per the substrate-tier Halt cadence (ADR 0095/0096/0097/0098/0099/0100), this AD
 - **.NET-architect** — the substrate design: the greenfield-vs-promotion decision (D1/D3), the
   domain model shape (D2), and the `WorkOrder` link resolution (OQ-2 / D4).
 
-Both councils write a `council-verdict-*` beacon. RED on either blocks Accept; dual-AMBER folds into
-a Rev 2 per the ADR 0069 / Halt-9 precedent.
+Both councils write a `council-verdict-*` beacon. RED on either blocks Accept; AMBER folds into a
+Rev 2 per the ADR 0069 / Halt-9 precedent.
+
+**Verdicts received (2026-05-29) — folded into Rev 2:**
+
+- **.NET-architect = AMBER** (Accept-after-amendments). Confirmed the A0 cited-symbol audit against
+  `origin/main @ a0cc757` and the greenfield decision (OQ-1). Five precision/blast-radius amendments
+  (A1–A5) folded into Rev 2: A1 → D4 twin-nullable `{Equipment, Asset}` at-most-one invariant + guard;
+  A2 → D2 `AssetCategory` SHALL ship closed enum first-slice (registry backing a named follow-up);
+  A3 → D2 `AssetLifecycleEvent` explicitly drops the `Property` snapshot field; A4 → D5 / C1.4 gate
+  `featureDefaults` are string-typed; A5 → Consequences corrected to name the **inspections** cluster
+  (blast radius = 3 shipped clusters). The kill-trigger (RED on the property-agnostic decision) did
+  NOT fire.
+- **security-engineering = GREEN** (Accept-ready, design contract). No RED, no required ADR-text
+  amendments for security. Two ADVISORY items folded into the C1.2 build-gate row (NOT Accept
+  blockers): per-handler manual CSRF on mutating routes; static-error-strings only. Both are enforced
+  by the standing C1.2 sec-eng SPOT-CHECK at PR-open.
+
+Re-attestation pending: this Rev 2 fold does not self-Accept; the PR remains DRAFT for council
+re-attestation per the Halt cadence.
 
 ---
 
-## Open questions for Admiral / CIC ruling
+## Open questions — RESOLVED in Rev 2 (council fold)
 
-- **OQ-1 (design, for .NET-architect + CIC):** Greenfield `Asset` domain in `blocks-assets` (this
-  ADR's D1) **vs.** promoting `blocks-property-equipment`'s `Equipment` into a property-agnostic
-  `Asset` core that `Equipment` then specializes. This ADR recommends greenfield-now + unify-later
-  (lower blast radius on the shipped property + maintenance clusters). CIC may prefer paying the
-  unification cost up front to avoid two coexisting asset domains. **This is the single
-  highest-leverage decision in the ADR.**
-- **OQ-2 (contract, for .NET-architect):** The maintenance link (D4). Add an optional
-  `WorkOrder.Asset` (`AssetId?`) alongside `WorkOrder.Equipment`, or introduce a unifying
-  `MaintainableRef`? Touches the shipped `blocks-maintenance.WorkOrder` contract.
-- **OQ-3 (scope):** `AssetCategory` — ship a closed enum first-slice (fast) or back it with the
-  schema registry immediately (cleaner, per the fleet "prefer cleanest long-term option" directive)?
-  Leaning registry-backed given P3 quality-over-speed posture.
+All three open questions are resolved by the dual-council verdicts (2026-05-29) folded into Rev 2.
+
+- **OQ-1 (design — RESOLVED: greenfield-now, unify-with-Equipment-later).** Greenfield `Asset` domain
+  in `blocks-assets` (D1) **vs.** promoting `blocks-property-equipment`'s `Equipment` into a
+  property-agnostic core that `Equipment` specializes. **Both councils AND the ADR author CONCUR on
+  greenfield-now, unify-later.** A code finding *strengthens* the case beyond the Rev 1 argument:
+  `grep EquipmentId` shows the property-equipment domain is woven into **THREE** shipped clusters —
+  maintenance (`WorkOrder`), inspections (`EquipmentConditionAssessment`, `MoveInOutDelta`,
+  `RecordEquipmentConditionRequest`, `IInspectionsService`), and work-orders. Promoting `Equipment`
+  up front would force the **required `Equipment.PropertyId` FK to relax to nullable** across the
+  aggregate and ripple through `blocks-inspections`' equipment-condition + move-in/out-delta path —
+  re-validating tenant-scope + delta logic on a shipped, MVP-critical cluster. That is a materially
+  larger blast radius for **zero near-term bundle benefit**. Greenfield-now is the **reversible first
+  step** (rollback = git revert of the side-effect-free in-memory C1.1), not a one-way door. **CIC may
+  still override as a product call**; if CIC mandates unification it would be a **separate, explicitly
+  scoped unification ADR** that owns the inspections-cluster FK ripple — NOT a silent expansion of
+  C1.1.
+- **OQ-2 (contract — RESOLVED: twin-nullable FK + at-most-one invariant; see D4).** .NET-architect
+  AMBER: add an optional `WorkOrder.Asset` (`AssetId?`) alongside `WorkOrder.Equipment` (both
+  nullable, additive/non-breaking); add an at-most-one `{Equipment, Asset}` invariant + a guard. Do
+  **not** introduce `MaintainableRef` (zero precedent); defer it to the OQ-1 unification ADR.
+- **OQ-3 (scope — RESOLVED: closed enum first-slice; see D2).** .NET-architect AMBER: `AssetCategory`
+  **SHALL ship a closed enum** in the first slice; `ISchemaRegistry` backing is a **named follow-up
+  unit**, not part of the C1.1 substrate PR.
 
 ---
 
