@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Providers.Postmark</PackageId>
+    <RootNamespace>Sunfish.Providers.Postmark</RootNamespace>
+    <Description>Postmark transactional-email adapter for Sunfish.Foundation.Integrations.Email (ADR 0096 Tier-2 vendor-provider substrate + ADR 0013 provider-neutrality). HttpClient-based; no Postmark SDK dependency. First REAL-side Tier-2 vendor adapter — registers conditionally via UseVendorProviderIfConfigured("POSTMARK_API_KEY"); MockEmailProvider stays the default. See ADR 0096 + WS-E Stage-05 hand-off §2.</Description>
+    <PackageTags>sunfish;providers;email;postmark;adr-0096;tier-2-vendor-substrate</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Providers.Postmark.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Primitives" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\foundation-integrations\Sunfish.Foundation.Integrations.csproj" />
+  </ItemGroup>
+</Project>
