@@ -2,19 +2,23 @@
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <PackageId>Sunfish.Blocks.WorkOrders</PackageId>
-    <Description>WorkOrder + MaintenanceSchedule + Contractor entities for the Sunfish Anchor native work-cluster domain. Day-to-day repair tickets, preventive maintenance, contractor assignments, and deficiency hand-offs from blocks-property-*. Distinct from blocks-workflow (state-machine engine).</Description>
-    <PackageTags>work-order;maintenance;contractor;repair-ticket;blocks;domain;sunfish</PackageTags>
+    <!-- Major bump to 1.0.0: this is now a deprecated re-export shim for the renamed
+         Sunfish.Blocks.WorkItems package per ADR 0098. The rename is binary-compat-survivable
+         via [assembly: TypeForwardedTo] (see TypeForwards.cs), but the AssemblyName-as-consumed
+         changes, so a major bump is the honest SemVer signal. Archived 90 days after the later of
+         MVP launch / Step 7 analyzer landing per ADR 0098 §"Per-rename migration pattern" S3b. -->
+    <Version>1.0.0</Version>
+    <!-- GenerateAssemblyInfo=false avoids duplicate AssemblyTitle/AssemblyDescription attributes
+         across the shim build and the forwarded-to WorkItems build (ADR 0098 A5c). -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Description>Deprecated re-export shim for the renamed Sunfish.Blocks.WorkItems package (was Sunfish.Blocks.WorkOrders) per ADR 0098 block-naming generalization. Forwards all public types via [assembly: TypeForwardedTo]. Update consumers to Sunfish.Blocks.WorkItems; this package is archived 90 days after MVP launch / Step 7 analyzer landing.</Description>
+    <PackageTags>deprecated;shim;work-orders;work-items;blocks;sunfish</PackageTags>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="tests/**/*.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="Sunfish.Blocks.WorkOrders.Tests" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
+    <!-- Re-export shim: forwards every public type to the renamed package. -->
+    <ProjectReference Include="..\blocks-work-items\Sunfish.Blocks.WorkItems.csproj" />
   </ItemGroup>
 </Project>

@@ -155,9 +155,13 @@
     <Project Path="packages/blocks-workflow/Sunfish.Blocks.Workflow.csproj" />
     <Project Path="packages/blocks-workflow/tests/tests.csproj" />
   </Folder>
+  <Folder Name="/blocks/work-items/">
+    <Project Path="packages/blocks-work-items/Sunfish.Blocks.WorkItems.csproj" />
+    <Project Path="packages/blocks-work-items/tests/tests.csproj" />
+  </Folder>
   <Folder Name="/blocks/work-orders/">
+    <!-- Deprecated re-export shim for blocks-work-items per ADR 0098 (archived 90d post-MVP/Step 7). -->
     <Project Path="packages/blocks-work-orders/Sunfish.Blocks.WorkOrders.csproj" />
-    <Project Path="packages/blocks-work-orders/tests/tests.csproj" />
   </Folder>
   <Folder Name="/blocks/work-projects/">
     <Project Path="packages/blocks-work-projects/Sunfish.Blocks.WorkProjects.csproj" />

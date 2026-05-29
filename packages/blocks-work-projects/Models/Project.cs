@@ -5,7 +5,7 @@ namespace Sunfish.Blocks.WorkProjects.Models;
 /// <summary>
 /// Project entity per Stage 02 §2.1. The top-level work container
 /// for a coordinated set of <see cref="ProjectMilestone"/>s +
-/// <c>WorkOrder</c>s (PR 6 service surface).
+/// <c>WorkItem</c>s (PR 6 service surface).
 /// </summary>
 // Inspired by Apache OFBiz WorkEffort + AgreementItem modules (Apache 2.0) — clean-room expression.
 public sealed class Project

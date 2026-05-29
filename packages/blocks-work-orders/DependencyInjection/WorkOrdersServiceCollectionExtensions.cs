@@ -1,58 +1,30 @@
+using System;
+using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Sunfish.Blocks.WorkOrders.Events;
-using Sunfish.Blocks.WorkOrders.Services;
 
 namespace Sunfish.Blocks.WorkOrders.DependencyInjection;
 
 /// <summary>
-/// DI extension for <c>blocks-work-orders</c>. Registers the write
-/// surface (<see cref="IWorkOrderService"/>, <see cref="IMaintenanceScheduleService"/>),
-/// the read-side projection (<see cref="IContractorReadModel"/>),
-/// the event publisher seam (<see cref="IWorkOrderEventPublisher"/>),
-/// the RRULE expansion stub (<see cref="IRruleExpansionService"/>),
-/// the <c>DeficiencyRaised</c> consumer
-/// (<see cref="IDeficiencyRaisedHandler"/>), and the local
-/// <see cref="IPartyReadModel"/> stub that disappears via a one-line
-/// re-namespace sweep when <c>blocks-people-foundation</c> ships.
+/// Deprecated DI extension stub for the renamed <c>blocks-work-items</c> package
+/// (was <c>blocks-work-orders</c>) per ADR 0098. <see cref="System.Runtime.CompilerServices.TypeForwardedToAttribute"/>
+/// forwards TYPES but not extension methods (which compile to fully-qualified references in the
+/// consumer assembly's IL), so this stub preserves the old <c>AddBlocksWorkOrders</c> call-site by
+/// delegating to <c>Sunfish.Blocks.WorkItems.DependencyInjection.WorkItemsServiceCollectionExtensions.AddBlocksWorkItems</c>
+/// (ADR 0098 §"Per-rename migration pattern" A6). Hidden from IntelliSense via
+/// <see cref="EditorBrowsableAttribute"/>; still callable from already-compiled code.
 /// </summary>
+[Obsolete(
+    "Sunfish.Blocks.WorkOrders.DependencyInjection.AddBlocksWorkOrders is renamed to "
+    + "Sunfish.Blocks.WorkItems.DependencyInjection.AddBlocksWorkItems per ADR 0098.",
+    false)]
+[EditorBrowsable(EditorBrowsableState.Never)]
 public static class WorkOrdersServiceCollectionExtensions
 {
     /// <summary>
-    /// Register the work-orders cluster surface. Idempotent via
-    /// <see cref="ServiceCollectionDescriptorExtensions.TryAddSingleton{TService, TImplementation}(IServiceCollection)"/>
-    /// — re-invocation does not double-register.
+    /// Deprecated alias for
+    /// <c>Sunfish.Blocks.WorkItems.DependencyInjection.WorkItemsServiceCollectionExtensions.AddBlocksWorkItems</c>.
     /// </summary>
     public static IServiceCollection AddBlocksWorkOrders(this IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-
-        // Storage seams (in-memory; SQLite-backed prod impl lands in a
-        // follow-on persistence hand-off).
-        services.TryAddSingleton<InMemoryWorkOrderRepository>();
-        services.TryAddSingleton<InMemoryContractorRepository>();
-
-        // Write surfaces.
-        services.TryAddSingleton<IWorkOrderService, InMemoryWorkOrderService>();
-        services.TryAddSingleton<IMaintenanceScheduleService, InMemoryMaintenanceScheduleService>();
-
-        // Read-side projections.
-        services.TryAddSingleton<IContractorReadModel>(
-            sp => sp.GetRequiredService<InMemoryContractorRepository>());
-
-        // RRULE expansion stub (FREQ=DAILY/WEEKLY/MONTHLY[;INTERVAL=N]).
-        services.TryAddSingleton<IRruleExpansionService, InMemoryRruleExpansionService>();
-
-        // Cross-cluster event publisher seam — local until
-        // foundation-events ships.
-        services.TryAddSingleton<IWorkOrderEventPublisher, InMemoryWorkOrderEventPublisher>();
-
-        // DeficiencyRaised consumer (inbound from blocks-property-*).
-        services.TryAddSingleton<IDeficiencyRaisedHandler, InMemoryDeficiencyRaisedHandler>();
-
-        // LOCAL STUB for blocks-people-foundation's IPartyReadModel.
-        services.TryAddSingleton<IPartyReadModel, InMemoryPartyReadModel>();
-
-        return services;
-    }
+        => Sunfish.Blocks.WorkItems.DependencyInjection.WorkItemsServiceCollectionExtensions
+            .AddBlocksWorkItems(services);
 }
