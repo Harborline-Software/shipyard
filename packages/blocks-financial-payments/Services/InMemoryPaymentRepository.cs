@@ -109,6 +109,20 @@ public sealed class InMemoryPaymentRepository : IPaymentRepository
     }
 
     /// <inheritdoc />
+    public Task<Payment?> GetByExternalRefAsync(
+        TenantId tenantId,
+        ChartOfAccountsId chartId,
+        string externalRef,
+        CancellationToken cancellationToken = default)
+    {
+        var hit = _payments.Values.FirstOrDefault(p =>
+            p.TenantId.Equals(tenantId)
+            && p.ChartId == chartId
+            && string.Equals(p.ExternalRef, externalRef, StringComparison.Ordinal));
+        return Task.FromResult<Payment?>(hit);
+    }
+
+    /// <inheritdoc />
     public Task<IReadOnlyList<Payment>> ListByChartAsync(TenantId tenantId, ChartOfAccountsId chartId, CancellationToken cancellationToken = default)
     {
         var rows = _payments.Values

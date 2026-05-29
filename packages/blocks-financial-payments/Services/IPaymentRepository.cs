@@ -49,6 +49,18 @@ public interface IPaymentRepository : ITenantScopedRepository<Payment, PaymentId
     /// </summary>
     Task UpdateAsync(TenantId tenantId, Payment payment, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Find a payment by its external-ref tag (e.g. ERPNext <c>PE-0001</c> sync key),
+    /// scoped to (<paramref name="tenantId"/>, <paramref name="chartId"/>). Returns
+    /// null when no live payment matches or it is scoped to a different tenant
+    /// (uniform-404). The idempotency lookup the ERPNext payment importer keys on.
+    /// </summary>
+    Task<Payment?> GetByExternalRefAsync(
+        TenantId tenantId,
+        ChartOfAccountsId chartId,
+        string externalRef,
+        CancellationToken cancellationToken = default);
+
     /// <summary>List all payments in a chart for <paramref name="tenantId"/>, ordered by <c>PaymentDate</c> descending.</summary>
     Task<IReadOnlyList<Payment>> ListByChartAsync(TenantId tenantId, ChartOfAccountsId chartId, CancellationToken cancellationToken = default);
 
