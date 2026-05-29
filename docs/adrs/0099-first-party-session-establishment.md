@@ -1,7 +1,7 @@
 ---
 id: 99
 title: First-Party Session Establishment Substrate
-status: Proposed
+status: Accepted
 date: 2026-05-29
 proposed-date: 2026-05-29
 author: ONR
@@ -57,7 +57,7 @@ amendments:
 
 # ADR 0099 — First-Party Session Establishment Substrate
 
-**Status:** Proposed (Revision 2; awaiting pre-merge dual-council RE-ATTEST on the AMBER fold per ADR 0069 + the substrate-tier Halt-9 cadence established by ADR 0095/0096/0097/0098). Rev 1 returned dual-AMBER (sec-eng + .NET-architect); Rev 2 folds all 15 amendments + 6 clarifications + applies the Admiral-ruled O-1/O-3 defaults — see §"Revision 2 fold". Dual-council MANDATORY (security-engineering + .NET-architect) on this ADR text AND on each implementation PR per §"Council review".
+**Status:** Accepted (dual-council re-attest GREEN 2026-05-29). Rev 1 returned dual-AMBER (sec-eng + .NET-architect); Rev 2 folds all 15 amendments + 6 clarifications + applies the Admiral-ruled O-1/O-3 defaults — see §"Revision 2 fold"; both councils re-attested GREEN on the AMBER fold per ADR 0069 + the substrate-tier Halt-9 cadence established by ADR 0095/0096/0097/0098. Dual-council MANDATORY (security-engineering + .NET-architect) on this ADR text AND on each implementation PR per §"Council review".
 
 **Date:** 2026-05-29
 

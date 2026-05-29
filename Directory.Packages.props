@@ -13,6 +13,13 @@
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="11.0.0-preview.4.26230.115"/>
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="11.0.0-preview.4.26230.115"/>
+    <!-- ADR 0097 A2: the BCL IPasswordHasher<TUser> + PasswordVerificationResult enum +
+         PasswordHasher<TUser> default impl ship in Microsoft.Extensions.Identity.Core
+         (namespace Microsoft.AspNetCore.Identity). The ADR text named the package id as
+         "Microsoft.AspNetCore.Identity.Core" — that id is NOT published standalone on
+         nuget.org in the preview.4 band; the canonical package carrying these exact types
+         is Microsoft.Extensions.Identity.Core. Deviation flagged in the Step 1 PR. -->
+    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="11.0.0-preview.4.26230.115"/>
     <PackageVersion Include="bunit" Version="2.7.2"/>
     <PackageVersion Include="xunit" Version="2.9.3"/>
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0-pre.4"/>
