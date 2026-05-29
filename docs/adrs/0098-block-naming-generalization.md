@@ -48,7 +48,7 @@ amendments: []
 
 # ADR 0098 — Block-Naming Generalization for Cross-Vertical Substrate Reuse
 
-**Status:** Proposed (Revision 2; awaiting pre-merge dual-council re-attestation per ADR 0069 + Halt 10. Revision 1 dual-AMBER from `.NET-architect` (12 amendments) + `security-engineering` (5 amendments) folded per Admiral pre-rulings; see Revision history below).
+**Status:** Proposed (Revision 3; correction-amendment. The core DECISION (block-naming generalization for cross-vertical substrate reuse) STANDS unchanged. Revision 3 corrects a load-bearing mechanism defect in the §"Per-rename migration pattern" — `[assembly: TypeForwardedTo]` does NOT back-compat-forward RENAMED types — and records the Steps 1-2 implementation status + the Steps 3-7 post-MVP deferral. See Revision history + the "Revision 3 corrective note" block below. Per Admiral ruling `admiral-ruling-2026-05-29T0110Z-adr-0098-rename-shim-defect-defer-steps-3-7.md` (authority: CIC ruling 2026-05-29T0105Z). Revision 2: awaiting pre-merge dual-council re-attestation per ADR 0069 + Halt 10. Revision 1 dual-AMBER from `.NET-architect` (12 amendments) + `security-engineering` (5 amendments) folded per Admiral pre-rulings; see Revision history below.)
 **Date:** 2026-05-26
 **Resolves:** PAO source UPF (`coordination/inbox/pao-status-2026-05-25T2330Z-flight-deck-media-erp-routing.md`; CIC ratified 2026-05-26T03:42Z) — the block-naming-generalization wave required before open-source adoption locks the Shipyard substrate's property-vertical-specific names. Folds Admiral 10-halt ruling (`coordination/inbox/admiral-ruling-2026-05-26T0500Z-adr-0098-block-naming-10-halts-resolved.md`) including the two CIC-ratified ONR counter-findings (Halts 2 + 4) that REJECT the `kernel-lease` rename (Flease distributed-lock coordinator; preserve) and the `blocks-tenant-admin` rename (SaaS-tenant admin surface; preserve). Sub-cohort 1 substrate (W79) Stage-05 hand-off + `flight-deck#33` story-structure module Stage-05 authoring remain gated on this ADR's promotion to Accepted alongside ADRs 0095 + 0096.
 **Council inputs:** Revision 1 dual-AMBER (.NET-architect 2026-05-26T10:47Z + security-engineering 2026-05-26T10:46Z); 17 amendments folded into Revision 2 per the Admiral pre-rulings P1–P5 (see Revision history). Halt 10 MANDATES dual-council on this Revision 2 text. The pattern mirrors ADR 0095 R2 and ADR 0096 R2: AMBER amendments folded into Revision 2; GREEN dual-attest promotes to Accepted.
@@ -61,7 +61,125 @@ amendments: []
 | Rev | Date | Author | Summary |
 |---|---|---|---|
 | 1 | 2026-05-26 | Admiral | Initial draft. Folds ONR scaffold (5 confirmed renames + 1 new substrate package + 1 mandatory Roslyn deprecation analyzer) and Admiral 10-halt ruling. Two BLOCKING ONR counter-findings ratified by CIC override of PAO UPF: `kernel-lease` is the Flease distributed-lock coordinator (NOT a property-domain abstraction; preserve as-is); `blocks-tenant-admin` is the SaaS-tenant admin surface (NOT a counterparty portal; preserve as-is). Six PAO-proposed renames PROCEED. New `packages/foundation-agreements/` substrate package introduces `IAgreement` + `IContractTerm` + `IParty` interfaces + `AgreementStatus` enum (canonical name `foundation-agreements`, not `foundation-contracts`, per Halt 5 RATIFY — avoids cross-language collision with TypeScript `@sunfish/contracts` package + `System.Diagnostics.Contracts` overlap). Per-rename migration pattern: new package at new name + `TypeForwardedTo` re-export shim from old name + `[Obsolete]` deprecation notice + major version bump + archive after one release cycle. Roslyn deprecation analyzer (Step 7) mandatory per Halt 7 RATIFY + `feedback_prefer_cleanest_long_term_option`. Entity-shape generalization OUT OF SCOPE per Halt 6 — Option α (name-rename-only; cross-vertical entity-shape refactor when 2nd-vertical consumer surfaces). Vertical-block parallel-implementation policy: Option α (cross-vertical reuse; `blocks-leases` adopts `IAgreement` post-MVP as exemplar) per Halt 8. Kernel-codename README additions carved OUT of ADR 0098 scope to a separate docs-only PR per Halt 9. Dual-council MANDATORY on ADR text + Step 1 implementation PR per Halt 10; Steps 2-6 carry SPOT-CHECK on the standard rename-and-shim mechanical-renames pattern. Status: Proposed (awaiting dual-council). |
+| 3 | 2026-05-29 | ONR | **Correction-amendment (core DECISION unchanged).** Corrects a load-bearing MECHANISM defect + records implementation status + post-MVP deferral. Authority: CIC ruling 2026-05-29T0105Z + Admiral ruling 2026-05-29T0110Z; defect empirically proven by the Engineer rename-wave subagent (2026-05-29T0053Z). Four corrections (see "Revision 3 corrective note" block): **C1** — `[assembly: TypeForwardedTo]` does NOT back-compat-forward RENAMED types (it forwards by full type identity → an old NAME yields CS0246); it works ONLY for same-name MOVEs (the cited `packages/kernel/TypeForwards.cs` precedent is a same-name facade). Adopt Option A: `TypeForwardedTo` retained ONLY for genuinely preserved-name moves (`Invoice`/`Payment`/`Deficiency`); renamed types are an honest hard-break whose downstream consumer-update PRs (sunfish + signal-bridge) bundle atomically in the same wave; the `SUNFISH_BLOCKDEP001` analyzer guides stale-ref detection. Reject Option B (namespace-only move keeps old type names) + Option C (inconsistent partial alias). **C2** — the `[assembly: Obsolete(...)]` cookbook line is CS0592-invalid (Obsolete has no assembly AttributeUsage); use `[assembly: AssemblyMetadata("Obsolete", "...")]` or drop it in favor of per-type `[Obsolete]` + analyzer (bug-768). **C3** — `blocks-rent-collection` (RentCollection) has ZERO downstream `.NET` consumers per the `.NET-architect` SPOT-CHECK on Step 2 (the sunfish/signal-bridge `RentCollectionPage` hits are an unrelated React page); it is removed from the "~10+ signal-bridge consumers" list; that zero-consumer fact is why Step 2 landed alone. **C4** — implementation status: Step 1 DONE (shipyard#168 merged); Step 2 LANDED (shipyard#172 merged); Steps 3-7 DEFERRED to post-MVP (platform-reuse investment, not MVP-critical; the corrected mechanism makes Steps 3-6 a fleet-wide ~200-ref downstream churn). Each revived renamed step bundles its downstream consumer PRs atomically. Status: Proposed (correction-amendment; likely Admiral-ratification-only per ADR 0069 — no body-DECISION change). |
 | 2 | 2026-05-26 | Admiral | Dual-AMBER fold. .NET-architect council 2026-05-26T10:47Z returned AMBER with 12 amendments (A1–A12; 9 load-bearing + 3 sentence-level); security-engineering council 2026-05-26T10:46Z returned AMBER with 5 amendments (S1–S5). All 17 amendments folded per Admiral pre-rulings (P1: A1 RATIFY — `IAgreement` extends `IMustHaveTenant` via marker chain; P2: A3 RATIFY — Step 7 analyzer ships in NEW `packages/foundation-block-naming.analyzers/`, NOT extending `foundation-wayfinder-analyzers`; P3: A4 RATIFY — diagnostic ID `SUNFISH_BLOCKDEP001` per fleet `SUNFISH_<AREA>NNN` convention; P4: A9 RATIFY — Step 1 Shape α — interfaces+enum only + ZERO external `PackageReferences` + ONE `ProjectReference` to `foundation-multitenancy` per A1; P5: S5 RATIFY — Step 6 sec-eng SPOT-CHECK ADD because FHA + FCRA compliance surface — `DemographicProfile`, `AdverseActionNotice`, `BackgroundCheckResult` — is materially access-control + audit + redaction relevant). Substantive sec-eng folds: S1 `IParty.DisplayName` PII discipline lifted to substrate-tier minimum-floor (audit-log treatment + tier-redacted projection + logging discipline); S2 Step 5 W#28 capability-tier invariant minimum-floors enumerated (type-name preservation + macaroon caveat-name preservation + audit-payload-discriminator preservation + Defense bit-equivalent preservation); S3 deprecation-window 90-day archive cap pinned + CVE cross-reference discipline; S4 Step 7 analyzer cross-language scope (TypeScript-side parallel deprecation via Step 7b ESLint rule; cross-language ProjectReference graph audit; route-path preservation). Substantive .NET-arch folds: A2 Step 6 cross-reference table completed (`LeaseOfferId` → `OfferTermsId` + `LeaseOfferStatus` → `OfferTermsStatus`); A5 `TypeForwardedTo` cookbook completion (public-only forwarding + `TypeForwards.cs` single-file convention + `GenerateAssemblyInfo=false` + `InternalsVisibleTo` audit); A6 extension-method forwarding via `[Obsolete] + [EditorBrowsable(Never)]` stub; A7 collection types pinned (`IReadOnlyList<IParty>` + `IReadOnlyList<IContractTerm>`). Advisory + sentence-level folds: A8 `IAgreementMustHaveParties` deferred to Step 8 (informational); A10 signal-bridge consumer-update sentence (~10+ direct consumers); A11 Risk R2 + Q3 downgraded — verified-clean grep of ADR 0057 (zero `LeaseOffer` references); A12 Step 1 `foundation-multitenancy` ProjectReference dep noted in parallelism analysis. Status: Proposed (awaiting dual-council re-attestation). |
+
+---
+
+## Revision 3 corrective note (2026-05-29) — TypeForwardedTo rename defect + Steps 3-7 deferral
+
+> [!IMPORTANT]
+> **This is a correction-amendment, NOT a new decision.** The core DECISION — block-naming
+> generalization for cross-vertical substrate reuse (the 6 confirmed renames + the
+> `foundation-agreements` substrate + the `SUNFISH_BLOCKDEP001` analyzer) — STANDS unchanged.
+> Revision 3 corrects a defective MECHANISM in the §"Per-rename migration pattern", fixes an
+> invalid attribute in the shim cookbook, corrects a consumer-count error, and records
+> implementation status + the post-MVP deferral. Where the Revision 1-2 body text below
+> contradicts this Revision 3 note, **this note governs.** Defective passages are inline-flagged
+> with `> [!WARNING] Superseded by Revision 3` callouts pointing here.
+
+### C1 — `[assembly: TypeForwardedTo]` does NOT back-compat-forward RENAMED types (mechanism correction)
+
+The Revision 1-2 §"Per-rename migration pattern" claims each renamed block keeps its old package
+as a `[assembly: TypeForwardedTo(typeof(<NewNamespace>.<NewType>))]` re-export shim so downstream
+consumers stay binary-compatible during the deprecation window. **For RENAMED types this claim is
+false.** It was empirically disproved by the Engineer rename-wave subagent
+(`engineer-subagent-question-2026-05-29T0053Z-adr-0098-typeforwardedto-renamed-type-defect.md`):
+
+- `[assembly: TypeForwardedTo]` forwards by a type's **full type identity** (namespace + name). It
+  republishes the type under its **same name** from the old assembly. A consumer referencing the
+  **old name** (e.g. `Sunfish.Blocks.RentCollection.RentSchedule`) gets **CS0246 "type could not
+  be found"** — the forward exposes the NEW name (`RecurringSchedule`) from the old assembly, never
+  the old name. Confirmed inverse: forwarding a **preserved-name** type (`Invoice`, `Payment`,
+  `Deficiency`) resolves correctly.
+- The in-repo precedent the ADR generalized from — `packages/kernel/TypeForwards.cs` — is a
+  **same-name MOVE facade** (`Sunfish.Kernel` republishes `Sunfish.Foundation.*` types under their
+  ORIGINAL names). The ADR mis-generalized that MOVE-only precedent to the RENAME case, which the
+  mechanism does not cover. Because shipyard CI builds only `Shipyard.slnx`, the break would have
+  shipped GREEN as a latent fleet-wide (~200-ref) hard-break in sunfish + signal-bridge.
+- Partial mitigations do NOT close the gap: `[TypeForwardedFrom]` is the serialization-compat
+  inverse (it does not make an old C#-compile-time name resolve); an old-named alias type
+  (`[Obsolete] class RentSchedule : RecurringSchedule {}`) works only for non-sealed classes and
+  breaks for `record`s with positional params, `record struct`s, `enum`s, sealed classes, and is
+  awkward for interfaces + Blazor components — i.e. the majority of the rename targets.
+
+**Corrected mechanism (Admiral ruling — Option A).** Two mechanically distinct cases:
+
+1. **Preserved-name types** (`Invoice`, `Payment`, `BankAccount`, `BillingFrequency`,
+   `LateFeePolicy`, `Deficiency`, `EquipmentConditionAssessment`, etc.) — these are same-name MOVES
+   into the new assembly. `[assembly: TypeForwardedTo]` works trivially and IS retained for these.
+   This is the genuine, real value of the shim.
+2. **Renamed types** (`RentSchedule` → `RecurringSchedule`, `WorkOrder` → `WorkItem`, `Inspection`
+   → `Review`, `LeaseOffer` → `OfferTerms`, etc.) — these are an **honest hard-break.** NO shim is
+   attempted for renamed types (a partial/inconsistent alias for records/enums/sealed/interfaces is
+   worse than an honest break, and the fleet owns 100% of the consumers). When a renamed block has
+   downstream consumers, **the rename PR bundles its downstream consumer-update PRs (sunfish +
+   signal-bridge) atomically in the same wave** — nothing is left broken across the fleet. The
+   Step 7 `SUNFISH_BLOCKDEP001` analyzer guides stale-reference detection during the cutover.
+
+Rejected alternatives (Admiral ruling): **Option B** (namespace-only move keeping old type names —
+defeats the rename's cross-vertical-reuse purpose, the ADR's own examples reject old vocabulary in
+the new namespace) and **Option C** (inconsistent partial alias — ships a shim some types alias and
+some break; highest authoring effort for the worst consumer experience).
+
+### C2 — `[assembly: Obsolete(...)]` is CS0592-invalid (cookbook attribute fix) — bug-768
+
+The Revision 1-2 §"Per-rename migration pattern" cookbook (the `TypeForwards.cs` snippet) ends with
+`[assembly: Obsolete("...", false)]`. **`ObsoleteAttribute` has no `AttributeUsage` for the
+`assembly` target — `[assembly: Obsolete]` raises CS0592** ("attribute is not valid on this
+declaration type; it is only valid on class, struct, enum, ...). Logged as **bug-768.**
+
+**Corrected cookbook.** To carry a deprecation marker at the assembly level of a preserved-name MOVE
+shim, use `[assembly: AssemblyMetadata("Obsolete", "<message>")]` (valid on assemblies; readable
+via `Assembly.GetCustomAttributes`), OR drop the assembly-level marker entirely and rely on the
+per-TYPE `[Obsolete(...)]` attributes on the moved types + the extension-method stub's `[Obsolete]`
++ the Step 7 `SUNFISH_BLOCKDEP001` analyzer for downstream deprecation signalling. The per-type
+`[Obsolete]` + analyzer path is preferred (it produces actionable per-symbol warnings rather than a
+single opaque assembly metadatum). Example corrected assembly-level line:
+
+```csharp
+[assembly: AssemblyMetadata("Obsolete", "Sunfish.Blocks.RentCollection is renamed to Sunfish.Blocks.RecurringBilling per ADR 0098.")]
+```
+
+### C3 — `blocks-rent-collection` (RentCollection) has ZERO downstream .NET consumers (consumer-count correction)
+
+The Revision 2 §"Substrate / layering notes" interaction-with-ADR-0091 passage (per the A10
+sentence-level tightening) states signal-bridge has "~10+ direct consumers of the renaming targets"
+and lists `Sunfish.Blocks.RentCollection` among them. **`RentCollection` does NOT belong in that
+list.** Per the `.NET-architect` SPOT-CHECK on the Step 2 PR (shipyard#172), **`RentCollection` /
+`RecurringBilling` has ZERO downstream `.NET` consumers.** The `RentCollectionPage` hits found in
+sunfish + signal-bridge are an **unrelated React/TypeScript page component**, not a `.NET`
+consumer of the renamed namespace. That zero-`.NET`-consumer fact is precisely why Step 2 could
+land alone (downstream-safe) ahead of the deferral. The "~10+ consumers" figure applies only to the
+genuinely-consumed renamed namespaces (WorkOrders, Inspections, PublicListings,
+PropertyLeasingPipeline) — the DEFERRED steps.
+
+### C4 — Implementation status + Steps 3-7 post-MVP deferral
+
+Per CIC ruling 2026-05-29T0105Z (folded by Admiral ruling 2026-05-29T0110Z): the defect changed
+the cost profile. The generalization is a **platform-reuse investment, not MVP-critical**, and (with
+the corrected C1 mechanism) Steps 3-6 are a fleet-wide ~200-ref downstream churn, not a safe
+shipyard-only change. CIC therefore **deferred the costly renames** and redirected parallel capacity
+to MVP features.
+
+| Step | Disposition (Revision 3) |
+|---|---|
+| Step 1 — `foundation-agreements` new substrate | **DONE** — merged (shipyard#168). |
+| Step 2 — `blocks-rent-collection` → `blocks-recurring-billing` | **LANDED** — merged (shipyard#172). ZERO downstream `.NET` consumers (per C3), so downstream-safe; aligned to the Option A mechanism (no no-op renamed-type forwards). `.NET-architect` SPOT-CHECK on PR-open stood. |
+| Step 3 — `blocks-work-orders` → `blocks-work-items` (~108 downstream refs) | **DEFERRED post-MVP.** DRAFT PR closed. |
+| Step 4 — `blocks-inspections` → `blocks-reviews` (~98 downstream refs) | **DEFERRED post-MVP.** DRAFT PR closed. |
+| Step 5 — `blocks-public-listings` → `blocks-listings` | **DEFERRED post-MVP.** |
+| Step 6 — `blocks-property-leasing-pipeline` → `blocks-acquisition-pipeline` | **DEFERRED post-MVP.** |
+| Step 7 — `foundation-block-naming.analyzers` (`SUNFISH_BLOCKDEP001`) | **DEFERRED post-MVP** (ships with the renames it enforces). |
+
+**Revival discipline (post-MVP).** When Steps 3-7 are revived, each renamed step bundles its
+downstream consumer-update PRs (sunfish + signal-bridge) **atomically** in the same wave per the
+corrected C1 mechanism — `TypeForwardedTo` only for preserved-name moves; renamed types hard-break
+with their downstream consumers updated in lockstep; the `SUNFISH_BLOCKDEP001` analyzer guides
+stale-reference detection. The Step 7 analyzer ships in the same wave as (or immediately before) the
+first revived rename so the migration window is enforced from the start.
+
+---
 
 Promotion path: both councils self-attest GREEN via inbox status on Revision 1 → Admiral promotes ADR to `Accepted`. If a council returns AMBER, Admiral folds amendments into Revision 2 (ADR 0095 R2 / 0096 R2 precedent). **Step 1 implementation PR carries its own mandatory dual-council SPOT-CHECK at PR-open** (per Halt 10) — independent council pull on the new-substrate surface. Steps 2-6 (the mechanical renames + `TypeForwardedTo` shims) carry .NET-architect SPOT-CHECK only; Step 5 (`blocks-listings`) additionally carries sec-eng SPOT-CHECK because the W#28 capability-tier surface is touched. Step 7 (analyzer) carries .NET-architect MANDATORY (analyzer-code quality).
 
@@ -232,6 +350,16 @@ Steps 2-6 SPOT-CHECKs verify the floors hold across each renamed block's existin
 **Interaction with ADR 0008 (Foundation.MultiTenancy).** `IAgreement.TenantId` honors the canonical multi-tenancy invariant. Step 1 PR's `IAgreement` interface declares the property with xmldoc citing ADR 0008 + the `IMustHaveTenant` precedent. No ADR 0008 amendment needed.
 
 **Interaction with ADR 0091 R2 (ITenantContext Divergence Resolution).** ADR 0091 R2's `ITenantContext` facade-vs-narrowed posture affects how consumers of the renamed blocks inject tenant context. The renames preserve consumption sites; per `feedback_itenantcontext_consumption_qualification` (memory 2026-05-22), consumers continue to inject the Authorization sum-interface facade until ADR 0091 Step 3 narrows. ADR 0098 does NOT change this — the renames are namespace-level + assembly-name-level only; consumer DI patterns are unchanged. **However** (per A10 sentence-level tightening): signal-bridge has ~10+ direct consumers of the renaming targets (verified via grep across `Sunfish.Blocks.{RentCollection,WorkOrders,Inspections,PublicListings,PropertyLeasingPipeline}` in `signal-bridge/Sunfish.Bridge/Listings/`, `Field/`, `Cockpit/`); these consumers WILL see `SUNFISH_BLOCKDEP001` warnings during the migration window and update at their own pace per the deprecation-window discipline.
+
+> [!WARNING]
+> **Superseded by Revision 3 (C3).** `RentCollection` does NOT belong in the "~10+ consumers"
+> list — per the `.NET-architect` SPOT-CHECK on Step 2 (shipyard#172) it has ZERO downstream
+> `.NET` consumers (the sunfish/signal-bridge `RentCollectionPage` hits are an unrelated React
+> page). The "~10+" figure applies only to the genuinely-consumed renamed namespaces (WorkOrders,
+> Inspections, PublicListings, PropertyLeasingPipeline), all DEFERRED post-MVP. The
+> "update at their own pace via the deprecation window" model is itself corrected by C1: renamed
+> types hard-break, so their downstream consumer-update PRs bundle atomically in the same wave —
+> they do NOT update at their own pace. See the Revision 3 corrective note.
 
 **Interaction with ADR 0093 (Stage-05 Adversarial Review Protocol Amendment).** The 7 Step PRs follow the Stage-05 cadence (claim-beacon + spec + PR with binary gates + council review). Per the substrate-claim-beacon protocol (`feedback_substrate_claim_beacon_protocol`; Engineer 2026-05-26T03:14Z), all substrate-tier PRs require a pre-authoring claim beacon. Step 1 (new substrate) is substrate-tier; Steps 2-6 (mechanical renames) are substrate-touching (modifying substrate package boundaries); Engineer files claim beacons for each Step PR before authoring. Per-claim-beacon authoring time ~3-5 minutes given the rename mapping is enumerated in §Implementation roadmap below.
 
@@ -469,6 +597,20 @@ Effort: ~3-4h Sonnet medium subagent dispatch (delegated work per ONR scaffold s
 
 ### Per-rename migration pattern (Steps 2-6 canonical mechanic)
 
+> [!WARNING]
+> **Substantially superseded by Revision 3 (C1 + C2).** The central claim of this section — that
+> each renamed block keeps an old-name `[assembly: TypeForwardedTo]` re-export shim that makes the
+> OLD type names resolve for downstream consumers — is **false for RENAMED types** (it works only
+> for same-name MOVEs; an old NAME yields CS0246). The corrected mechanism (Option A): retain
+> `TypeForwardedTo` ONLY for genuinely preserved-name moves; renamed types are an honest hard-break
+> whose downstream consumer PRs (sunfish + signal-bridge) bundle atomically in the same wave; the
+> `SUNFISH_BLOCKDEP001` analyzer guides stale-ref detection. Also: the `[assembly: Obsolete(...)]`
+> line in the cookbook below is CS0592-invalid (use `[assembly: AssemblyMetadata("Obsolete", ...)]`
+> or rely on per-type `[Obsolete]` + analyzer — bug-768). The preserved-name forwarding cookbook,
+> extension-method stub pattern, `InternalsVisibleTo` audit, file-shape convention, version-bump,
+> archive-cap, and security-window discipline below REMAIN VALID for the preserved-name subset.
+> Read this section through the Revision 3 corrective note above.
+
 For each of the 5 confirmed renames, the migration pattern is:
 
 1. **New package shipped.** New csproj at new path (e.g., `packages/blocks-recurring-billing/Sunfish.Blocks.RecurringBilling.csproj`), new namespace (`Sunfish.Blocks.RecurringBilling`), all source moved + adjusted (file-level namespace declarations updated; type-name renames per §"Cross-reference table — types-per-package" below).
@@ -502,7 +644,14 @@ For each of the 5 confirmed renames, the migration pattern is:
    [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.LateFeePolicy))]
    [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.RecurringLedgerEntry))]
    [assembly: TypeForwardedTo(typeof(Sunfish.Blocks.RecurringBilling.IRecurringLedgerService))]
-   [assembly: Obsolete("Sunfish.Blocks.RentCollection is renamed to Sunfish.Blocks.RecurringBilling per ADR 0098.", false)]
+   // NOTE (Rev 3, C2): [assembly: Obsolete(...)] is CS0592-INVALID (Obsolete has no assembly
+   // AttributeUsage). Corrected to AssemblyMetadata (valid on assemblies); prefer per-type
+   // [Obsolete] + the SUNFISH_BLOCKDEP001 analyzer for actionable per-symbol deprecation warnings.
+   // ALSO (Rev 3, C1): the RecurringLedgerEntry/IRecurringLedgerService forwards above are
+   // RENAMED-type forwards — they do NOT make the OLD names (RentLedgerEntry/IRentLedgerService)
+   // resolve; only the preserved-name forwards (Invoice/Payment/BankAccount/BillingFrequency/
+   // LateFeePolicy) actually back-compat for downstream. See the Revision 3 corrective note.
+   [assembly: AssemblyMetadata("Obsolete", "Sunfish.Blocks.RentCollection is renamed to Sunfish.Blocks.RecurringBilling per ADR 0098.")]
    ```
 
    **Public-only forwarding (per A5a).** `TypeForwardedTo` exposes only PUBLIC types across the forwarding boundary; internal types are NOT forwardable. If a shim package's old internal types were consumed across the assembly boundary via `InternalsVisibleTo` (e.g., test projects with internals access), those consumers MUST be updated to consume from the new package directly — the shim cannot bridge internals. Engineer audits each rename source package for `InternalsVisibleTo` consumers + internal type usage before authoring the per-Step PR; the new package's source carries the `InternalsVisibleTo` declaration (now pointing at `Sunfish.Blocks.<NewName>.Tests`). The shim package SHOULD NOT carry `InternalsVisibleTo` — its types are all forwarded (public) and its test project moves to the new package.
@@ -511,7 +660,7 @@ For each of the 5 confirmed renames, the migration pattern is:
 
    **Duplicate AssemblyInfo avoidance (per A5c).** Shim csproj sets `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>` and explicitly declares `<Description>` (above); without this, both the shim csproj and the new csproj auto-generate `AssemblyTitle`/`AssemblyDescription` attributes and the dual-build produces duplicate-attribute errors.
 
-3. **Old package deprecated.** Package-level assembly attribute: `[Obsolete("<OldNamespace> is renamed to <NewNamespace> per ADR 0098; this package will be removed in the major version following the cross-vertical-reuse rename wave's deprecation cycle.", false /* warning, not error */)]` (sample inline in the `TypeForwards.cs` snippet above).
+3. **Old package deprecated.** ~~Package-level assembly attribute: `[Obsolete("<OldNamespace> is renamed to <NewNamespace> per ADR 0098; ...", false /* warning, not error */)]`~~ **(Rev 3, C2: `[assembly: Obsolete]` is CS0592-invalid.)** Use `[assembly: AssemblyMetadata("Obsolete", "<OldNamespace> is renamed to <NewNamespace> per ADR 0098; this package will be removed in the major version following the cross-vertical-reuse rename wave's deprecation cycle.")]`, OR (preferred) carry per-type `[Obsolete(..., false /* warning */)]` on the moved preserved-name types + the extension-method stub's `[Obsolete]` + the Step 7 `SUNFISH_BLOCKDEP001` analyzer for actionable per-symbol deprecation warnings (sample inline in the corrected `TypeForwards.cs` snippet above).
 
 4. **Extension-method forwarding (per A6 — `TypeForwardedTo` does NOT forward extension methods).** Each renamed block's `DependencyInjection/` folder typically ships `AddSunfishX()` `IServiceCollection` extension methods. `TypeForwardedTo` forwards TYPES; static-class extension methods compile to fully-qualified references in the consumer assembly's IL, NOT via type-resolution-through-forward. Each shim package therefore ships a small stub extension-method class at the old namespace:
 
