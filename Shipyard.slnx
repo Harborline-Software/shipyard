@@ -120,6 +120,10 @@
     <Project Path="packages/foundation-identity-atlas/Sunfish.Foundation.IdentityAtlas.csproj" />
     <Project Path="packages/foundation-identity-atlas/tests/tests.csproj" />
   </Folder>
+  <Folder Name="/foundation/import/">
+    <Project Path="packages/foundation-import/Sunfish.Foundation.Import.csproj" />
+    <Project Path="packages/foundation-import/tests/tests.csproj" />
+  </Folder>
   <Folder Name="/foundation/feature-management/">
     <Project Path="packages/foundation-featuremanagement/Sunfish.Foundation.FeatureManagement.csproj" />
     <Project Path="packages/foundation-featuremanagement/tests/tests.csproj" />
