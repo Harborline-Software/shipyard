@@ -3,6 +3,7 @@ using Sunfish.Blocks.FinancialAr.Services;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialAr.Migration;
 
@@ -15,11 +16,23 @@ namespace Sunfish.Blocks.FinancialAr.Migration;
 /// on <see cref="Invoice.ExternalRef"/>; the customer-facing number is
 /// a fresh canonical one so the format-gate in
 /// <see cref="InMemoryInvoiceRepository.UpsertAsync"/> succeeds).
+///
+/// <para>
+/// Returns the <c>foundation-import</c> <see cref="ImportOutcome{T}"/> DU
+/// (ADR 0100 C2/OQ-A). A missing required field on the source becomes the
+/// <see cref="ImportOutcome{T}.Rejected"/> arm carrying a structured,
+/// allowlisted <see cref="ImportFailure"/> (ADR 0100 C9 — the reject carries
+/// the opaque ERPNext <c>name</c> + DocType + reason code + offending field
+/// NAME only; never a party name/address or a monetary value).
+/// </para>
 /// </summary>
 public sealed class ErpnextSalesInvoiceImporter : IErpnextSalesInvoiceImporter
 {
     private const string ExternalRefPrefix = "erpnext:sinv:";
     private const string ModifiedKeyPrefix = "erpnextModified:";
+
+    /// <summary>The ERPNext DocType this importer consumes — used for reject provenance (ADR 0100 C9).</summary>
+    public const string DocType = "Sales Invoice";
 
     private readonly IInvoiceRepository _invoices;
     private readonly IInvoiceNumberingService _numbering;
@@ -34,8 +47,8 @@ public sealed class ErpnextSalesInvoiceImporter : IErpnextSalesInvoiceImporter
 
     /// <inheritdoc />
     public async Task<ImportOutcome<Invoice>> UpsertSalesInvoiceAsync(
-        ErpnextSalesInvoiceSource source,
         TenantId tenantId,
+        ErpnextSalesInvoiceSource source,
         ChartOfAccountsId chartId,
         PartyId customerPartyId,
         GLAccountId arAccountId,
@@ -43,12 +56,17 @@ public sealed class ErpnextSalesInvoiceImporter : IErpnextSalesInvoiceImporter
         CancellationToken cancellationToken = default)
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
+
+        // Missing-required-field rejects. The reject carries only the opaque
+        // ERPNext name + the offending field NAME — never the field's value
+        // (ADR 0100 C9). When the name itself is empty we have no natural key
+        // to cite, so fall back to a sentinel marker.
         if (string.IsNullOrWhiteSpace(source.Name))
-            return new ImportOutcome<Invoice>(ImportOutcomeKind.Failed, null, "ERPNext SalesInvoice.name is empty.");
+            return Reject("(unknown)", "name", "ERPNext SalesInvoice.name is empty.");
         if (string.IsNullOrWhiteSpace(source.Customer))
-            return new ImportOutcome<Invoice>(ImportOutcomeKind.Failed, null, "ERPNext SalesInvoice.customer is empty.");
+            return Reject(source.Name, "customer", "ERPNext SalesInvoice.customer is empty.");
         if (source.Items is null || source.Items.Count == 0)
-            return new ImportOutcome<Invoice>(ImportOutcomeKind.Failed, null, "ERPNext SalesInvoice has no items.");
+            return Reject(source.Name, "items", "ERPNext SalesInvoice has no items.");
 
         var externalRef = ExternalRefPrefix + source.Name;
         var modifiedMarker = ModifiedKeyPrefix + source.Modified;
@@ -60,8 +78,7 @@ public sealed class ErpnextSalesInvoiceImporter : IErpnextSalesInvoiceImporter
             && existing.Notes is not null
             && existing.Notes.Contains(modifiedMarker, StringComparison.Ordinal))
         {
-            return new ImportOutcome<Invoice>(
-                ImportOutcomeKind.Skipped,
+            return new ImportOutcome<Invoice>.Skipped(
                 existing,
                 $"Already imported at modified={source.Modified}.");
         }
@@ -153,9 +170,22 @@ public sealed class ErpnextSalesInvoiceImporter : IErpnextSalesInvoiceImporter
         await _invoices.UpsertAsync(tenantId, inv, cancellationToken).ConfigureAwait(false);
 
         return existing is null
-            ? new ImportOutcome<Invoice>(ImportOutcomeKind.Inserted, inv, $"Imported {source.Name}.")
-            : new ImportOutcome<Invoice>(ImportOutcomeKind.Updated, inv, $"Reconciled {source.Name} to modified={source.Modified}.");
+            ? new ImportOutcome<Invoice>.Inserted(inv, $"Imported {source.Name}.")
+            : new ImportOutcome<Invoice>.Updated(inv, $"Reconciled {source.Name} to modified={source.Modified}.");
     }
+
+    /// <summary>
+    /// Build a <see cref="ImportOutcome{T}.Rejected"/> for a missing required
+    /// field. Only the opaque ERPNext name, the DocType, the reason code, and the
+    /// offending field NAME are carried — never the field's value (ADR 0100 C9).
+    /// </summary>
+    private static ImportOutcome<Invoice>.Rejected Reject(string externalRef, string fieldName, string ruleViolated) =>
+        new(ImportFailure.Of(
+            externalRef: externalRef,
+            docType: DocType,
+            reason: ImportRejectReason.MissingRequiredField,
+            fieldName: fieldName,
+            ruleViolated: ruleViolated));
 
     private async Task<Invoice?> FindExistingByExternalRefAsync(
         TenantId tenantId,
