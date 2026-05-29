@@ -1,7 +1,7 @@
 ---
 id: 101
 title: Asset-Management Bundle Substrate
-status: Proposed
+status: Accepted
 date: 2026-05-29
 proposed-date: 2026-05-29
 author: Engineer (Workstream C1)
@@ -47,12 +47,13 @@ co-pre-authorized: false  # substrate-defining ADR; ADR text carries MANDATORY d
 
 # ADR 0101 — Asset-Management Bundle Substrate
 
-**Status:** Proposed — Rev 2. P3 future-roadmap (post-MVP). Substrate-defining: this ADR pins the
+**Status:** Accepted — Rev 2 (2026-05-29). P3 future-roadmap (post-MVP). Substrate-defining: this ADR pins the
 domain model the asset-management reference bundle's cockpit + Bridge endpoints will build on, and
 decides **where that domain lives** (greenfield `blocks-assets` vs. promotion of the existing
 `blocks-property-equipment` Equipment domain). Dual-council MANDATORY (security-engineering +
 .NET-architect) on this ADR text BEFORE Accept, per the substrate-tier Halt cadence established by
-ADR 0095/0096/0097/0098/0099/0100. Do NOT self-accept.
+ADR 0095/0096/0097/0098/0099/0100 — **SATISFIED:** .NET-architect GREEN (Rev 2 re-attest) +
+security-engineering GREEN (Rev 2 re-confirm), both 2026-05-29; dual-council GREEN+GREEN.
 
 **Date:** 2026-05-29
 
