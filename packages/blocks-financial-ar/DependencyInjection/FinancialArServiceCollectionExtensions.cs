@@ -41,6 +41,9 @@ public static class FinancialArServiceCollectionExtensions
         services.TryAddSingleton<IInvoicePostingService, InvoicePostingService>();
         services.TryAddSingleton<IArAgingService, ArAgingService>();
         services.TryAddSingleton<IErpnextSalesInvoiceImporter, ErpnextSalesInvoiceImporter>();
+        // A4.1 ERPNext sales-invoice orchestration pass (ADR 0100). Thin
+        // orchestrator over the per-record importer; transient.
+        services.TryAddTransient<ErpnextSalesInvoicePass>();
         return services;
     }
 }
