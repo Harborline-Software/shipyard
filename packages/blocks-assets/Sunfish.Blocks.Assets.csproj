@@ -2,8 +2,8 @@
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <PackageId>Sunfish.Blocks.Assets</PackageId>
-    <Description>Asset-catalog block for Sunfish — composes SunfishDataGrid and SunfishFileManager for a read-display asset view.</Description>
-    <PackageTags>blazor;assets;catalog;blocks;domain;sunfish</PackageTags>
+    <Description>Asset-management block for Sunfish — the property-agnostic asset domain (Asset, AssetCategory, AssetLifecycleEvent, DepreciationSchedule, WarrantyTerm, tenant-scoped repositories) per ADR 0101 C1.1, alongside the read-display file-catalog AssetCatalogBlock surface.</Description>
+    <PackageTags>blazor;assets;asset-management;lifecycle;depreciation;warranty;catalog;blocks;domain;sunfish</PackageTags>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- TODO(SUNFISH_I18N_002): Path A temporary suppression — SharedResource scaffolded
@@ -21,6 +21,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
+    <!-- ADR 0101 C1.1: asset domain is IMustHaveTenant (foundation-multitenancy) with a
+         Money cost basis (foundation-integrations). NO reference on blocks-property-equipment
+         (D3 — property-coupling forbidden on a property-agnostic block). -->
+    <ProjectReference Include="..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
+    <ProjectReference Include="..\foundation-integrations\Sunfish.Foundation.Integrations.csproj" />
     <ProjectReference Include="..\ui-core\Sunfish.UICore.csproj" />
     <ProjectReference Include="..\ui-adapters-blazor\Sunfish.UIAdapters.Blazor.csproj" />
   </ItemGroup>

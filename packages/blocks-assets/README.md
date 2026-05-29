@@ -1,24 +1,30 @@
 # Sunfish.Blocks.Assets
 
-Asset-catalog block — composes `SunfishDataGrid` and `SunfishFileManager` for a read-display asset view.
+The asset-management block — a property-agnostic asset domain (ADR 0101 C1.1) plus a read-display file-catalog UI surface. The two are orthogonal: the domain is the substantive content; the catalog is a thin UI block.
 
-**Naming note:** this block is the original UI-only asset catalog (visual surface); the property-operations cluster's physical-equipment domain ships separately as [`Sunfish.Blocks.PropertyEquipment`](../blocks-property-equipment/README.md) per UPF Rule 4 (the `Equipment` rename, 2026-04-28).
+**Naming note:** the property-operations cluster's property-scoped physical-equipment domain ships separately as [`Sunfish.Blocks.PropertyEquipment`](../blocks-property-equipment/README.md) per UPF Rule 4 (the `Equipment` rename, 2026-04-28). This block's domain (`Asset`) is the property-*agnostic* generalization — fleet, manufacturing, facility, IT-hardware assets that do not belong to a `Property`. The two domains coexist (deliberate near-term duplication; a future ADR may unify them — see ADR 0101 Consequences).
 
 ## What this ships
 
-### Models
+### Asset domain (ADR 0101 C1.1, namespace `Sunfish.Blocks.Assets.Domain` / `.Services`)
 
-- **`AssetRecord`** — read-display asset entry with name, kind, location, condition, asset photo refs.
+- **`Asset`** (`IMustHaveTenant`) — the property-agnostic asset entity: category, make/model/serial, acquisition cost (typed `Money` from day one, ADR 0051), warranty, depreciation schedule, free-text `Location` (NOT a `PropertyId`), lifecycle state, soft-delete via `DisposedAt`.
+- **`AssetId`** — strongly-typed opaque id (`readonly record struct`, `NewId()`, JSON converter).
+- **`AssetCategory`** — closed enum first-slice (fleet-vehicle, manufacturing-equipment, facility-asset, IT-hardware, …); registry backing (`kernel-schema-registry`) is a named follow-up unit, NOT part of C1.1.
+- **`AssetLifecycleEvent`** (`IMustHaveTenant`) + **`AssetLifecycleEventType`** — append-only lifecycle history. Deliberately carries NO `Property` snapshot (ADR 0101 A3 — the asset is property-agnostic).
+- **`LifecycleState`** — Draft / Active / InMaintenance / Retired / Disposed.
+- **`DepreciationSchedule`** + **`DepreciationMethod`** — pure computation (straight-line, declining-balance, units-of-production, none). Auto-calc opt-in (defaults off).
+- **`WarrantyTerm`** — coverage window + provider; basis for the warranty-expiry query.
+- **`IAssetRepository`** + **`IAssetLifecycleEventStore`** — tenant-scoped on every call; reject the system / default tenant. In-memory impls + `AddInMemoryAssets()` DI extension.
 
-### UI
+### File-catalog UI (orthogonal surface)
 
-- **`AssetCatalogBlock.razor`** — composes `SunfishDataGrid` (list view) + `SunfishFileManager` (file/photo browser) into a unified asset-catalog surface.
+- **`AssetRecord`** (namespace `Sunfish.Blocks.Assets.Models`) — read-display file entry.
+- **`AssetCatalogBlock.razor`** — composes `SunfishDataGrid` + `SunfishFileManager` into a browse-assets UI.
 
 ## Cluster role
 
-UI-only catalog block — no domain-services or persistence. Intended for hosts that need a "browse assets" UX without committing to the full property-operations cluster.
-
-The property-operations cluster's `Equipment` domain (lifecycle events, inspections integration, work-order assignment) lives in `blocks-property-equipment`; this block can coexist with it.
+The asset-management domain core for the `asset-management.bundle.json` reference bundle. The Bridge endpoints (C1.2), cockpit React pages (C1.3), and bundle activation (C1.4) build on this substrate. Takes NO dependency on `blocks-property-equipment` / `blocks-properties` (D3 — property-coupling forbidden on a property-agnostic block).
 
 ## See also
 
