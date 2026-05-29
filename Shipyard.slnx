@@ -24,6 +24,10 @@
     <Project Path="packages/foundation-authorization/Sunfish.Foundation.Authorization.csproj" />
     <Project Path="packages/foundation-authorization/tests/Sunfish.Foundation.Authorization.Tests.csproj" />
   </Folder>
+  <Folder Name="/foundation/session/">
+    <Project Path="packages/foundation-session/Sunfish.Foundation.Session.csproj" />
+    <Project Path="packages/foundation-session/tests/Sunfish.Foundation.Session.Tests.csproj" />
+  </Folder>
   <Folder Name="/foundation/design-tokens/">
     <Project Path="packages/foundation-design-tokens/Sunfish.Foundation.DesignTokens.csproj" />
     <Project Path="packages/foundation-design-tokens/tests/Sunfish.Foundation.DesignTokens.Tests.csproj" />
