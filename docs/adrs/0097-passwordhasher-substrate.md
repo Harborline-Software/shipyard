@@ -1,7 +1,7 @@
 ---
 id: 97
 title: PasswordHasher Substrate
-status: Proposed
+status: Accepted
 date: 2026-05-27
 proposed-date: 2026-05-27
 author: Admiral
@@ -45,7 +45,7 @@ amendments: []
 
 # ADR 0097 — PasswordHasher Substrate
 
-**Status:** Proposed (Revision 2; awaiting dual-council re-attestation. Rev 1 dual-council AMBER produced 6 sec-eng substrate amendments (S1-S6), 6 .NET-arch load-bearing amendments (A1-A6), and 9 .NET-arch clarifications (C1-C9) — all folded into Rev 2 per the ADR 0095 R2 / 0096 R2 / 0098 R2 precedent).
+**Status:** Accepted (Revision 2; dual-council GREEN 2026-05-27: sec-eng + .NET-arch). Rev 1 dual-council AMBER produced 6 sec-eng substrate amendments (S1-S6), 6 .NET-arch load-bearing amendments (A1-A6), and 9 .NET-arch clarifications (C1-C9) — all folded into Rev 2 per the ADR 0095 R2 / 0096 R2 / 0098 R2 precedent; both councils self-attested GREEN on Rev 2.
 **Date:** 2026-05-27
 **Resolves:** W#79 sub-cohort 1 H8 disposition (`coordination/inbox/admiral-ruling-2026-05-26T0035Z-w79-stage-05-9-halts-resolved.md` §H8) — pre-production hardening commitment that swaps the W#79 MVP-ship `IPasswordHasher<UserEntity>` PBKDF2-HMAC-SHA256 default for an OWASP-canonical Argon2id-backed implementation **before W#79 reaches production**. This ADR is the deferred-with-commitment. Codifies the substrate as a Tier-1 domain-block primitive with cross-tier reuse of ADR 0096's mock-first + production-guard discipline at the Tier-1 boundary. W#79 sub-cohort 1 ships at MVP with PBKDF2 V3 default; W#79 Step 2 (this ADR's Step 2) swaps the composition-root registration to Argon2id pre-production via a zero-handler-tier-change DI substitution.
 **Council inputs:** Revision 1 forwards to dual-council. Sec-eng dual-council MANDATORY (per H9 + W#79 H8); .NET-architect dual-council MANDATORY (per H9). Promotion path: both councils self-attest GREEN via inbox status on Revision 1 → Admiral promotes ADR to `Accepted`. If a council returns AMBER, Admiral folds amendments into Revision 2 (ADR 0095 R2 / 0096 R2 / 0098 R2 precedent). **Step 1 (foundation-password-hashing substrate package) PR carries its own mandatory dual-council SPOT-CHECK at PR-open** per H9 — independent council pull on the cryptographic-primitive surface. **Step 2 (W#79 SignupHandler composition-root cutover) PR carries sec-eng MANDATORY SPOT-CHECK** for the substitution-correctness invariant.
