@@ -1,6 +1,12 @@
 # Sunfish Planning-Phase Roadmap Tracker
 
-**Status:** Living document
+> **SUPERSEDED — historical artifact only.**
+> This file reflects the 2026-04-19 planning-phase snapshot. It is kept as a historical record.
+> The live backlog is at [`_shared/product/backlog.md`](backlog.md).
+> For current G-1/G-2/G-3 status, see [`icm/_state/MASTER-PLAN.md`](../../icm/_state/MASTER-PLAN.md).
+> Do not update this file; update backlog.md and MASTER-PLAN.md instead.
+
+**Status:** Superseded (historical artifact; last live update 2026-04-19)
 **Last reviewed:** 2026-04-19
 **Purpose:** Consolidated status of planning-phase outputs (ADRs, Foundation packages, bundle manifests) and the roadmap through P6. Update every time an ADR merges, a package ships, or a phase gate closes.
 **Agent relevance:** Loaded by agents planning phase work or orienting to project status. Refresh frequently; source of truth for what's shipped vs. pending.
