@@ -4,6 +4,7 @@ using Sunfish.Blocks.FinancialAr.Services;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Import.Outcomes;
 using Xunit;
 
 namespace Sunfish.Blocks.FinancialAr.Tests;
@@ -57,15 +58,16 @@ public class ErpnextSalesInvoiceImporterTests
         var source = NewSource();
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), Account());
+            Tenant(), source, Chart(), Customer(), Account(), Account());
 
-        Assert.Equal(ImportOutcomeKind.Inserted, outcome.Kind);
-        Assert.NotNull(outcome.Entity);
-        Assert.Equal(InvoiceStatus.Issued, outcome.Entity!.Status);
-        Assert.Equal(1000m, outcome.Entity.Total);
-        Assert.Equal(1000m, outcome.Entity.Balance);
-        Assert.Equal("erpnext:sinv:SINV-0001", outcome.Entity.ExternalRef);
-        Assert.Contains("erpnextModified:2026-05-17 12:00:00", outcome.Entity.Notes!);
+        var inserted = Assert.IsType<ImportOutcome<Invoice>.Inserted>(outcome);
+        Assert.Equal(ImportAction.Inserted, outcome.Action);
+        Assert.NotNull(inserted.Record);
+        Assert.Equal(InvoiceStatus.Issued, inserted.Record.Status);
+        Assert.Equal(1000m, inserted.Record.Total);
+        Assert.Equal(1000m, inserted.Record.Balance);
+        Assert.Equal("erpnext:sinv:SINV-0001", inserted.Record.ExternalRef);
+        Assert.Contains("erpnextModified:2026-05-17 12:00:00", inserted.Record.Notes!);
     }
 
     [Fact]
@@ -75,9 +77,10 @@ public class ErpnextSalesInvoiceImporterTests
         var source = NewSource(status: "Submitted");
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), Account());
+            Tenant(), source, Chart(), Customer(), Account(), Account());
 
-        Assert.True(InvoiceNumberFormat.IsWellFormed(outcome.Entity!.InvoiceNumber));
+        var inserted = Assert.IsType<ImportOutcome<Invoice>.Inserted>(outcome);
+        Assert.True(InvoiceNumberFormat.IsWellFormed(inserted.Record.InvoiceNumber));
     }
 
     [Fact]
@@ -87,11 +90,12 @@ public class ErpnextSalesInvoiceImporterTests
         var source = NewSource(status: "Draft");
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), Account());
+            Tenant(), source, Chart(), Customer(), Account(), Account());
 
-        Assert.Equal(ImportOutcomeKind.Inserted, outcome.Kind);
-        Assert.Equal(InvoiceStatus.Draft, outcome.Entity!.Status);
-        Assert.Equal("", outcome.Entity.InvoiceNumber);
+        var inserted = Assert.IsType<ImportOutcome<Invoice>.Inserted>(outcome);
+        Assert.Equal(ImportAction.Inserted, outcome.Action);
+        Assert.Equal(InvoiceStatus.Draft, inserted.Record.Status);
+        Assert.Equal("", inserted.Record.InvoiceNumber);
     }
 
     [Fact]
@@ -107,14 +111,15 @@ public class ErpnextSalesInvoiceImporterTests
             });
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), Account());
+            Tenant(), source, Chart(), Customer(), Account(), Account());
 
-        Assert.Equal(2, outcome.Entity!.Lines.Count);
-        Assert.Equal(1000m, outcome.Entity.Lines[0].Amount);
-        Assert.Equal(300m, outcome.Entity.Lines[1].Amount);
-        Assert.Equal("Item A", outcome.Entity.Lines[0].Description);
-        Assert.Equal(1, outcome.Entity.Lines[0].LineNumber);
-        Assert.Equal(2, outcome.Entity.Lines[1].LineNumber);
+        var inserted = Assert.IsType<ImportOutcome<Invoice>.Inserted>(outcome);
+        Assert.Equal(2, inserted.Record.Lines.Count);
+        Assert.Equal(1000m, inserted.Record.Lines[0].Amount);
+        Assert.Equal(300m, inserted.Record.Lines[1].Amount);
+        Assert.Equal("Item A", inserted.Record.Lines[0].Description);
+        Assert.Equal(1, inserted.Record.Lines[0].LineNumber);
+        Assert.Equal(2, inserted.Record.Lines[1].LineNumber);
     }
 
     [Fact]
@@ -124,11 +129,12 @@ public class ErpnextSalesInvoiceImporterTests
         var source = NewSource(grandTotal: 1000m, outstanding: 400m, status: "Partly Paid");
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), Account());
+            Tenant(), source, Chart(), Customer(), Account(), Account());
 
-        Assert.Equal(InvoiceStatus.PartiallyPaid, outcome.Entity!.Status);
-        Assert.Equal(600m, outcome.Entity.AmountPaid);
-        Assert.Equal(400m, outcome.Entity.Balance);
+        var inserted = Assert.IsType<ImportOutcome<Invoice>.Inserted>(outcome);
+        Assert.Equal(InvoiceStatus.PartiallyPaid, inserted.Record.Status);
+        Assert.Equal(600m, inserted.Record.AmountPaid);
+        Assert.Equal(400m, inserted.Record.Balance);
     }
 
     [Fact]
@@ -142,9 +148,10 @@ public class ErpnextSalesInvoiceImporterTests
         }, grandTotal: 500m, outstanding: 500m);
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), defaultIncome);
+            Tenant(), source, Chart(), Customer(), Account(), defaultIncome);
 
-        Assert.Equal(defaultIncome, outcome.Entity!.Lines[0].IncomeAccountId);
+        var inserted = Assert.IsType<ImportOutcome<Invoice>.Inserted>(outcome);
+        Assert.Equal(defaultIncome, inserted.Record.Lines[0].IncomeAccountId);
     }
 
     [Fact]
@@ -154,9 +161,10 @@ public class ErpnextSalesInvoiceImporterTests
         var source = NewSource() with { Currency = null };
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), Account());
+            Tenant(), source, Chart(), Customer(), Account(), Account());
 
-        Assert.Equal("USD", outcome.Entity!.Currency);
+        var inserted = Assert.IsType<ImportOutcome<Invoice>.Inserted>(outcome);
+        Assert.Equal("USD", inserted.Record.Currency);
     }
 
     // ── Skipped / Updated paths ───────────────────────────────────────
@@ -171,12 +179,14 @@ public class ErpnextSalesInvoiceImporterTests
         var income = Account();
         var source = NewSource();
 
-        var first = await sut.Importer.UpsertSalesInvoiceAsync(source, Tenant(), chart, customer, ar, income);
-        var second = await sut.Importer.UpsertSalesInvoiceAsync(source, Tenant(), chart, customer, ar, income);
+        var first = await sut.Importer.UpsertSalesInvoiceAsync(Tenant(), source, chart, customer, ar, income);
+        var second = await sut.Importer.UpsertSalesInvoiceAsync(Tenant(), source, chart, customer, ar, income);
 
-        Assert.Equal(ImportOutcomeKind.Inserted, first.Kind);
-        Assert.Equal(ImportOutcomeKind.Skipped, second.Kind);
-        Assert.Equal(first.Entity!.Id, second.Entity!.Id);
+        var firstInserted = Assert.IsType<ImportOutcome<Invoice>.Inserted>(first);
+        var secondSkipped = Assert.IsType<ImportOutcome<Invoice>.Skipped>(second);
+        Assert.Equal(ImportAction.Inserted, first.Action);
+        Assert.Equal(ImportAction.Skipped, second.Action);
+        Assert.Equal(firstInserted.Record.Id, secondSkipped.Record.Id);
     }
 
     [Fact]
@@ -191,53 +201,71 @@ public class ErpnextSalesInvoiceImporterTests
         var v1 = NewSource(modified: "2026-05-17 12:00:00", grandTotal: 1000m, outstanding: 1000m);
         var v2 = NewSource(modified: "2026-05-18 09:00:00", grandTotal: 1000m, outstanding: 400m, status: "Partly Paid");
 
-        var first = await sut.Importer.UpsertSalesInvoiceAsync(v1, Tenant(), chart, customer, ar, income);
-        var second = await sut.Importer.UpsertSalesInvoiceAsync(v2, Tenant(), chart, customer, ar, income);
+        var first = await sut.Importer.UpsertSalesInvoiceAsync(Tenant(), v1, chart, customer, ar, income);
+        var second = await sut.Importer.UpsertSalesInvoiceAsync(Tenant(), v2, chart, customer, ar, income);
 
-        Assert.Equal(ImportOutcomeKind.Updated, second.Kind);
-        Assert.Equal(first.Entity!.Id, second.Entity!.Id); // same canonical id (stable across update)
-        Assert.Equal(InvoiceStatus.PartiallyPaid, second.Entity.Status);
-        Assert.Equal(600m, second.Entity.AmountPaid);
-        Assert.Equal(400m, second.Entity.Balance);
-        Assert.Contains("erpnextModified:2026-05-18 09:00:00", second.Entity.Notes!);
-        Assert.DoesNotContain("erpnextModified:2026-05-17 12:00:00", second.Entity.Notes!);
-        Assert.Equal(2L, second.Entity.Version);
+        var firstInserted = Assert.IsType<ImportOutcome<Invoice>.Inserted>(first);
+        var secondUpdated = Assert.IsType<ImportOutcome<Invoice>.Updated>(second);
+        Assert.Equal(ImportAction.Updated, second.Action);
+        Assert.Equal(firstInserted.Record.Id, secondUpdated.Record.Id); // same canonical id (stable across update)
+        Assert.Equal(InvoiceStatus.PartiallyPaid, secondUpdated.Record.Status);
+        Assert.Equal(600m, secondUpdated.Record.AmountPaid);
+        Assert.Equal(400m, secondUpdated.Record.Balance);
+        Assert.Contains("erpnextModified:2026-05-18 09:00:00", secondUpdated.Record.Notes!);
+        Assert.DoesNotContain("erpnextModified:2026-05-17 12:00:00", secondUpdated.Record.Notes!);
+        Assert.Equal(2L, secondUpdated.Record.Version);
     }
 
-    // ── Failed paths ──────────────────────────────────────────────────
+    // ── Rejected paths (ADR 0100 C2/OQ-A — missing-required-field) ────
 
     [Fact]
-    public async Task UpsertSalesInvoice_EmptyName_ReturnsFailed()
+    public async Task UpsertSalesInvoice_EmptyName_ReturnsRejected()
     {
         var sut = NewSut();
         var source = NewSource() with { Name = "" };
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), Account());
-        Assert.Equal(ImportOutcomeKind.Failed, outcome.Kind);
-        Assert.Null(outcome.Entity);
+            Tenant(), source, Chart(), Customer(), Account(), Account());
+
+        var rejected = Assert.IsType<ImportOutcome<Invoice>.Rejected>(outcome);
+        Assert.Null(outcome.Action);
+        Assert.True(outcome.IsRejected);
+        Assert.Equal(ImportRejectReason.MissingRequiredField.ToString(), rejected.Failure.ReasonCode);
+        Assert.Equal(ErpnextSalesInvoiceImporter.DocType, rejected.Failure.DocType);
+        Assert.Equal("name", rejected.Failure.FieldName);
+        // When the natural key (name) is itself empty, we cite the sentinel — never a value.
+        Assert.Equal("(unknown)", rejected.Failure.ExternalRef);
     }
 
     [Fact]
-    public async Task UpsertSalesInvoice_EmptyCustomer_ReturnsFailed()
+    public async Task UpsertSalesInvoice_EmptyCustomer_ReturnsRejected()
     {
         var sut = NewSut();
         var source = NewSource() with { Customer = "" };
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), Account());
-        Assert.Equal(ImportOutcomeKind.Failed, outcome.Kind);
+            Tenant(), source, Chart(), Customer(), Account(), Account());
+
+        var rejected = Assert.IsType<ImportOutcome<Invoice>.Rejected>(outcome);
+        Assert.True(outcome.IsRejected);
+        Assert.Equal(ImportRejectReason.MissingRequiredField.ToString(), rejected.Failure.ReasonCode);
+        Assert.Equal("customer", rejected.Failure.FieldName);
+        Assert.Equal("SINV-0001", rejected.Failure.ExternalRef);
     }
 
     [Fact]
-    public async Task UpsertSalesInvoice_NoItems_ReturnsFailed()
+    public async Task UpsertSalesInvoice_NoItems_ReturnsRejected()
     {
         var sut = NewSut();
         var source = NewSource() with { Items = Array.Empty<ErpnextSalesInvoiceItem>() };
 
         var outcome = await sut.Importer.UpsertSalesInvoiceAsync(
-            source, Tenant(), Chart(), Customer(), Account(), Account());
-        Assert.Equal(ImportOutcomeKind.Failed, outcome.Kind);
+            Tenant(), source, Chart(), Customer(), Account(), Account());
+
+        var rejected = Assert.IsType<ImportOutcome<Invoice>.Rejected>(outcome);
+        Assert.True(outcome.IsRejected);
+        Assert.Equal(ImportRejectReason.MissingRequiredField.ToString(), rejected.Failure.ReasonCode);
+        Assert.Equal("items", rejected.Failure.FieldName);
     }
 
     // ── Status mapping ────────────────────────────────────────────────
