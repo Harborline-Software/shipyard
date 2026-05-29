@@ -1,0 +1,358 @@
+---
+id: 100
+title: ERPNext Data Import Contract
+status: Accepted
+date: 2026-05-29
+proposed-date: 2026-05-29
+accepted-date: 2026-05-29  # pending dual-council RE-ATTEST GREEN on Rev 2 (Rev 1 dual-AMBER, no RED — floor-lift fold)
+author: ONR
+tier: foundation
+pipeline_variant: sunfish-feature-change
+
+concern:
+  - data-migration
+  - idempotency
+  - partial-failure-recovery
+  - multi-tenant-isolation
+  - financial-data-correctness
+  - clean-room-license-discipline
+  - no-pii-secret-logging
+  - access-mode-abstraction
+
+enables:
+  - a0-extraction-adapter
+  - a1-chart-of-accounts-pass
+  - a2-parties-periods-tax-pass
+  - a3-opening-balances-pass
+  - a4-transactional-history-pass
+  - a5-reconciliation-linkage-pass
+  - a6-reconcile-verify-pass
+  - a7-import-cli-driver
+  - cic-live-erpnext-cutover-to-sunfish
+
+composes:
+  - 84   # TenantId Sentinel Governance (an imported row MUST NOT bind to TenantId.System; the --target-tenant must be a real tenant)
+  - 88   # Anchor All-In-One Local-First Runtime (the importer is ADR 0088 Path II — ERPNext is the legacy engine being retired; clean-room §3 discipline)
+  - 91   # ITenantContext Divergence Resolution (every importer write is IMustHaveTenant via the Authorization sum-interface facade, NOT the MultiTenancy narrowed variant — signal-bridge#34 trap)
+  - 93   # Stage-05 Adversarial Review Protocol (the dual-council MANDATORY halt-condition set on this substrate-tier contract)
+  - 97   # PasswordHasher Substrate (substrate-tier ADR cadence + production-guard / fail-closed IHostedService precedent + Halt-9 dual-council pattern)
+  - 98   # Block-Naming Generalization (the spec's stale package names reconciled to the shipped block names; substrate-tier dual-council MANDATORY precedent)
+  - 99   # First-Party Session Establishment (the positive-testable-non-bypassable enforcement-invariant discipline; cited-symbol audit discipline)
+
+extends: []
+supersedes: []
+superseded_by: null
+deprecated_in_favor_of: null
+
+requires-council:
+  - dotnet-architect
+  - security-engineering
+
+co-pre-authorized: false  # substrate-tier contract; writes CIC's REAL financial books across 7 packages — ADR text + the A0 extraction-adapter PR carry mandatory dual-council per H8 / §"Council review"
+---
+
+# ADR 0100 — ERPNext Data Import Contract
+
+**Status:** Accepted — Rev 2; pending dual-council RE-ATTEST GREEN (Rev 1 returned dual-AMBER with **no RED** from both security-engineering + .NET-architect; this Rev 2 folds all ten amendments — five sec-eng (A–E), three .NET-arch (F–H), and the two definitive open-question rulings OQ-A/OQ-B. PR shipyard#182 stays DRAFT until the re-attest lands GREEN). Substrate-tier: the importer writes CIC's REAL financial books (chart, journal entries, invoices, bills, payments, parties) across 7 `blocks-financial-*` / `blocks-people-foundation` packages into a live Sunfish tenant. Dual-council MANDATORY on this ADR text AND on the A0 extraction-adapter PR per §"Council review".
+
+**Date:** 2026-05-29
+
+**Resolves:** The cross-cutting *contract* that all the ERPNext-importer build units (Workstream A: A0–A7 per the post-MVP WBS) depend on. Three per-record idempotent upserters were already shipped piecemeal (`IErpnextAccountImporter`, `IErpnextJournalEntryImporter`, `IErpnextSalesInvoiceImporter`) — and four MORE have landed since the WBS was written (purchase-invoice/AP, party, fiscal-year/period, tax) — **with no ratified contract governing them.** That ungoverned drift has already produced three live divergences (§"Drift the contract resolves"): the tenant-scoping parameter is positioned differently on each interface; the external-reference idempotency key is stored three different ways (a dedicated `ExternalRef` field on `GLAccount`, `Party.Tags`, `Bill.Notes`); and the shipped `ImportAction` enum has no reject/failure variant, so the spec's reject-bin + partial-failure semantics have nowhere to land. This ADR is the ratification that freezes the contract before A1+ orchestration builds on top of seven inconsistent upserters and CIC's real $7.6M-history books go through them.
+
+**Decision (settled at dispatch):** BUILD the one-way ERPNext → Sunfish-native importer now. CIC is the customer; importing CIC's live local ERPNext data into a Sunfish tenant is the G-1 done-condition "the PM business runs on the app" (post-MVP WBS, Workstream A `[ACTIVE]`, per CIC ruling 2026-05-29). This ADR does NOT decide *whether* to build (settled) — it pins the contract the build inherits and resolves the 10 open questions the Stage-03 spec left for ratification.
+
+**Predecessor design + WBS:**
+- `shipyard/_shared/engineering/erpnext-to-anchor-migration-importer-spec.md` (1241 lines; XO 2026-05-16) — the Stage-03 six-pass design + the 10 open questions (§10) this ADR folds. **Its package-name table is STALE** — reconciled to the shipped block names in §"Stale-spec reconciliation".
+- `shipyard/icm/05_implementation-plan/post-mvp-wbs-2026-05-29.md` (ONR; shipyard#181 Workstream A) — the A0–A8 + A-ADR decomposition this ADR is the "A-ADR" of. **Its "3 shipped slices" table is itself now stale** — 7 upserters are on `main` (§A0 cited-symbol audit).
+
+---
+
+## A0 cited-symbol audit
+
+Per the ADR 0093 / 0096 / 0097 / 0099 cited-symbol audit discipline. Classifications: **Existing & verified** (on `shipyard/main` at authoring, path-checked); **Introduced by this contract** (ships in an A-unit PR); **In-flight** (file exists on an OPEN/local branch, not yet on main).
+
+| Symbol / Path | Classification | Verified |
+|---|---|---|
+| `Sunfish.Blocks.FinancialLedger.Migration.ImportOutcome<T>` (`(T Record, ImportAction Action, string? Detail)`) | **Existing — superseded by this contract.** The shipped per-record return shape. Has NO reject/error variant. The OQ-A ruling (C2 Rev 2) evolves it into the DISCRIMINATED UNION `Inserted<T> \| Updated<T> \| Skipped<T> \| Rejected(ImportFailure)`, lifted into ONE owning package (G). | yes — `packages/blocks-financial-ledger/Migration/ImportOutcome.cs` (record; 3 fields). NOTE: each cluster ships its OWN copy (`blocks-financial-ar/Migration/ImportOutcome.cs`, `blocks-financial-ap/...`, `blocks-people-foundation/...`, `blocks-work-projects/...`) — the D7 duplication (5 clusters) the contract collapses to a single owning package (G). |
+| `Sunfish.Blocks.FinancialLedger.Migration.ImportAction` (enum `Inserted \| Updated \| Skipped`) | **Existing** — the shipped per-record outcome marker. **No `Rejected` member, and the contract does NOT add one** (OQ-A ruling: the reject is a first-class DU arm `Rejected(ImportFailure)`, not an enum value — adding an enum member silently weakens exhaustive switches). The enum is subsumed by the DU's three happy-path arms; the A-units decide whether to retire it or retain it as a pure-happy-path marker projected from the non-reject arms. | yes — `packages/blocks-financial-ledger/Migration/ImportAction.cs` |
+| `IErpnextAccountImporter.UpsertFromErpnextAsync(ErpnextAccountSource, ChartOfAccountsId targetChart, ct)` | **Existing** — Pass-1 chart upserter. **Takes NO `TenantId`** (tenant implied by chart). | yes — `packages/blocks-financial-ledger/Migration/IErpnextAccountImporter.cs` |
+| `IErpnextJournalEntryImporter.UpsertFromErpnextAsync(TenantId, ErpnextJournalEntrySource, ChartOfAccountsId, ct)` | **Existing** — Pass-3/4.4 JE upserter. **`TenantId` is the FIRST positional param.** Posted entries immutable → re-import returns `Skipped` (warning detail on field drift). | yes — `packages/blocks-financial-ledger/Migration/IErpnextJournalEntryImporter.cs` |
+| `IErpnextSalesInvoiceImporter.UpsertSalesInvoiceAsync(...)` | **Existing** — Pass-4.1 sales-invoice → `Invoice` upserter. | yes — `packages/blocks-financial-ar/Migration/IErpnextSalesInvoiceImporter.cs` |
+| `IErpnextPurchaseInvoiceImporter.UpsertPurchaseInvoiceAsync(ErpnextPurchaseInvoiceSource, TenantId, ChartOfAccountsId, PartyId vendorPartyId, GLAccountId apAccountId, GLAccountId defaultExpenseAccountId, ct)` | **Existing** (NOT in the WBS's "3 shipped" table) — Pass-4.2 AP/bill upserter. **`TenantId` is SECOND.** Stores `ExternalRef="erpnext:pinv:{Name}"` + `erpnextModified:{Modified}` in `Bill.Notes`. No GL re-post in v1. | yes — `packages/blocks-financial-ap/Migration/IErpnextPurchaseInvoiceImporter.cs` |
+| `IErpnextPartyImporter.UpsertCustomerAsync(ErpnextCustomerSource, TenantId, PartyId actor, ct)` + `UpsertSupplierAsync(...)` | **Existing** (NOT in the WBS table) — Pass-2 party upserter. **`TenantId` is SECOND.** Idempotent on `(Name, Modified)`; stores `externalRef:erpnext:customer:{Name}` + `erpnextModified:{Modified}` in **`Party.Tags`** "so we don't lock the schema shape until the migration-importer convention stabilizes across all clusters." | yes — `packages/blocks-people-foundation/Migration/IErpnextPartyImporter.cs` |
+| `IErpnextFiscalYearImporter` + `IErpnextFiscalPeriodImporter` | **Existing** (NOT in the WBS table) — Pass-2 period upserters. | yes — `packages/blocks-financial-periods/Migration/` |
+| `ErpnextTaxImporter` | **Existing** (NOT in the WBS table) — Pass-2 tax upserter. | yes — `packages/blocks-financial-tax/Migration/ErpnextTaxImporter.cs` |
+| `IErpnextProjectImporter` (external-ref via `Tags`, per its xmldoc the convention the Party importer copied) | **Existing** — non-financial; establishes the `Tags`-based external-ref precedent. | yes — `packages/blocks-work-projects/Migration/IErpnextProjectImporter.cs` |
+| `ErpnextAccountSource` (`Name, Modified, AccountName, AccountNumber?, ParentAccountName?, AccountType?, IsGroup, Disabled`) | **Existing** — the parsed in-memory source record the upserter consumes. xmldoc says "as exported via REST" — but the record is **access-mode-agnostic** (just a DTO); the REST mention is illustrative, not binding (D6). | yes — `packages/blocks-financial-ledger/Migration/ErpnextAccountSource.cs` |
+| `ErpnextJournalEntrySource` (+ `ErpnextJournalEntryLineSource`) | **Existing** — header + lines DTO; `DebitInAccountCurrency`/`CreditInAccountCurrency` are `decimal`; `IsOpening` drives the Pass-3 filter; `DocStatus` int. | yes — `packages/blocks-financial-ledger/Migration/ErpnextJournalEntrySource.cs` |
+| `GLAccount.ExternalRef` (dedicated string field) | **Existing** — the chart upserter's idempotency key storage. The ONLY block-entity with a first-class `ExternalRef` field; Party/Bill use `Tags`/`Notes` instead. | yes — referenced by `IErpnextAccountImporter` xmldoc (`GLAccount.ExternalRef == source.Name`) |
+| `IMustHaveTenant` + `Sunfish.Foundation.Authorization.ITenantContext` (sum-interface facade) | **Existing** — the tenant-scoping contract every importer write MUST satisfy. The facade (NOT `MultiTenancy.ITenantContext`) is the binding surface (ADR 0091 R2; signal-bridge#34 CS0104 trap). | yes — `packages/foundation-authorization/` (ADR 0091 Step 1, on main) |
+| `TenantId.IsSystemSentinel` | **Existing** — rejects `default(TenantId)`, `__system__`, any `__`-prefixed sentinel. The `--target-tenant` validation (H3 / S3) reuses THIS guard. | yes — `packages/foundation-multitenancy/TenantQueryFilterExtensions.cs:159` (ADR 0084; sec-eng C1 2026-05-21) |
+| `fix-erpnext-importer-tenant-positional` (local branch; not on origin) | **In-flight** — an in-progress fix already targeting divergence D1. This ADR ratifies the canonical signature it should converge to (D1) so the fix lands against a frozen contract, not an ad-hoc one. | yes — `git branch` (local; `git log origin/...` empty) |
+| ADR 0088 Path II + §3 clean-room discipline | **Existing** | yes — `docs/adrs/0088-anchor-all-in-one-local-first-runtime.md` |
+| ADR 0091 R2 (facade + tenant cross-check) / ADR 0084 (sentinel) / ADR 0093 (Stage-05) / ADR 0097–0099 (substrate cadence) | **Existing** | yes — `docs/adrs/` (all on main) |
+
+§A0 totals (Rev 2): 18 cited references. Existing & verified: 16. Introduced by this contract: 1 — the reject channel, now ratified (OQ-A) as the DU arm `Rejected(ImportFailure)` carrying `ImportFailure(string ExternalRef, string DocType, string ReasonCode, string? Detail)`, with the canonical `ImportOutcome<T>` DU + `ImportFailure` lifted into ONE owning migration-primitives package (G; the A-units pick the exact name, e.g. `foundation-migration` / `blocks-financial-migration-abstractions`, sitting below every `blocks-*` cluster in the DAG). In-flight: 1 (`fix-erpnext-importer-tenant-positional` branch). Per OQ-B, the first-class indexed `ExternalRef` field on `GLAccount` is generalized fleet-wide (existing precedent; not a new symbol — the A2/A4.2 PRs add nullable indexed `ExternalRef` columns to `Party`/`Bill`).
+
+> **The headline §A0 finding:** the WBS said 3 upserters shipped; **7 are on main** (account, JE, sales-invoice, purchase-invoice/AP, party, period, tax — plus the non-financial project importer). They shipped piecemeal with **no governing contract**, and they have already drifted apart on three contract dimensions (§"Drift the contract resolves"). This is the empirical case for the ADR: not a speculative future need, but live, on-disk inconsistency in code that will write CIC's real books.
+
+---
+
+## Context
+
+ADR 0088 Path II makes Anchor/Sunfish the all-in-one local-first runtime and ERPNext the legacy engine being retired. The cutover requires a one-way importer that reads CIC's live ERPNext data and writes Sunfish-native domain records. The Stage-03 spec (`erpnext-to-anchor-migration-importer-spec.md`) designed a six-pass importer (chart → reference data → opening balances → transactional history → reconciliation linkage → verify) with an idempotency contract, per-pass commit boundaries, a reject-bin, and a Pass-6 reconciliation gate. That spec is a **design doc, not a ratified contract** — it explicitly defers 10 open questions (§10) "for CO/cob ratification before Stage 06 build."
+
+Meanwhile, build proceeded ahead of ratification: seven per-record upserters shipped onto `main` over the cohort waves, each authored in isolation. The result is exactly the divergence a contract exists to prevent — and because the next build units (A1–A7) are *orchestration over these upserters*, the orchestrator would otherwise have to accommodate three inconsistent calling conventions, an idempotency-key storage strategy that differs per entity, and a per-record outcome type that cannot express failure. CIC's real financial history ($7.6M of Wave-migrated accounting across 4 LLCs per the spec §1.1) would be written through that inconsistency.
+
+This is the moment to freeze the contract: the upserters exist (so the contract is grounded in shipped reality, not speculation), but the orchestration does not (so freezing now costs a small convergence refactor, not a rewrite of a working importer).
+
+---
+
+## Drift the contract resolves (the empirical case)
+
+Three live divergences on `main`, each a contract decision this ADR settles:
+
+**D1 — Tenant-scoping parameter is positioned three different ways.**
+- `IErpnextAccountImporter.UpsertFromErpnextAsync(source, ChartOfAccountsId targetChart, ct)` — **no `TenantId`** (tenant implied by the chart).
+- `IErpnextJournalEntryImporter.UpsertFromErpnextAsync(TenantId, source, ChartOfAccountsId, ct)` — `TenantId` **first**.
+- `IErpnextPartyImporter.UpsertCustomerAsync(source, TenantId, PartyId actor, ct)` and `IErpnextPurchaseInvoiceImporter.UpsertPurchaseInvoiceAsync(source, TenantId, ...)` — `TenantId` **second**.
+
+A local `fix-erpnext-importer-tenant-positional` branch is already trying to fix this — but without a ratified target it will just pick one convention by author preference. The contract names the canonical signature (D1 decision) so the fix converges deterministically and the orchestrator (A7) holds the tenant once and threads it identically into every pass.
+
+**D2 — The idempotency external-reference key is stored three ways.**
+- `GLAccount` — a dedicated first-class `ExternalRef` string field.
+- `Party` — two `Tags` entries (`externalRef:erpnext:customer:{Name}` + `erpnextModified:{Modified}`), with an explicit xmldoc rationale: "so we don't lock the schema shape until the migration-importer convention stabilizes across all clusters."
+- `Bill` — `ExternalRef="erpnext:pinv:{Name}"` plus `erpnextModified:{Modified}` smuggled into `Bill.Notes`.
+
+The Party importer's xmldoc literally asks for this ADR ("until the migration-importer convention stabilizes"). The contract stabilizes it (D2 decision).
+
+**D3 — `ImportAction` has no failure variant, so partial-failure has nowhere to land.**
+The shipped `ImportAction` enum is `Inserted | Updated | Skipped`. The spec's reject-bin (§6.3) and partial-failure semantics (§6.2/§6.4) require a per-record "this record could not be imported, here's why" outcome. The shipped `ImportOutcome<T>` is `(T Record, ImportAction, string? Detail)` — it cannot represent a record that produced NO local record. The contract adds the reject channel (D2-failure decision) without breaking the three happy-path outcomes the orchestrators already consume.
+
+---
+
+## Stale-spec reconciliation (build against THESE names)
+
+The Stage-03 spec predates the ADR 0098 block-naming wave and the cluster consolidations. Build the importer against the shipped names, not the spec's:
+
+| Spec says (stale) | Shipped reality (build against) |
+|---|---|
+| `blocks-financial-chart` | `blocks-financial-ledger` (chart folded in; `GLAccount` + `ChartOfAccountsId` live here) |
+| `blocks-people-*` (plural cluster) | `blocks-people-foundation` (singular; `Party` / `PartyRole` / `Customer` / `Vendor`) |
+| `blocks-financial-budget` | NOT shipped — budget import stays deferred (out of A-scope) |
+| `blocks-property-*` | `blocks-properties` + `blocks-leases` (CONDITIONAL — only if CIC's instance has custom DocTypes; H7) |
+| `externalRef: {source, id, version}` 3-field shape (spec §5.1) | shipped reality is a SINGLE natural key `(Name, Modified)`; `source` is implicitly `"erpnext"`. The contract ratifies the simpler shipped shape (D2), NOT the spec's 3-field shape. |
+| `anchor import erpnext` CLI verb | keep the verb; the host binary is the Sunfish/Anchor runtime CLI (A7) |
+
+---
+
+## Decision
+
+Ratify the nine contract clauses below (**C1–C9**). Each names a positive, testable, non-bypassable enforcement invariant — not just an obligation on author memory — per the ADR 0099 sec-eng lesson (an obligation the author "must remember" is a CSRF-exposed `/auth/login` waiting to happen; the contract must make violation impossible, or detectable at startup / by an architecture test). Rev 2 lifts five Rev-1 obligations to provable invariants (the dual-council fold A–H + the OQ-A/OQ-B rulings; see §"Revision 2 fold").
+
+### C1 — Idempotency / re-runnability (RATIFIES spec §5; resolves OQ-8)
+
+**Decision.** Every per-record upsert is idempotent on the natural key **`(externalRef, Modified)`** where `externalRef` is the ERPNext `name` (stable, DocType-scoped-unique) and `Modified` is the ERPNext `modified` timestamp string (opaque, lexicographically-ordered version key). Re-run semantics:
+- absent → `Inserted`;
+- present and `Modified` equal → `Skipped` (no SQL UPDATE issued);
+- present and source `Modified` **strictly greater** → `Updated`;
+- present and source `Modified` **strictly less** → `Skipped` + warning detail (clock-drift / stale re-export guard);
+- present and the local record is **immutable** (a posted `JournalEntry`) → `Skipped` + warning detail naming the drifted field — **never** a silent overwrite of posted financial state.
+
+**Storage of `externalRef`** is canonicalized by C7 (D2). **Deletion is never inferred** from a missing source record (spec §5.3); the key-set is monotonic across re-runs.
+
+**Enforcement invariant (testable).** Acceptance test C-IDEM: run the full importer twice against the same source → the second run produces **zero** `Inserted`/`Updated` outcomes (all `Skipped`); flip exactly one source record's `Modified` forward → exactly one `Updated`; add one source record → exactly one `Inserted` (spec §7.3 C1/C2/C3). A partial import that halted at pass N is resumable via `--from-pass N` (C2) and produces no double-post because passes 1..N-1 re-run as all-`Skipped`.
+
+### C2 — Partial-failure semantics (RATIFIES spec §6.2/§6.4; resolves OQ via the reject channel)
+
+**Decision — commit boundaries per pass** (the spec §6.2 table, ratified):
+
+| Pass | Commit boundary | Failure semantics |
+|---|---|---|
+| 1 — Chart | single transaction over all accounts | roll back; no accounts persisted (the tree is all-or-nothing) |
+| 2 — Reference data | one transaction per data family (periods / tax / parties / cost-centers) | a sub-pass failure leaves earlier sub-passes intact |
+| 3 — Opening balances | per-JE transaction | per-record reject; pass completes if any opening JE succeeds |
+| 4 — Transactional | per-record transaction per sub-pass | per-record reject; sub-pass completes |
+| 5 — Reconciliation linkage | single transaction | roll back; no links persisted |
+| 6 — Verify | **no writes** (read-only) | a failed invariant HALTS + surfaces the report |
+
+**Decision — the reject channel as a DISCRIMINATED UNION (resolves D3; OQ-A ruling, .NET-arch definitive, sec-eng concurring).** The per-record outcome is a discriminated union over FOUR outcomes — `ImportOutcome<T> = Inserted<T> | Updated<T> | Skipped<T> | Rejected(ImportFailure)` — consumed by the orchestrator via an **exhaustive `switch` expression**. The three happy-path arms preserve the existing `Inserted`/`Updated`/`Skipped` intent exactly; the `Rejected` arm carries `ImportFailure(string ExternalRef, string DocType, string ReasonCode, string? Detail)` and **no `T`** (a rejected record produced no local entity — exactly the representational gap D3 identified). **`ImportAction` is NOT extended with a `Rejected` member** — adding an enum member silently weakens exhaustive switches that lack a `default`; the reject is a first-class DU arm, not an enum value and not an exception.
+
+*Why the DU, not the exception channel (OQ-A ruling rationale).* Rev 1 floated a typed `ImportRejectException` caught by the orchestrator into an `ImportFailure`, recommended on a "zero touch to the seven shipped happy-path switches" basis. That advantage is **largely illusory** — the contract ALREADY mandates touching all seven upserters for D1 (TenantId-first signature, C3) and D2/C7 (external-ref convergence), and ONR folds those into "the A-unit PRs that already touch each importer"; evolving `ImportOutcome<T>` into a DU rides the same convergence wave at marginal cost. Three decisive factors point to the DU: (1) it is the **same compiler-enforced non-bypassability** discipline C1–C9 are each built on — a DU return makes a reject a value the orchestrator cannot structurally ignore (C# exhaustiveness analysis turns "you forgot to handle the reject" into a COMPILE error, not a runtime silent-drop); (2) the exception channel's failure mode — a too-broad `catch (Exception)` that swallows `ImportRejectException` into "log and continue" WITHOUT writing the `ImportFailure` row — is precisely the "silent drop = a financial record vanished from CIC's books with no reject-bin entry" outcome C2/C5 exist to prevent, reproduced at the error-handling layer; (3) the DU's cost is a loud, immediate COMPILE error at build time (the friendliest failure), not the runtime silent-drop we actually fear. An upserter MAY throw internally and convert at its own boundary, but the **contract surface the orchestrator consumes MUST be the DU value, never a propagating exception** — which closes the sec-eng (D) silent-swallow vector entirely (no catch exists in the contract path).
+
+**Decision — single owning package for the outcome types (resolves D7; .NET-arch (G)).** The canonical `ImportOutcome<T>` DU + `ImportFailure` (+ `ImportAction` if retained) live in exactly ONE owning migration-primitives package — currently copy-pasted into 5 clusters (ledger / ar / ap / people-foundation / work-projects). The owning package sits **below every `blocks-*` cluster in the dependency DAG** (a foundation-tier or dedicated `foundation-migration` / `blocks-financial-migration-abstractions` package; ONR/Engineer pick the exact name) so each cluster's importer references the shared type UP the DAG with no peer-to-peer edge (financial-ledger → ar → ap, people-foundation, work-projects are peers; none may depend on a peer just to see the outcome type).
+
+**Decision — record-census-conservation invariant (.NET-arch (H)).** An upserter has **exactly THREE legitimate exits** for a single source record: a happy-path arm (`Inserted`/`Updated`/`Skipped`), the `Rejected` arm (recorded in the reject bin), or a pass-aborting HALT (transactional passes 1/5, or a C5 hard-halt like `UnknownAccountType`). There is NO fourth exit — no return-null, no swallow, no continue-without-recording. With the DU this is nearly automatic; the contract states it so the A-units + test-eng have a positive target: `count(happy-path) + count(Rejected) + count(halted-before) == count(source records)`. No financial record vanishes without a corresponding report line (the orchestration-level expression of C5).
+
+**Decision — resume point.** `--from-pass N` (1..6) resumes a halted run; the C1 idempotency contract guarantees passes 1..N-1 re-run as all-`Skipped`. No torn/orphaned financial state under the DU: posted JEs are immutable (C1); a pass that rolls back (1/5) leaves nothing; a per-record pass (3/4) leaves only successfully-committed records (each `Inserted`/`Updated`/`Skipped` already persisted) and a `Rejected` record produced no local entity by construction (`Rejected` carries no `T`), so a resume re-runs the pass, idempotently `Skipped`s the committed records, and re-attempts the previously-rejected ones. (Closes H3 under the DU ruling.)
+
+**Enforcement invariant (testable).** Acceptance test C-REJECT: a source with one deliberately-broken record (e.g., a JE referencing an unknown account) produces exactly one `Rejected(ImportFailure)` with a structured `ReasonCode`, the pass completes (for per-record passes) or halts cleanly with zero partial writes (for transactional passes 1/5), and a resume run re-imports only the previously-rejected/absent records. **C-CENSUS:** for a fixture where every record is either importable or deliberately-broken, `count(Inserted)+count(Updated)+count(Skipped)+count(Rejected)+count(halted-before) == count(source records)` — the record census is conserved; no record vanishes. **Arch-tests:** (G-arch) exactly ONE definition of `ImportOutcome<T>`/`ImportFailure` exists fleet-wide (no per-cluster copies) and the dependency graph from the owning package to the importers is acyclic; (DU-arch) the orchestrator consumes the outcome via an exhaustive `switch` expression and the pass loop contains no broad `catch (Exception)` that does not re-throw or record a reject (closes sec-eng (D)).
+
+### C3 — Tenant-scoping invariant (RATIFIES the directive's hardest requirement; resolves D1)
+
+**Decision — canonical signature.** Every importer write is tenant-scoped via `IMustHaveTenant`, bound through the **`Sunfish.Foundation.Authorization.ITenantContext` sum-interface facade** — **NOT** `Sunfish.Foundation.MultiTenancy.ITenantContext` (the narrowed variant; mixing them is the signal-bridge#34 CS0104 build-break + the consumption-qualification trap). The canonical upserter signature places **`TenantId` first** (the convention `IErpnextJournalEntryImporter` already uses): `Upsert…Async(TenantId tenant, <ErpnextXSource> source, <cross-cluster ids…>, CancellationToken ct)`. The account upserter (D1, no `TenantId` today) gains the leading `TenantId`; the party/AP upserters (D1, `TenantId` second) move it first. The `fix-erpnext-importer-tenant-positional` branch converges to this.
+
+**Decision — one tenant per run.** The importer targets **exactly one** Sunfish tenant per invocation (`--target-tenant <id>`). The CLI validates the target with `TenantId.IsSystemSentinel` and **fails closed** if the target is `default`, `__system__`, or any `__`-prefixed sentinel (reuses the ADR 0084 guard, not a fresh check). No cross-tenant bleed: the orchestrator holds the single resolved `TenantId` and threads the identical value into every upsert call; no pass may derive a tenant from source data.
+
+**Enforcement invariant (testable + startup).** Acceptance test C-TENANT: (a) every imported row's `TenantId` equals the `--target-tenant`; (b) an architecture test asserts every `Upsert…Async` signature in `*/Migration/` takes `TenantId` as the first parameter (mechanical, prevents D1 regression); (c) a `--target-tenant` of any sentinel value fails the CLI pre-flight with a clear error before any pass runs. The DbContext's existing tenant-query-filter (ADR 0091/0092) provides the data-plane backstop.
+
+**Decision — the tenant is USED, not merely PRESENT in the signature (sec-eng (C) + .NET-arch (F); closes H1's RED condition).** A `TenantId`-first signature proves the SHAPE, not the BEHAVIOR — a signature can take `TenantId` first and still bind a row to a tenant resolved from `source.Company` or a stale ambient `ITenantContext`, and test (a) (every row scoped to `--target-tenant`) would not catch it in a single-tenant fixture where the derived tenant coincides with the target. The contract therefore makes "no pass DERIVES a tenant from source data" (the H1 RED condition) a standing provable invariant, not an author-memory obligation, via two additions to C-TENANT:
+- **(d) negative test:** an import run with `--target-tenant T` against a source whose records carry a DIFFERENT embedded company/tenant hint (e.g. a `source.Company` naming another LLC) produces rows ALL scoped to `T` — the source hint is ignored — proving the tenant is threaded from the CLI, not derived from source data.
+- **(e) architecture test (or analyzer):** no type under `*/Migration/` reads a tenant-resolution surface (an `ITenantContext` getter, or a `source.Company → TenantId` lookup) inside an upsert path — the effective tenant arrives ONLY as the threaded first parameter. This converts H1's RED from "we reviewed the code and didn't see it" into a build-time standing guarantee.
+
+### C4 — Read-only clean-room source posture (RATIFIES spec §1.2 / §9; resolves OQ-6)
+
+**Decision.** The importer is **strictly read-only against the ERPNext source** and never writes back (spec §1.2). Extraction reads ERPNext's **data format only** — a public data-interchange contract (DocType field labels as users see them + public API docs) — NOT Frappe/ERPNext controllers, validators, workflow code, or DocType-definition JSON (spec §9.1/§9.2). The v1 source is a **static MariaDB dump** (C6 Rev 2); the export-production step is a **CIC one-time task with documented commands**; the importer does NOT SSH into, connect to, or drive a live Frappe runtime (spec §10.6 (a), recommended; (b) rejected). Source-header attribution names ERPNext + Frappe + GPLv3 + "format-reference-only; no code derived" (spec §9.5).
+
+**Read-only is uniformly PROVABLE, because v1 has exactly one access mode (sec-eng (A) won't-waive; closes the spec §1.2 contradiction).** Rev 1's C-CLEANROOM read-only invariant ("opens the dump read-only and issues only `SELECT`") was provable for the dump mode but had **no analogue** for the C6 mode-(a) REST path — an HTTP client can issue `POST`/`PUT`/`DELETE`/`PATCH` as trivially as `GET`, so a REST adapter's read-only posture is merely ASSERTED, not enforced. Worse, the REST mode reintroduces exactly the live-Frappe coupling spec §1.2 EXPLICITLY designed out ("No live connection to a running Frappe / ERPNext instance. The importer consumes a static export directory."), plus a long-lived authenticated credential against CIC's production books-of-record. Rev 2 therefore collapses the v1 access surface to the **MariaDB dump only** (C6), for which `SELECT`-only is provable as written; REST/CSV are deferred as additive future modes behind the unchanged A0 seam (.NET-arch concurs — the seam survives and is tightened; §"sec-eng amendment (A) A0-seam assessment"). The clean-room read-only posture — the contract's central security promise against CIC's production books — is now provable across EVERY blessed mode because there is exactly one, and it is the provable one.
+
+**Enforcement invariant (testable).** Acceptance test C-CLEANROOM: (a) the extraction adapter exposes only read operations (no write/update/delete method against the source); (b) a license/attribution header is present on the extraction adapter; (c) the MariaDB-dump adapter (the sole v1 mode, C6) opens the dump read-only and issues only `SELECT` (no DDL/DML against the source DB); (d) there is NO live-Frappe connection surface in v1 — an arch-test asserts no `*/Migration/` extraction type opens an HTTP/REST client or a network connection to a Frappe/ERPNext endpoint. sec-eng owns this review at the A0 PR.
+
+### C5 — Mapping authority — explicit, versioned, fail-loud (resolves OQ-1)
+
+**Decision.** The ERPNext-DocType → Sunfish-block-entity mapping is **explicit and versioned** (the spec §3 tables are the canonical v1 mapping; the importer pins them in code, derived from public docs / observed export shape per C4). **Unmapped or unknown DocTypes / enum values FAIL LOUD — never silently dropped:**
+- an unknown `account_type` after the parent-walk → HALT Pass 1 (`UnknownAccountType`), not a guess;
+- an unknown `voucher_type` → import as `Manual` **with a warning surfaced in the Pass-6 report** (a known, bounded fallback — not silent);
+- a DocType file the importer doesn't understand → logged + counted in the report's `_unmapped/` section (spec §2.2), not an error, but VISIBLE;
+- a custom `Property`/`Lease` DocType present-or-absent is a CIC pre-flight input (H7), not a runtime guess.
+
+**Enforcement invariant (testable).** Acceptance test C-MAP: a source with an unmappable `account_type` halts Pass 1 with a structured reject (spec §7.4 D1-class) and zero accounts persisted; an unknown `voucher_type` imports as `Manual` and appears in the report's warnings section; a DocType outside the v1 mapping appears in the report's unmapped section with a non-zero count. No code path drops a financial record without a corresponding report line.
+
+### C6 — Access-mode seam, DUMP-ONLY for v1 (resolves OQ-6; sec-eng (A) won't-waive + .NET-arch concur)
+
+**Decision.** The contract preserves the **access-mode-agnostic SEAM** but ships exactly ONE access mode in v1. The shipped `Erpnext*Source` records are plain DTOs (the "exported via REST" xmldoc is illustrative, not binding — D6 reconciliation); the A0 extraction adapter is the seam that produces those DTOs. **v1 ships the `MariaDB-dump` adapter as the SOLE mode** — it matches the spec's static-input read-only clean-room design (§1.2/§9), is offline + deterministic + re-runnable (best fit for the C1 idempotency contract + dry-run), avoids REST pagination/rate-limit complexity, makes the C4 read-only invariant uniformly provable (`SELECT`-only), and is the cleanest long-term option (per `feedback_prefer_cleanest_long_term_option`). The MariaDB-dump credential is consumed from a CLI flag / env var and never echoed (C9).
+
+**REST and CSV are DEFERRED, not blessed (sec-eng (A) won't-waive).** Rev 1 listed three co-equal modes — (a) ERPNext REST API, (b) dump, (c) per-DocType CSV. The REST mode reintroduces the live-Frappe connection spec §1.2 explicitly excludes and has no SQL-level read-only guarantee (C4), so v1 does NOT bless it. REST/CSV are deferred as ADDITIVE future modes behind the **unchanged** A0 seam — adding them later is the additive operation the seam was built for (§"Reversibility"), and a future amendment will extend the seam with a capability/access-mode descriptor so the orchestrator can record WHICH mode produced a run (migration-report provenance + the C9 per-mode credential-handling difference), rather than silently substituting (.NET-arch (A0-seam) forward-hook). H-CIC-1 collapses to a dump-availability confirmation, not a mode selection.
+
+**The seam is PRESERVED and TIGHTENED, not removed (.NET-arch concur).** Shipping one concrete adapter behind the seam does not weaken the boundary — it just means one implementation exists today, which is in fact cleaner (a single set of error modes, a single deterministic test surface, no premature-generalization risk of three half-tested adapters). The C6 enforcement invariant — upserters + orchestrator depend only on the `Erpnext*Source` DTOs, never a mode-specific type — is exactly validated by being designed for N modes while shipping 1.
+
+**Enforcement invariant (testable).** Acceptance test C-MODE: the upserters + orchestrator depend ONLY on the `Erpnext*Source` DTOs, never on a mode-specific type; the DTOs carry no access-mode-specific field; an arch-test asserts the v1 build contains exactly ONE extraction adapter implementation (the MariaDB-dump adapter) and no REST/HTTP-client extraction surface (reinforces C-CLEANROOM (d)). A future REST/CSV adapter added behind the seam requires zero changes to A1–A6.
+
+### C7 — Canonical external-ref storage — FIRST-CLASS INDEXED FIELD (resolves D2; OQ-B ruling, .NET-arch definitive)
+
+**Decision (OQ-B ruling, .NET-arch definitive — overrides Rev 1's `Tags` recommendation).** The canonical external-ref home is a **FIRST-CLASS, INDEXED `ExternalRef` string field** on each importable block-entity — generalizing the proven `GLAccount.ExternalRef` precedent fleet-wide — NOT a `Tags` token and NEVER a user-facing free-text field. Store the natural key as the field value (`erpnext:<doctype>:<name>`); store `Modified` as a companion indexed `ExternalRefVersion` field or as part of a composite (the A-units decide the exact column shape, but the key MUST be a queryable indexed column). `Tags` reverts to its intended role (user/domain classification), decoupled from machine idempotency keys.
+
+*Why the field, not Tags (OQ-B ruling rationale).* C1 makes the external-ref a per-record **idempotency LOOKUP KEY, not metadata** — every one of CIC's ~10K source records triggers a "does a local record with this `(externalRef, Modified)` already exist?" point lookup on the hot path of the entire import, under C5's <5-min performance budget (spec §10.10). The right substrate for a high-selectivity point-lookup key is an INDEXED column (O(log n), DB-enforced uniqueness). `Tags` is an unindexed string-collection storing free-form tokens; a lookup against it is a substring/`LIKE`-pattern scan degrading toward O(n) per lookup → O(n²) across the import — the wrong data structure. The ONE entity already using a first-class field (`GLAccount`) is the cleanest of the three D2 variants; we converge TO the best variant, not away from it. The Party importer's xmldoc explicitly asked for this ratification ("so we don't lock the schema shape until the migration-importer convention stabilizes") — this ADR IS that stabilization, so it ratifies the durable shape, not the `Tags` hedge. Per `feedback_prefer_cleanest_long_term_option`, the +5-migrations authoring cost is the acceptable price of the substrate-correct option. The field is also immune to sec-eng's `Bill.Notes` concern (a user can silently mutate a key in editable free text and break re-run safety) MORE strongly than `Tags` would — a first-class field is neither user-facing nor user-editable and carries a uniqueness constraint.
+
+*Convergence (folds into the A-unit PRs that already touch each importer).* `Bill.Notes` external-ref → `Bill.ExternalRef` in the A4.2 PR; `Party.Tags` external-ref → `Party.ExternalRef` in the A2 PR; `GLAccount.ExternalRef` already conforms (the precedent). Each migration is additive and forward-only (a new nullable indexed `ExternalRef` column + backfill from the existing `Tags`/`Notes` token where present; the C1 resolver tolerates both during transition) — no separate rework wave.
+
+**Enforcement invariant (testable).** Acceptance test C-EXTREF: every imported entity is locatable by `(doctype, name)` via a single shared `ExternalRefResolver` that resolves against the indexed `ExternalRef` field; no importer stores its idempotency key in a `Tags` token or a user-facing free-text field (`Notes`/`Memo`/`Description`); an architecture test asserts (a) the resolver covers all seven (+future) importers and resolves via the field, and (b) each importable block-entity exposes an indexed `ExternalRef` column.
+
+### C8 — Reconcile / verify contract — the correctness gate (RATIFIES spec §4.6 / §7.2; resolves OQ-5)
+
+**Decision.** Pass 6 is the verifiable PASS/FAIL gate that proves the import preserved CIC's books, **read-only** (no writes; the report is the only output):
+- **Trial balance** per chart: `|Σ debit − Σ credit| == 0` — **hard zero** (integer-minor-units arithmetic makes this exact when every line balances; a non-zero is a defect halt, not a tolerance). (spec §7.2 B1)
+- **Per-account balance diff** vs a CIC-produced `gl-balances-snapshot.json` — threshold **$0.01** per account. (B-class)
+- **AR / AP aging diff** vs CIC-produced `ar-aging-snapshot.json` / `ap-aging-snapshot.json` — threshold **$0.01** per customer/vendor per bucket. (B2/B3/B6)
+- **Per-DocType count reconciliation** — every `docstatus==1` source record of a mapped DocType has exactly one corresponding local record (spec §7.1 A1-A4).
+- **Wave-history total** — Σ opening balances across all LLCs within **$1.00** (looser, acknowledging the prior Wave→ERPNext migration's own rounding; resolves OQ-5: keep $1.00, CIC can tighten via the snapshot). (B5)
+- **Output** — `migration-report.md` with the seven sections (run summary, trial-balance, AR/AP aging, per-account diff, reject-bin, unapplied payments, cost-center resolution; spec §4.6 step 6).
+
+**Snapshot-absent is a LOUD, explicitly-acknowledged override — never a silent self-relaxation (sec-eng (E)).** Trial-balance-ties-to-zero proves the import is INTERNALLY balanced; it does NOT prove the import matches CIC's SOURCE books (a sign flip that balances, or a subset that ties, passes the hard-zero invariant). The per-account / AR-aging / AP-aging cross-check against CIC's snapshots is the ONLY thing that proves "the new books equal the old books" — so C8 must not let that check silently downgrade to advisory. Rev 2 makes the degraded mode explicit:
+- **Default (no snapshots, no flag): Pass 6 HALTS** with `"supply snapshots or pass --no-reconcile-snapshots to acknowledge an internally-consistent-but-not-source-verified import"`. The snapshot-absent path does NOT silently PASS.
+- **`--no-reconcile-snapshots` (explicit operator acknowledgment):** Pass 6 runs the trial-balance hard-zero invariant + per-DocType count reconciliation, PASSES, and `migration-report.md` carries a prominent banner `"SOURCE-RECONCILIATION: NOT PERFORMED (no snapshots supplied)"` CIC must see before declaring the import done.
+- **Snapshots present:** the full per-account + AR/AP-aging cross-check runs; a trial-balance failure is a **hard halt**; an aging diff over threshold halts unless `--allow-aging-drift` (the diff is still recorded).
+
+This keeps C8 a real PASS/FAIL gate rather than one that silently self-relaxes — the same "fail-closed unless explicitly and visibly overridden" discipline as ADR 0099 amendment (A). (Flag to CIC: for a real-books cutover, supplying the gl-balances / ar-aging / ap-aging snapshots is strongly recommended — the trial-balance-only path verifies arithmetic, not fidelity.)
+
+**Enforcement invariant (testable).** Acceptance test C-VERIFY: post-import trial balance is exactly zero for each chart; with snapshots present, per-account + aging diffs are within threshold or the run halted; with snapshots ABSENT and no flag, Pass 6 HALTS (does not PASS); with `--no-reconcile-snapshots`, Pass 6 PASSES and the report carries the "SOURCE-RECONCILIATION: NOT PERFORMED" banner; `migration-report.md` exists with all seven sections; the per-DocType count section shows zero unaccounted `docstatus==1` records. This is the gate that lets CIC declare the import done.
+
+### C9 — No-PII / no-secret logging (cross-cutting; sec-eng)
+
+**Decision.** Import logs (stderr, the run-scoped `import.log`, and the `migration_audit_log` table) **never emit credential, PII, or financial-record CONTENTS**. They emit: DocType, `externalRef` (the ERPNext `name` — an opaque id, not PII), outcome (`Inserted`/`Updated`/`Skipped`/`Rejected`), reject `ReasonCode`, pass/run id, counts, and diff *magnitudes* in the report. They do NOT emit: ERPNext API keys / DB-dump credentials (C4/C6), party names / emails / phones (`Party` PII), or per-line monetary amounts in the log stream (amounts appear only as aggregate diffs in the report). The MariaDB-dump credential (C6) is consumed from a CLI flag / env var and never echoed.
+
+**The reject-bin stores an ALLOWLISTED STRUCTURED PROJECTION — never the raw payload (sec-eng (B) won't-waive; reconciles the spec §6.3 schema this ADR folds).** Rev 1's C-LOG asserted "no content blob beyond a bounded structured `reject_detail`," but the spec §6.3 schema it folds declares `reject_detail TEXT -- nullable; JSON blob with payload` — the OPPOSITE. For a rejected `Sales Invoice`/`Purchase Invoice`/`Journal Entry`, that payload IS the per-line monetary contents C9 forbids; for a rejected `Customer`/`Supplier`, it IS the `Party` PII (name/email/phone) C9 forbids — and the reject path is precisely where a record's full contents would otherwise get captured, persisting to the `migration_audit_log` table that travels with the run. Rev 2 reconciles the schema: `reject_detail` is a STRUCTURED, ALLOWLISTED projection — `{reasonCode, docType, externalRef, fieldName?, ruleViolated?}` — and NEVER the raw source payload. Positive invariant: *the reject-bin captures only what is needed to FIND and RE-EXPORT the failed record (DocType + opaque `externalRef` + structured reason), never its contents; a serializer that emits the raw `Erpnext*Source` into `reject_detail` is forbidden.* The spec §6.3 column comment is amended accordingly (`reject_detail` is an allowlisted-projection JSON, not a payload blob).
+
+**Enforcement invariant (testable).** Acceptance test C-LOG: a log-capture test asserts no credential pattern, no `Party.Email`/`Phone`/`Name` value, and no per-record monetary amount appears in the captured log/audit output for a fixture import; the audit row schema (spec §6.3) carries only `source_id` + `outcome` + the allowlisted-projection `reject_detail` columns, never a raw-payload blob. **C-LOG-REJECT (the dangerous-path test, not the happy path):** a fixture import with a deliberately-REJECTED party AND a deliberately-rejected invoice asserts the persisted `migration_audit_log` `reject_detail` row contains a structured reason code + safe identifiers (DocType + opaque `externalRef`) but NOT the party's email/phone/name and NOT the invoice's line amounts. (The Rev-1 happy-path-only C-LOG never exercised the `reject_detail` write — the actual PII-leak vector — so it would pass while the leak shipped; this mirrors the ADR 0099 amendment-A discipline: test the dangerous path.) sec-eng owns this at the A0 + A2.1 (party PII; the reject-path test lands here) PRs.
+
+---
+
+## Open questions for council / CIC (folded the spec's §10; flagged the residue)
+
+The spec's 10 open questions (§10) are RESOLVED into the clauses above where ONR has authority, and surfaced to council/CIC where they need a ruling:
+
+| Spec OQ | Disposition |
+|---|---|
+| §10.1 custom `Property`/`Lease` DocTypes present? | **CIC input** (H-CIC-2 / H7). A5b conditional on the answer. |
+| §10.2 multi-currency v1 posture | **RESOLVED** — reject + log non-base-currency records (spec §3.5); defer multi-currency to v2. CIC's 4 LLCs are USD (guardrail, not common path). |
+| §10.3 payment-application heuristic ±7 days | **RESOLVED** — ship ±7 days default + `--date-tolerance N` flag. |
+| §10.4 cost-center ambiguity strict flag | **RESOLVED** — add `--cost-center-strict` (default off; falls through to `Classification`). |
+| §10.5 Wave-history $1.00 tolerance | **RESOLVED in C8** — keep $1.00; CIC tightens via snapshot if desired. |
+| §10.6 export-script ownership | **RESOLVED in C4** — CIC one-time documented task; importer never drives live Frappe. |
+| §10.7 `rent-collection.Invoice` wrapper | **RESOLVED** — importer writes canonical financial-AR `Invoice` directly; does NOT create wrapper records (spec §12). |
+| §10.8 opening-balance source-kind | **RESOLVED** — tag every `is_opening` JE `sourceKind=Migration`; `entryDate` disambiguates waves. |
+| §10.9 reject-bin remediation flow | **DEFERRED** — `review-rejects` sub-command is Phase-1.5 polish, out of A-scope (flag, not build). |
+| §10.10 performance budget | **RESOLVED** — <5 min for CIC's ~10K-record portfolio; profile during build, surface any pass >30s. |
+
+**Council open questions — RESOLVED by definitive dual-council rulings (Rev 2):**
+
+- **OQ-A (.NET-arch, definitive; sec-eng concurring) — RESOLVED: DISCRIMINATED UNION.** `ImportOutcome<T> = Inserted<T> | Updated<T> | Skipped<T> | Rejected(ImportFailure)`, consumed via an exhaustive `switch` expression; `ImportAction` is NOT extended with a `Rejected` member. The Rev-1 exception-channel "zero-touch" advantage was illusory (the contract already touches all seven upserters for D1/D2/C7); the DU is the same compiler-enforced non-bypassability discipline C1–C9 are built on, and the exception channel's forgotten/over-broad-catch failure mode is exactly the silent financial-record drop C2/C5 prevent. Folded into C2; the single owning package is folded as (G).
+- **OQ-B (.NET-arch, definitive) — RESOLVED: FIRST-CLASS INDEXED `ExternalRef` FIELD.** Generalize the `GLAccount.ExternalRef` precedent fleet-wide; an idempotency lookup key hit once per source record across CIC's ~10K-record import is a query key → indexed column, not an unindexed `Tags` token scanned with `LIKE`. The A2/A4.2 PRs migrate `Party.Tags`/`Bill.Notes` external-refs to indexed `ExternalRef` fields. Folded into C7.
+
+**Residual questions requiring a CIC ruling (still open):**
+
+- **H-CIC-1 (CIC).** Access mode (C6) — Rev 2 collapses this from a 3-way mode selection to a **dump-availability confirmation**: confirm CIC can produce a static MariaDB dump of the ERPNext instance (the sole v1 mode). REST/CSV are deferred future modes, not a v1 choice.
+- **H-CIC-2 (CIC).** DocType inventory: custom `Property`/`Lease` present? which LLCs are charts? multi-currency present?
+- **H-CIC-3 (CIC).** Target Sunfish tenant id for the import.
+- **H-CIC-4 (CIC, strongly recommended for a real-books cutover).** Reconcile snapshots (gl-balances / ar-aging / ap-aging) — without them, Pass 6 HALTS unless `--no-reconcile-snapshots` is explicitly passed (C8 Rev 2); the trial-balance-only path verifies arithmetic, not source fidelity.
+
+---
+
+## Stage-05 adversarial review — halt conditions (dual-council MANDATORY)
+
+Per ADR 0093 (Stage-05 Adversarial Review Protocol). This contract is substrate-tier and writes CIC's real financial books → **dual-council MANDATORY (security-engineering + .NET-architect)** on this ADR text AND on the A0 extraction-adapter PR (the credential/clean-room surface). The following are the ADR-text halt conditions the councils MUST clear:
+
+- **H1 (sec-eng + .NET-arch).** C3 tenant-scope — **CLEARED on the structure (Rev 1 GREEN-attested) + CLEARED-on-fold for the RED condition.** Both councils attested the `TenantId`-first signature, the `Authorization` facade binding (not `MultiTenancy`), and the `IsSystemSentinel` fail-closed `--target-tenant` validation. "A tenant derived from source data = RED" is converted from a review-time check to a standing provable invariant by C3 Rev 2 (sec-eng (C) negative test + .NET-arch (F) tenant-USED arch-test).
+- **H2 (.NET-arch).** C1 idempotency — **CLEARED.** Posted-`JournalEntry` immutability is the correct primitive (re-import returns `Skipped`, never overwrites); ISO-8601 `(externalRef, Modified)` lexicographic == temporal ordering is sound (no locale/format edge under fixed-width ISO-8601).
+- **H3 (.NET-arch).** C2 partial-failure — **CLEARED under the OQ-A DU ruling.** The per-pass commit-boundary table is correct (transactional 1/5 vs per-record 3/4); the DU reject channel leaves no torn financial state on a mid-pass halt + resume (`Rejected` carries no entity; committed records idempotently `Skipped`).
+- **H4 (sec-eng).** C4 clean-room — **CLEARED on the license posture (Rev 1 GREEN) + TIGHTENED on fold.** Read-only-against-source + data-format-only + attribution header attested; sec-eng (A) collapses C6 to dump-only v1 so read-only is uniformly provable (no unprovable REST mode blessed in v1). A write path to the source = RED (now arch-test-guarded: no live-Frappe connection surface).
+- **H5 (sec-eng).** C9 no-PII/secret-logging — **CLEARED-on-fold.** sec-eng (B) reconciles the spec §6.3 `reject_detail` "JSON blob with payload" to an allowlisted structured projection + adds the reject-PATH fixture test (C-LOG-REJECT); the C6 dump credential is never echoed.
+- **H6 (.NET-arch).** C8 verify — **CLEARED on the arithmetic + CLEARED-on-fold on gate-completeness.** Trial-balance hard-zero is exact under integer-minor-units (defense-in-depth backstop sound); sec-eng (E) makes the snapshot-absent degradation a loud, explicitly-acknowledged override (`--no-reconcile-snapshots`) rather than a silent self-relaxation.
+- **H7 (CIC pre-flight, surfaced).** Custom `Property`/`Lease` DocType disposition (A5b conditional) — not a code halt; a build-scoping input. No architectural objection (both councils).
+- **H8 (Admiral).** Council cadence RATIFY: dual-council MANDATORY on ADR text + A0 PR; **test-eng MANDATORY** on the data-correctness passes (A1 toposort, A4.2/A4.3 financial allocation, A6 reconcile) per the WBS council column; sec-eng MANDATORY on A0 (credential/clean-room — amendment (A) lands here) + A2.1 (party PII — amendment (B)'s reject-path test lands here). The Rev-2 (F)/(G)/(H) arch-test surfaces are co-owned by test-eng on the A-units. **Endorsed by both councils.**
+
+**Rev 1 returned dual-AMBER with NO RED.** Both councils attested the contract shape SOUND and the load-bearing security/architecture decisions correct; the verdicts are floor-lifts + two definitive open-question rulings, not a redesign — the ADR 0095/0096/0097/0098/0099 Rev-1-AMBER → Rev-2-GREEN cadence. All amendments are folded below (§"Revision 2 fold"); each council expects GREEN on re-attest.
+
+---
+
+## Revision 2 fold (dual-council AMBER → Rev 2; the ADR 0097/0099 fold precedent)
+
+Rev 1 (shipyard#182) returned **dual-AMBER, no RED** — security-engineering (`council-verdict-2026-05-29T1210Z`) and .NET-architect (`council-verdict-2026-05-29T1214Z`). Both attested the contract shape SOUND. This Rev 2 folds all ten items: two definitive open-question rulings, five sec-eng amendments, and three .NET-arch amendments. Each maps to the clause it lifts to a positive, arch-test/startup-fail-closed/acceptance-test-provable invariant (the house standard):
+
+| # | Source | Amendment | Resolution in Rev 2 |
+|---|---|---|---|
+| 1 | OQ-A (.NET-arch definitive; sec-eng (D) concur) | Reject-channel shape | **DISCRIMINATED UNION** — C2: `ImportOutcome<T> = Inserted<T> \| Updated<T> \| Skipped<T> \| Rejected(ImportFailure)`, exhaustive `switch`; `ImportAction` NOT extended with `Rejected`. Closes sec-eng (D) silent-swallow vector (no catch in the contract path). Arch-test: exhaustive switch + no broad `catch (Exception)` in the pass loop. |
+| 2 | OQ-B (.NET-arch definitive) | External-ref storage | **FIRST-CLASS INDEXED `ExternalRef` FIELD** — C7: generalize the `GLAccount.ExternalRef` precedent fleet-wide; idempotency lookup key → indexed column, not `LIKE`-scanned `Tags`. A2/A4.2 PRs migrate `Party.Tags`/`Bill.Notes` → indexed `ExternalRef`. Arch-test: resolver resolves via the field; each importable entity exposes an indexed `ExternalRef` column. |
+| 3 | sec-eng (A) [won't-waive] | C4/C6 read-only provable only for dump mode; REST reintroduces live-Frappe (spec §1.2 exclusion) | **C6 collapsed to DUMP-ONLY v1** — REST/CSV deferred as additive future modes behind the unchanged A0 seam (.NET-arch concurs — tightens the seam). C4: `SELECT`-only read-only now uniformly provable; arch-test asserts no live-Frappe/REST connection surface in v1 (C-CLEANROOM (d), C-MODE). |
+| 4 | sec-eng (B) [won't-waive] | C9 reject-bin PII — spec §6.3 `reject_detail` "JSON blob with payload" contradicts C9 | **Allowlisted structured projection** — C9: `reject_detail = {reasonCode, docType, externalRef, fieldName?, ruleViolated?}`, never the raw payload; raw `Erpnext*Source` serialization forbidden. Added **C-LOG-REJECT** reject-PATH fixture test (rejected party + rejected invoice) — the happy-path C-LOG never exercised the reject write. |
+| 5 | sec-eng (C) | C3 tenant arch-test proves SHAPE not USAGE | **Negative test** — C3 (d): `--target-tenant T` against source carrying a DIFFERENT embedded company hint produces rows all scoped to T (source hint ignored). Merged with (F) below. |
+| 6 | sec-eng (E) | C8 snapshot-absent silently degrades source-reconciliation to advisory | **LOUD explicit override** — C8: default (no snapshots, no flag) HALTS; `--no-reconcile-snapshots` required to PASS, with a "SOURCE-RECONCILIATION: NOT PERFORMED" report banner. Trial-balance-ties proves internal consistency, not source fidelity. |
+| 7 | .NET-arch (F) | C3 must prove the `TenantId` param is USED, not just present | **Tenant-USED arch-test** — C3 (e): no `*/Migration/` upsert path reads tenant from `source.Company` or ambient `ITenantContext`; the tenant arrives ONLY as the threaded first parameter. Extends/merges sec-eng (C); converts H1's RED condition to a standing provable invariant. |
+| 8 | .NET-arch (G) | Single owning package for the outcome types | **One owning migration-primitives package** — C2: the `ImportOutcome<T>` DU + `ImportFailure` (+ `ImportAction` if retained) live in ONE package below every `blocks-*` cluster in the DAG (closes D7 — currently copy-pasted into 5 clusters). Arch-test: exactly one definition fleet-wide + acyclic geometry. |
+| 9 | .NET-arch (H) | Record-census-conservation invariant | **Exactly 3 exits per record** — C2: happy-path arm / `Rejected` arm / pass-halt; NO 4th exit (no return-null/swallow/continue). Acceptance test **C-CENSUS**: `count(happy)+count(rejected)+count(halted) == count(source)`. Orchestration-level expression of C5's "no record vanishes." |
+| 10 | sec-eng (A) + .NET-arch (A0-seam concur) | A0-seam impact of dump-only collapse | **CONCUR — seam preserved + tightened.** Shipping one adapter behind the seam validates (not weakens) the boundary; single deterministic test surface, no premature-generalization risk. Forward-hook: a future REST mode adds a capability/access-mode descriptor for run provenance (C6, not a v1 requirement). |
+
+**Halt disposition:** H1 CLEARED (structure GREEN + RED condition arch-test-guarded via #5/#7); H2 CLEARED; H3 CLEARED under the OQ-A DU ruling (#1); H4 CLEARED + tightened (#3); H5 CLEARED-on-fold (#4); H6 CLEARED arithmetic + CLEARED-on-fold gate-completeness (#6); H7 not-a-code-halt; H8 cadence endorsed by both councils. No RED outstanding. PR shipyard#182 stays DRAFT until dual-council RE-ATTEST lands GREEN.
+
+---
+
+## Consequences
+
+**Positive:** freezes the contract before A1–A7 orchestration builds on seven inconsistent upserters; resolves three live on-disk divergences (D1/D2/D3) that would otherwise compound; folds the spec's 10 open questions into ratified decisions; gives every A-unit a clear council/test-eng requirement; makes CIC's real-books import a verifiable PASS/FAIL gate (C8) rather than a hope; preserves the read-only clean-room license posture (C4) the cutover depends on.
+
+**Negative / cost:** a convergence refactor on the seven shipped upserters — folded into the A-unit PR that already touches each importer, not a separate rework wave. Rev 2's two definitive rulings settle the shape: (D1) every signature moves to `TenantId`-first; (D2/C7) external-ref moves to a first-class indexed `ExternalRef` field on `Party`/`Bill` (5 additive forward-only migrations — the +cost the OQ-B ruling accepts per `feedback_prefer_cleanest_long_term_option`); (D3/OQ-A) `ImportOutcome<T>` evolves into the discriminated union, which breaks the five copy-pasted switch sites as a LOUD compile error (the friendliest failure) and is collapsed into ONE owning migration-primitives package (G). The OQ-A/OQ-B rulings are now ratified, so A2/A4 build is no longer gated on a pending ruling.
+
+**Reversibility:** the `Erpnext*Source` DTO seam (C6) is the abstraction boundary — v1 ships the MariaDB-dump adapter; adding REST/CSV later is additive behind the unchanged seam (a future amendment + a capability/access-mode descriptor for run provenance). The contract is one-way-import-scoped; a future bidirectional sync (WBS Workstream D) is a separate ADR (D0), not an amendment to this one.
+
+---
+
+## ADR-protocol compliance
+
+- **Council requirement (ADR 0069 / 0093):** substrate-tier + real-financial-write → dual-council MANDATORY (sec-eng + .NET-architect) on ADR text AND the A0 PR; test-eng MANDATORY on the data-correctness A-units (H8). `requires-council: [dotnet-architect, security-engineering]` in frontmatter.
+- **Composes:** ADR 0084 (sentinel guard for `--target-tenant`), 0088 (Path II + clean-room), 0091 (facade + `IMustHaveTenant`), 0093 (Stage-05), 0097–0099 (substrate cadence + enforcement-invariant discipline).
+- **Gates:** A1–A7 build queues on this ADR reaching `Accepted` (Rev 2 RE-ATTEST GREEN); A0's build half implements the MariaDB-dump adapter (the sole v1 mode; H-CIC-1 collapses to a dump-availability confirmation). The contract gates A1+ cleanly: every A-unit's council column + the C-clause enforcement invariants (incl. the Rev-2 arch-tests F/G/H + C-CENSUS + C-LOG-REJECT) are ratified inputs to the build.
+- **Slot:** highest ADR on `shipyard/main` at authoring is 0099 (First-Party Session); 0100 confirmed free by `ls docs/adrs/0100*` (no match).
+
+---
+
+— ONR, 2026-05-29 (Rev 2; folds dual-council Rev-1 AMBER — sec-eng (A–E) + .NET-arch (F–H) + OQ-A discriminated-union + OQ-B first-class-`ExternalRef`-field rulings. Status `Accepted` pending dual-council RE-ATTEST GREEN; PR shipyard#182 stays DRAFT until re-attest)
