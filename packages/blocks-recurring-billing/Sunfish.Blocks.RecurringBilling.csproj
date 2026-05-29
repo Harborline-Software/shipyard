@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Blocks.RecurringBilling</PackageId>
+    <!-- Major bump (0.1.0 inherited -> 1.0.0): renamed from Sunfish.Blocks.RentCollection per
+         ADR 0098. Binary-compat-survivable via the blocks-rent-collection re-export shim. -->
+    <Version>1.0.0</Version>
+    <Description>Recurring-billing entities, ledger service, and RecurringLedgerBlock for Sunfish (renamed from Sunfish.Blocks.RentCollection per ADR 0098 block-naming generalization) — first pass, defers Plaid/Stripe/event-bus. Generalized from property rent to a cross-vertical recurring-billing surface; the existing rent-invoice AR projection is retained.</Description>
+    <PackageTags>blazor;recurring-billing;rent;ledger;payments;blocks;domain;sunfish</PackageTags>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Blocks.RecurringBilling.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
+    <ProjectReference Include="..\ui-core\Sunfish.UICore.csproj" />
+    <ProjectReference Include="..\ui-adapters-blazor\Sunfish.UIAdapters.Blazor.csproj" />
+    <ProjectReference Include="..\blocks-financial-ar\Sunfish.Blocks.FinancialAr.csproj" />
+    <ProjectReference Include="..\blocks-financial-ledger\Sunfish.Blocks.FinancialLedger.csproj" />
+    <ProjectReference Include="..\blocks-people-foundation\Sunfish.Blocks.People.Foundation.csproj" />
+  </ItemGroup>
+</Project>

@@ -219,9 +219,9 @@
     <Project Path="packages/blocks-property-equipment/Sunfish.Blocks.PropertyEquipment.csproj" />
     <Project Path="packages/blocks-property-equipment/tests/Sunfish.Blocks.PropertyEquipment.Tests.csproj" />
   </Folder>
-  <Folder Name="/blocks/rent-collection/">
-    <Project Path="packages/blocks-rent-collection/Sunfish.Blocks.RentCollection.csproj" />
-    <Project Path="packages/blocks-rent-collection/tests/tests.csproj" />
+  <Folder Name="/blocks/recurring-billing/">
+    <Project Path="packages/blocks-recurring-billing/Sunfish.Blocks.RecurringBilling.csproj" />
+    <Project Path="packages/blocks-recurring-billing/tests/tests.csproj" />
   </Folder>
   <Folder Name="/blocks/financial-ledger/">
     <Project Path="packages/blocks-financial-ledger/Sunfish.Blocks.FinancialLedger.csproj" />
