@@ -1,12 +1,31 @@
 using FL = Sunfish.Blocks.FinancialLedger.Models;
-using LedgerMigration = Sunfish.Blocks.FinancialLedger.Migration;
+using LedgerMigration = Sunfish.Foundation.Import.Outcomes;
 using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Blocks.FinancialTax.Migration;
 using Sunfish.Blocks.FinancialTax.Models;
 using Sunfish.Blocks.FinancialTax.Services;
+using Sunfish.Foundation.Import.Outcomes;
 using Xunit;
 
 namespace Sunfish.Blocks.FinancialTax.Tests;
+
+/// <summary>
+/// Test-only helper to extract the carried record from a non-rejected
+/// <see cref="ImportOutcome{T}"/> arm — keeps the tax-importer tests' happy-path
+/// <c>.Record</c> assertions terse after the A1 migration to the foundation-import
+/// discriminated union (the record moved from the base type onto the arm types).
+/// </summary>
+internal static class ImportOutcomeTestExtensions
+{
+    public static T Record<T>(this ImportOutcome<T> outcome) => outcome switch
+    {
+        ImportOutcome<T>.Inserted i => i.Record,
+        ImportOutcome<T>.Updated u => u.Record,
+        ImportOutcome<T>.Skipped s => s.Record,
+        _ => throw new Xunit.Sdk.XunitException(
+            $"Expected a record-carrying arm but got {outcome.GetType().Name}."),
+    };
+}
 
 /// <summary>
 /// PR 5 coverage for the ERPNext importer Pass 2 happy paths +
@@ -68,11 +87,11 @@ public class ErpnextTaxImporterTests
             Source("VA-Sales-001"), fx.Chart);
 
         Assert.Equal(LedgerMigration.ImportAction.Inserted, outcome.Action);
-        Assert.NotNull(outcome.Record);
-        Assert.Equal("VA Sales Tax", outcome.Record.Code);
-        Assert.True(outcome.Record.IsActive);
+        Assert.NotNull(outcome.Record());
+        Assert.Equal("VA Sales Tax", outcome.Record().Code);
+        Assert.True(outcome.Record().IsActive);
         // Rate row also inserted.
-        var rates = await fx.Rates.GetAllForTaxCodeAsync(outcome.Record.Id);
+        var rates = await fx.Rates.GetAllForTaxCodeAsync(outcome.Record().Id);
         Assert.Single(rates);
         Assert.Equal(5m, rates[0].RatePercent);
     }
@@ -100,7 +119,7 @@ public class ErpnextTaxImporterTests
                 }),
             fx.Chart);
 
-        var rates = await fx.Rates.GetAllForTaxCodeAsync(outcome.Record.Id);
+        var rates = await fx.Rates.GetAllForTaxCodeAsync(outcome.Record().Id);
         Assert.Equal(2, rates.Count);
     }
 
@@ -112,6 +131,6 @@ public class ErpnextTaxImporterTests
         var outcome = await fx.Importer.UpsertFromErpnextAsync(
             Source("VA-Sales-003", disabled: true), fx.Chart);
 
-        Assert.False(outcome.Record.IsActive);
+        Assert.False(outcome.Record().IsActive);
     }
 }

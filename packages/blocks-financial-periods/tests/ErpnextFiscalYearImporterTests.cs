@@ -1,12 +1,31 @@
-using Sunfish.Blocks.FinancialLedger.Migration;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialPeriods.Migration;
 using Sunfish.Blocks.FinancialPeriods.Models;
 using Sunfish.Blocks.FinancialPeriods.Services;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Import.Outcomes;
 using Xunit;
 
 namespace Sunfish.Blocks.FinancialPeriods.Tests;
+
+/// <summary>
+/// Test-only helper to extract the carried record from a non-rejected
+/// <see cref="ImportOutcome{T}"/> arm — keeps the period-importer tests'
+/// happy-path <c>.Record</c> assertions terse after the A1 migration to the
+/// foundation-import discriminated union (the record moved from the base type
+/// onto the arm types).
+/// </summary>
+internal static class ImportOutcomeTestExtensions
+{
+    public static T Record<T>(this ImportOutcome<T> outcome) => outcome switch
+    {
+        ImportOutcome<T>.Inserted i => i.Record,
+        ImportOutcome<T>.Updated u => u.Record,
+        ImportOutcome<T>.Skipped s => s.Record,
+        _ => throw new Xunit.Sdk.XunitException(
+            $"Expected a record-carrying arm but got {outcome.GetType().Name}."),
+    };
+}
 
 /// <summary>
 /// W#60 P4 PR 4 — coverage for
@@ -26,9 +45,9 @@ public sealed class ErpnextFiscalYearImporterTests
         var outcome = await h.Sut.UpsertFromErpnextAsync(source, Chart);
 
         Assert.Equal(ImportAction.Inserted, outcome.Action);
-        Assert.NotNull(outcome.Record);
-        Assert.Equal(FiscalYearStatus.Open, outcome.Record.Status);
-        Assert.Equal(Chart, outcome.Record.ChartId);
+        Assert.NotNull(outcome.Record());
+        Assert.Equal(FiscalYearStatus.Open, outcome.Record().Status);
+        Assert.Equal(Chart, outcome.Record().ChartId);
     }
 
     [Fact]
@@ -59,7 +78,7 @@ public sealed class ErpnextFiscalYearImporterTests
             Chart);
 
         Assert.Equal(ImportAction.Updated, updated.Action);
-        Assert.Contains("AcerNew", updated.Record.Label);
+        Assert.Contains("AcerNew", updated.Record().Label);
     }
 
     [Fact]
@@ -85,11 +104,11 @@ public sealed class ErpnextFiscalYearImporterTests
 
         // Force the local row to Closed (simulating an admin year-end
         // close that happened between exports).
-        await h.Years.UpdateAsync(first.Record with
+        await h.Years.UpdateAsync(first.Record() with
         {
             Status      = FiscalYearStatus.Closed,
             ClosedAtUtc = Instant.Now,
-            Version     = first.Record.Version + 1,
+            Version     = first.Record().Version + 1,
         });
 
         // Re-export with bumped version.
@@ -103,11 +122,11 @@ public sealed class ErpnextFiscalYearImporterTests
 
         Assert.Equal(ImportAction.Updated, refreshed.Action);
         // Status must stay Closed — importer does NOT reopen.
-        Assert.Equal(FiscalYearStatus.Closed, refreshed.Record.Status);
+        Assert.Equal(FiscalYearStatus.Closed, refreshed.Record().Status);
         // ClosedAtUtc must be preserved by the `with` clone — guard
         // against a future regression that sets ClosedAtUtc = null in
         // the update path.
-        Assert.NotNull(refreshed.Record.ClosedAtUtc);
+        Assert.NotNull(refreshed.Record().ClosedAtUtc);
     }
 
     [Fact]
@@ -156,7 +175,7 @@ public sealed class ErpnextFiscalYearImporterTests
 
         var outcome = await h.Sut.UpsertFromErpnextAsync(source, Chart);
 
-        Assert.Equal("Bosco FY26", outcome.Record.Label);
+        Assert.Equal("Bosco FY26", outcome.Record().Label);
     }
 
     [Fact]
@@ -167,7 +186,7 @@ public sealed class ErpnextFiscalYearImporterTests
 
         var outcome = await h.Sut.UpsertFromErpnextAsync(source, Chart);
 
-        Assert.Equal("FY26", outcome.Record.Label);
+        Assert.Equal("FY26", outcome.Record().Label);
     }
 
     // ----- helpers ---------------------------------------------------

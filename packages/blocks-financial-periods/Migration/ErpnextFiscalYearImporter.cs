@@ -1,9 +1,9 @@
 using System.Globalization;
-using Sunfish.Blocks.FinancialLedger.Migration;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialPeriods.Models;
 using Sunfish.Blocks.FinancialPeriods.Services;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialPeriods.Migration;
 
@@ -65,7 +65,7 @@ public sealed class ErpnextFiscalYearImporter : IErpnextFiscalYearImporter
                 externalRef:           source.Name,
                 externalModifiedAtUtc: sourceModified);
             await _years.InsertAsync(inserted, cancellationToken).ConfigureAwait(false);
-            return new ImportOutcome<FiscalYear>(inserted, ImportAction.Inserted, null);
+            return new ImportOutcome<FiscalYear>.Inserted(inserted);
         }
 
         // Existing row — decide Skipped vs Updated based on the
@@ -74,7 +74,7 @@ public sealed class ErpnextFiscalYearImporter : IErpnextFiscalYearImporter
         var priorModified = existing.ExternalModifiedAtUtc?.Value
             ?? DateTimeOffset.MinValue;
         if (sourceModified.Value <= priorModified)
-            return new ImportOutcome<FiscalYear>(existing, ImportAction.Skipped, null);
+            return new ImportOutcome<FiscalYear>.Skipped(existing);
 
         // Update path — refresh label + dates, but never flip status
         // (Closed FY stays Closed; an ERPNext re-export does NOT
@@ -89,9 +89,9 @@ public sealed class ErpnextFiscalYearImporter : IErpnextFiscalYearImporter
             ExternalModifiedAtUtc = sourceModified,
         };
         if (!await _years.UpdateAsync(updated, cancellationToken).ConfigureAwait(false))
-            return new ImportOutcome<FiscalYear>(existing, ImportAction.Skipped,
+            return new ImportOutcome<FiscalYear>.Skipped(existing,
                 "Update rejected by repository CAS (concurrent edit?).");
-        return new ImportOutcome<FiscalYear>(updated, ImportAction.Updated, null);
+        return new ImportOutcome<FiscalYear>.Updated(updated);
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialLedger.Migration;
 
@@ -9,10 +10,15 @@ namespace Sunfish.Blocks.FinancialLedger.Migration;
 /// <c>account_type</c> string to the local
 /// <see cref="GLAccountType"/> + <see cref="AccountSubtype"/> pair per
 /// the migration-importer spec §3.2 enum-mapping table. Idempotent on
-/// <c>ExternalRef == source.Name</c>.
+/// <c>ExternalRef == source.Name</c>. Returns the canonical
+/// <c>Sunfish.Foundation.Import</c> <see cref="ImportOutcome{T}"/>
+/// discriminated union (ADR 0100 C2/OQ-A — the per-cluster copy is retired).
 /// </summary>
 public sealed class ErpnextAccountImporter : IErpnextAccountImporter
 {
+    /// <summary>The ERPNext DocType this importer consumes — for census provenance.</summary>
+    public const string DocType = "Account";
+
     private readonly InMemoryAccountResolver _accounts;
 
     public ErpnextAccountImporter(InMemoryAccountResolver accounts)
@@ -33,20 +39,13 @@ public sealed class ErpnextAccountImporter : IErpnextAccountImporter
 
         if (existing is not null)
         {
-            // Compare opaque version key. ERPNext "modified" is
-            // ISO-8601 so string-comparison matches temporal order.
-            var localVersion = existing.ExternalRef is null ? string.Empty : source.Modified;
-            var compareToStored = string.CompareOrdinal(source.Modified, localVersion);
-            // Stored existing.UpdatedAtUtc is the local timestamp; we
-            // round-trip the source.Modified into ExternalRef-adjacent
-            // storage via a deterministic suffix-free hash check.
-            // Simpler: skip when the same name was already imported.
-            // ERPNext rarely back-dates Modified, so equality on a
-            // re-import is the "same version" path.
+            // The stored source-version key is round-tripped through Description
+            // (no dedicated version field yet). ERPNext "modified" is ISO-8601 so
+            // string equality on a re-import is the "same version" / Skipped path.
             if (string.Equals(source.Modified, existing.Description, StringComparison.Ordinal))
             {
-                return Task.FromResult(new ImportOutcome<GLAccount>(
-                    existing, ImportAction.Skipped, "same source version"));
+                return Task.FromResult<ImportOutcome<GLAccount>>(
+                    new ImportOutcome<GLAccount>.Skipped(existing, "same source version"));
             }
 
             var updated = existing with
@@ -59,8 +58,8 @@ public sealed class ErpnextAccountImporter : IErpnextAccountImporter
                 UpdatedAtUtc = Instant.Now,
             };
             _accounts.Upsert(updated);
-            return Task.FromResult(new ImportOutcome<GLAccount>(
-                updated, ImportAction.Updated, $"version {source.Modified}"));
+            return Task.FromResult<ImportOutcome<GLAccount>>(
+                new ImportOutcome<GLAccount>.Updated(updated, $"version {source.Modified}"));
         }
 
         var (type, subtype) = MapAccountType(source.AccountType);
@@ -81,8 +80,8 @@ public sealed class ErpnextAccountImporter : IErpnextAccountImporter
             IsActive = !source.Disabled,
         };
         _accounts.Upsert(account);
-        return Task.FromResult(new ImportOutcome<GLAccount>(
-            account, ImportAction.Inserted, null));
+        return Task.FromResult<ImportOutcome<GLAccount>>(
+            new ImportOutcome<GLAccount>.Inserted(account));
     }
 
     private GLAccountId? ResolveParentByExternalRef(string? parentName)
@@ -94,35 +93,46 @@ public sealed class ErpnextAccountImporter : IErpnextAccountImporter
     }
 
     /// <summary>
-    /// ERPNext account_type → (GLAccountType, AccountSubtype). Per
-    /// migration-importer spec §3.2.
+    /// ERPNext <c>account_type</c> → (<see cref="GLAccountType"/>,
+    /// <see cref="AccountSubtype"/>) per migration-importer spec §3.2. An empty /
+    /// unknown <c>account_type</c> falls back to <c>Asset / OtherAsset</c>; the
+    /// orchestrator's parent-walk (<see cref="ErpnextChartImportPass"/>) refines
+    /// the top-level category from a populated ancestor before this fallback bites.
     /// </summary>
     public static (GLAccountType Type, AccountSubtype Subtype) MapAccountType(string? accountType)
     {
         return accountType switch
         {
-            "Bank"             => (GLAccountType.Asset,     AccountSubtype.BankAccount),
-            "Cash"             => (GLAccountType.Asset,     AccountSubtype.CurrentAsset),
-            "Receivable"       => (GLAccountType.Asset,     AccountSubtype.AccountsReceivable),
-            "Fixed Asset"      => (GLAccountType.Asset,     AccountSubtype.FixedAsset),
-            "Stock"            => (GLAccountType.Asset,     AccountSubtype.InventoryAsset),
-            "Accumulated Depreciation" => (GLAccountType.Asset, AccountSubtype.AccumulatedDepreciation),
+            // Assets
+            "Bank"                      => (GLAccountType.Asset,     AccountSubtype.BankAccount),
+            "Cash"                      => (GLAccountType.Asset,     AccountSubtype.BankAccount),
+            "Receivable"                => (GLAccountType.Asset,     AccountSubtype.AccountsReceivable),
+            "Stock"                     => (GLAccountType.Asset,     AccountSubtype.InventoryAsset),
+            "Fixed Asset"               => (GLAccountType.Asset,     AccountSubtype.FixedAsset),
+            "Accumulated Depreciation"  => (GLAccountType.Asset,     AccountSubtype.AccumulatedDepreciation),
+            "Current Asset"             => (GLAccountType.Asset,     AccountSubtype.CurrentAsset),
 
-            "Payable"          => (GLAccountType.Liability, AccountSubtype.AccountsPayable),
-            "Tax"              => (GLAccountType.Liability, AccountSubtype.TaxesPayable),
-            "Liability"        => (GLAccountType.Liability, AccountSubtype.CurrentLiability),
+            // Liabilities
+            "Payable"                   => (GLAccountType.Liability, AccountSubtype.AccountsPayable),
+            "Tax"                       => (GLAccountType.Liability, AccountSubtype.TaxesPayable),
+            "Current Liability"         => (GLAccountType.Liability, AccountSubtype.CurrentLiability),
+            "Liability"                 => (GLAccountType.Liability, AccountSubtype.CurrentLiability),
 
-            "Equity"           => (GLAccountType.Equity,    AccountSubtype.OwnersEquity),
+            // Equity
+            "Equity"                    => (GLAccountType.Equity,    AccountSubtype.OwnersEquity),
 
-            "Income Account"   => (GLAccountType.Revenue,   AccountSubtype.OperatingIncome),
-            "Income"           => (GLAccountType.Revenue,   AccountSubtype.OperatingIncome),
+            // Income
+            "Income Account"            => (GLAccountType.Revenue,   AccountSubtype.OperatingIncome),
+            "Income"                    => (GLAccountType.Revenue,   AccountSubtype.OperatingIncome),
 
-            "Expense Account"  => (GLAccountType.Expense,   AccountSubtype.OperatingExpense),
-            "Expense"          => (GLAccountType.Expense,   AccountSubtype.OperatingExpense),
-            "Cost of Goods Sold" => (GLAccountType.Expense, AccountSubtype.CostOfGoodsSold),
-            "Depreciation"     => (GLAccountType.Expense,   AccountSubtype.DepreciationExpense),
+            // Expense
+            "Cost of Goods Sold"        => (GLAccountType.Expense,   AccountSubtype.CostOfGoodsSold),
+            "Expense Account"           => (GLAccountType.Expense,   AccountSubtype.OperatingExpense),
+            "Expense"                   => (GLAccountType.Expense,   AccountSubtype.OperatingExpense),
+            "Depreciation"              => (GLAccountType.Expense,   AccountSubtype.DepreciationExpense),
+            "Round Off"                 => (GLAccountType.Expense,   AccountSubtype.OtherExpense),
 
-            _ => (GLAccountType.Asset, AccountSubtype.OtherAsset),
+            _                           => (GLAccountType.Asset,     AccountSubtype.OtherAsset),
         };
     }
 }

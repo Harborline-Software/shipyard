@@ -1,6 +1,6 @@
-using Sunfish.Blocks.FinancialLedger.Migration;
 using Sunfish.Blocks.FinancialPeriods.Models;
 using Sunfish.Blocks.FinancialPeriods.Services;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialPeriods.Migration;
 
@@ -36,7 +36,8 @@ public sealed class ErpnextFiscalPeriodImporter : IErpnextFiscalPeriodImporter
         if (existing.Count > 0)
         {
             return existing
-                .Select(p => new ImportOutcome<FiscalPeriod>(p, ImportAction.Skipped, "Periods already synthesized."))
+                .Select(p => (ImportOutcome<FiscalPeriod>)new ImportOutcome<FiscalPeriod>.Skipped(
+                    p, "Periods already synthesized."))
                 .ToList();
         }
 
@@ -53,15 +54,15 @@ public sealed class ErpnextFiscalPeriodImporter : IErpnextFiscalPeriodImporter
         var validation = FiscalPeriodCollectionValidator.Validate(fy, synthesized);
         if (!validation.IsValid)
             return synthesized
-                .Select(p => new ImportOutcome<FiscalPeriod>(p, ImportAction.Skipped,
-                    $"Validation failed: {string.Join(" | ", validation.Errors)}"))
+                .Select(p => (ImportOutcome<FiscalPeriod>)new ImportOutcome<FiscalPeriod>.Skipped(
+                    p, $"Validation failed: {string.Join(" | ", validation.Errors)}"))
                 .ToList();
 
         var outcomes = new List<ImportOutcome<FiscalPeriod>>(synthesized.Count);
         foreach (var p in synthesized)
         {
             await _periods.InsertAsync(p, cancellationToken).ConfigureAwait(false);
-            outcomes.Add(new ImportOutcome<FiscalPeriod>(p, ImportAction.Inserted, null));
+            outcomes.Add(new ImportOutcome<FiscalPeriod>.Inserted(p));
         }
         return outcomes;
     }

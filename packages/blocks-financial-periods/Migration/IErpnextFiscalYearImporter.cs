@@ -1,6 +1,6 @@
-using Sunfish.Blocks.FinancialLedger.Migration;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialPeriods.Models;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialPeriods.Migration;
 
@@ -8,17 +8,17 @@ namespace Sunfish.Blocks.FinancialPeriods.Migration;
 /// ERPNext-side <c>Fiscal Year</c> import entry-point per Stage 02
 /// §10.1. Idempotent on <see cref="ErpnextFiscalYearSource.Name"/> +
 /// <see cref="ErpnextFiscalYearSource.Modified"/> — re-running the
-/// importer on an unchanged source returns
-/// <see cref="ImportAction.Skipped"/>.
+/// importer on an unchanged source returns the
+/// <see cref="ImportOutcome{T}.Skipped"/> arm.
 /// </summary>
 public interface IErpnextFiscalYearImporter
 {
     /// <summary>
     /// Insert a new <see cref="FiscalYear"/> or update an existing one
-    /// matched by external reference. Returns
-    /// <see cref="ImportAction.Inserted"/> when a new row was created,
-    /// <see cref="ImportAction.Updated"/> when the existing row's
-    /// version moved forward, and <see cref="ImportAction.Skipped"/>
+    /// matched by external reference. Returns the
+    /// <see cref="ImportOutcome{T}.Inserted"/> arm when a new row was created,
+    /// <see cref="ImportOutcome{T}.Updated"/> when the existing row's
+    /// version moved forward, and <see cref="ImportOutcome{T}.Skipped"/>
     /// otherwise (same / lower / unparseable version).
     /// </summary>
     /// <remarks>

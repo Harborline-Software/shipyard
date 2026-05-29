@@ -2,6 +2,7 @@ using Sunfish.Blocks.FinancialLedger.Migration;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Import.Outcomes;
 using Xunit;
 
 namespace Sunfish.Blocks.FinancialLedger.Tests;
@@ -23,9 +24,10 @@ public sealed class ErpnextJournalEntryImporterTests
 
         var outcome = await h.Sut.UpsertFromErpnextAsync(TestTenant, source, Chart);
 
+        var inserted = Assert.IsType<ImportOutcome<JournalEntry>.Inserted>(outcome);
         Assert.Equal(ImportAction.Inserted, outcome.Action);
-        Assert.NotNull(outcome.Record);
-        Assert.Equal(JournalEntryStatus.Posted, outcome.Record.Status);
+        Assert.NotNull(inserted.Record);
+        Assert.Equal(JournalEntryStatus.Posted, inserted.Record.Status);
         Assert.Single(h.Store.Snapshot(TestTenant));
     }
 
@@ -38,6 +40,7 @@ public sealed class ErpnextJournalEntryImporterTests
 
         var again = await h.Sut.UpsertFromErpnextAsync(TestTenant, source with { Memo = "second" }, Chart);
 
+        Assert.IsType<ImportOutcome<JournalEntry>.Skipped>(again);
         Assert.Equal(ImportAction.Skipped, again.Action);
         // Skipped does NOT add another entry to the store.
         Assert.Single(h.Store.Snapshot(TestTenant));
@@ -53,8 +56,9 @@ public sealed class ErpnextJournalEntryImporterTests
 
         var outcome = await h.Sut.UpsertFromErpnextAsync(TestTenant, source, Chart);
 
+        var inserted = Assert.IsType<ImportOutcome<JournalEntry>.Inserted>(outcome);
         Assert.Equal(ImportAction.Inserted, outcome.Action);
-        Assert.Equal(JournalEntrySource.Migration, outcome.Record.SourceKind);
+        Assert.Equal(JournalEntrySource.Migration, inserted.Record.SourceKind);
     }
 
     [Fact]
@@ -73,9 +77,16 @@ public sealed class ErpnextJournalEntryImporterTests
 
         var outcome = await h.Sut.UpsertFromErpnextAsync(TestTenant, source, Chart);
 
-        Assert.Equal(ImportAction.Skipped, outcome.Action);
-        Assert.NotNull(outcome.Detail);
-        Assert.Contains(unknown, outcome.Detail!);
+        // An unresolved account reference is a first-class Rejected arm now
+        // (ADR 0100 C2/OQ-A) — not a record-less Skipped.
+        var rejected = Assert.IsType<ImportOutcome<JournalEntry>.Rejected>(outcome);
+        Assert.Null(outcome.Action);
+        Assert.True(outcome.IsRejected);
+        Assert.Equal(ImportRejectReason.UnresolvedReference.ToString(), rejected.Failure.ReasonCode);
+        Assert.Equal("Journal Entry", rejected.Failure.DocType);
+        Assert.Equal("je-001", rejected.Failure.ExternalRef);
+        Assert.NotNull(rejected.Failure.RuleViolated);
+        Assert.Contains(unknown, rejected.Failure.RuleViolated!);
         Assert.Empty(h.Store.Snapshot(TestTenant));
     }
 

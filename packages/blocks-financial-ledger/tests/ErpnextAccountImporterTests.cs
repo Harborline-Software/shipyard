@@ -1,13 +1,16 @@
 using Sunfish.Blocks.FinancialLedger.Migration;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialLedger.Services;
+using Sunfish.Foundation.Import.Outcomes;
 using Xunit;
 
 namespace Sunfish.Blocks.FinancialLedger.Tests;
 
 /// <summary>
 /// W#60 P4 PR 6 — coverage for <see cref="ErpnextAccountImporter"/>
-/// idempotency + enum-mapping invariants.
+/// idempotency + enum-mapping invariants. Updated for A1: the importer now
+/// returns the canonical <c>Sunfish.Foundation.Import</c>
+/// <see cref="ImportOutcome{T}"/> discriminated union (ADR 0100 C2/OQ-A).
 /// </summary>
 public sealed class ErpnextAccountImporterTests
 {
@@ -22,10 +25,11 @@ public sealed class ErpnextAccountImporterTests
 
         var outcome = await sut.UpsertFromErpnextAsync(source, Chart);
 
+        var inserted = Assert.IsType<ImportOutcome<GLAccount>.Inserted>(outcome);
         Assert.Equal(ImportAction.Inserted, outcome.Action);
-        Assert.Equal(GLAccountType.Asset, outcome.Record.Type);
-        Assert.Equal(AccountSubtype.BankAccount, outcome.Record.Subtype);
-        Assert.Equal("acc-001", outcome.Record.ExternalRef);
+        Assert.Equal(GLAccountType.Asset, inserted.Record.Type);
+        Assert.Equal(AccountSubtype.BankAccount, inserted.Record.Subtype);
+        Assert.Equal("acc-001", inserted.Record.ExternalRef);
     }
 
     [Fact]
@@ -38,6 +42,7 @@ public sealed class ErpnextAccountImporterTests
 
         var again = await sut.UpsertFromErpnextAsync(source, Chart);
 
+        Assert.IsType<ImportOutcome<GLAccount>.Skipped>(again);
         Assert.Equal(ImportAction.Skipped, again.Action);
     }
 
@@ -52,8 +57,9 @@ public sealed class ErpnextAccountImporterTests
         var v2 = v1 with { Modified = "2026-05-17 09:00:00", AccountName = "Renamed Operating Bank" };
         var outcome = await sut.UpsertFromErpnextAsync(v2, Chart);
 
+        var updated = Assert.IsType<ImportOutcome<GLAccount>.Updated>(outcome);
         Assert.Equal(ImportAction.Updated, outcome.Action);
-        Assert.Equal("Renamed Operating Bank", outcome.Record.Name);
+        Assert.Equal("Renamed Operating Bank", updated.Record.Name);
     }
 
     [Fact]
@@ -69,7 +75,8 @@ public sealed class ErpnextAccountImporterTests
 
         var outcome = await sut.UpsertFromErpnextAsync(source, Chart);
 
-        Assert.False(outcome.Record.IsPostable);
+        var inserted = Assert.IsType<ImportOutcome<GLAccount>.Inserted>(outcome);
+        Assert.False(inserted.Record.IsPostable);
     }
 
     [Fact]
@@ -81,7 +88,8 @@ public sealed class ErpnextAccountImporterTests
 
         var outcome = await sut.UpsertFromErpnextAsync(source, Chart);
 
-        Assert.False(outcome.Record.IsActive);
+        var inserted = Assert.IsType<ImportOutcome<GLAccount>.Inserted>(outcome);
+        Assert.False(inserted.Record.IsActive);
     }
 
     [Fact]
@@ -100,22 +108,48 @@ public sealed class ErpnextAccountImporterTests
             AccountType: "Bank", IsGroup: false, Disabled: false);
         var outcome = await sut.UpsertFromErpnextAsync(child, Chart);
 
-        Assert.NotNull(outcome.Record.ParentAccountId);
+        var inserted = Assert.IsType<ImportOutcome<GLAccount>.Inserted>(outcome);
+        Assert.NotNull(inserted.Record.ParentAccountId);
     }
 
     [Theory]
-    [InlineData("Bank",            GLAccountType.Asset,    AccountSubtype.BankAccount)]
-    [InlineData("Receivable",      GLAccountType.Asset,    AccountSubtype.AccountsReceivable)]
-    [InlineData("Income Account",  GLAccountType.Revenue,  AccountSubtype.OperatingIncome)]
-    [InlineData("Expense Account", GLAccountType.Expense,  AccountSubtype.OperatingExpense)]
-    [InlineData("Payable",         GLAccountType.Liability, AccountSubtype.AccountsPayable)]
-    [InlineData("Equity",          GLAccountType.Equity,   AccountSubtype.OwnersEquity)]
+    [InlineData("Bank",                     GLAccountType.Asset,     AccountSubtype.BankAccount)]
+    [InlineData("Cash",                     GLAccountType.Asset,     AccountSubtype.BankAccount)]
+    [InlineData("Receivable",               GLAccountType.Asset,     AccountSubtype.AccountsReceivable)]
+    [InlineData("Stock",                    GLAccountType.Asset,     AccountSubtype.InventoryAsset)]
+    [InlineData("Fixed Asset",              GLAccountType.Asset,     AccountSubtype.FixedAsset)]
+    [InlineData("Accumulated Depreciation", GLAccountType.Asset,     AccountSubtype.AccumulatedDepreciation)]
+    [InlineData("Current Asset",            GLAccountType.Asset,     AccountSubtype.CurrentAsset)]
+    [InlineData("Payable",                  GLAccountType.Liability, AccountSubtype.AccountsPayable)]
+    [InlineData("Tax",                      GLAccountType.Liability, AccountSubtype.TaxesPayable)]
+    [InlineData("Current Liability",        GLAccountType.Liability, AccountSubtype.CurrentLiability)]
+    [InlineData("Liability",                GLAccountType.Liability, AccountSubtype.CurrentLiability)]
+    [InlineData("Equity",                   GLAccountType.Equity,    AccountSubtype.OwnersEquity)]
+    [InlineData("Income Account",           GLAccountType.Revenue,   AccountSubtype.OperatingIncome)]
+    [InlineData("Income",                   GLAccountType.Revenue,   AccountSubtype.OperatingIncome)]
+    [InlineData("Cost of Goods Sold",       GLAccountType.Expense,   AccountSubtype.CostOfGoodsSold)]
+    [InlineData("Expense Account",          GLAccountType.Expense,   AccountSubtype.OperatingExpense)]
+    [InlineData("Expense",                  GLAccountType.Expense,   AccountSubtype.OperatingExpense)]
+    [InlineData("Depreciation",             GLAccountType.Expense,   AccountSubtype.DepreciationExpense)]
+    [InlineData("Round Off",                GLAccountType.Expense,   AccountSubtype.OtherExpense)]
     public void MapAccountType_ReturnsExpectedPair(
         string accountType, GLAccountType type, AccountSubtype subtype)
     {
         var (t, s) = ErpnextAccountImporter.MapAccountType(accountType);
         Assert.Equal(type, t);
         Assert.Equal(subtype, s);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Temporary")]
+    [InlineData("Some Unknown ERPNext Type")]
+    public void MapAccountType_UnknownOrEmpty_FallsBackToOtherAsset(string? accountType)
+    {
+        var (t, s) = ErpnextAccountImporter.MapAccountType(accountType);
+        Assert.Equal(GLAccountType.Asset, t);
+        Assert.Equal(AccountSubtype.OtherAsset, s);
     }
 
     private static ErpnextAccountSource NewBankSource(string name, string modified) =>

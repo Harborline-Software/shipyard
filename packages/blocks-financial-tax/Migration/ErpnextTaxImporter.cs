@@ -1,10 +1,11 @@
 using System.Text.Json;
 using TaxCodeId = Sunfish.Blocks.FinancialTax.Models.TaxCodeId;
 using FL = Sunfish.Blocks.FinancialLedger.Models;
-using LedgerMigration = Sunfish.Blocks.FinancialLedger.Migration;
+using ImportPrimitives = Sunfish.Foundation.Import.Outcomes;
 using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Blocks.FinancialTax.Models;
 using Sunfish.Blocks.FinancialTax.Services;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialTax.Migration;
 
@@ -28,10 +29,10 @@ public interface IErpnextTaxImporter
     /// <summary>
     /// Upsert a <see cref="TaxCode"/> + its <see cref="TaxRate"/>
     /// history from an ERPNext source record. Idempotent: same
-    /// <c>(source.Name)</c> on a same-or-newer-version run returns
-    /// <see cref="LedgerMigration.ImportAction.Skipped"/>.
+    /// <c>(source.Name)</c> on a same-or-newer-version run returns the
+    /// <see cref="ImportOutcome{T}.Skipped"/> arm.
     /// </summary>
-    Task<LedgerMigration.ImportOutcome<TaxCode>> UpsertFromErpnextAsync(
+    Task<ImportPrimitives.ImportOutcome<TaxCode>> UpsertFromErpnextAsync(
         ErpnextTaxSource source,
         FL.ChartOfAccountsId targetChart,
         CancellationToken cancellationToken = default);
@@ -92,7 +93,7 @@ public sealed class ErpnextTaxImporter : IErpnextTaxImporter
     }
 
     /// <inheritdoc />
-    public async Task<LedgerMigration.ImportOutcome<TaxCode>> UpsertFromErpnextAsync(
+    public async Task<ImportPrimitives.ImportOutcome<TaxCode>> UpsertFromErpnextAsync(
         ErpnextTaxSource source,
         FL.ChartOfAccountsId targetChart,
         CancellationToken cancellationToken = default)
@@ -106,9 +107,8 @@ public sealed class ErpnextTaxImporter : IErpnextTaxImporter
         if (existing is not null && existing.Notes is not null
             && existing.Notes.Contains($"|modified:{source.Modified}", StringComparison.Ordinal))
         {
-            return new LedgerMigration.ImportOutcome<TaxCode>(
-                existing, LedgerMigration.ImportAction.Skipped,
-                $"Already imported at modified={source.Modified}.");
+            return new ImportOutcome<TaxCode>.Skipped(
+                existing, $"Already imported at modified={source.Modified}.");
         }
 
         // Decide application: if any row says IncludedInPrintRate, treat
@@ -123,7 +123,7 @@ public sealed class ErpnextTaxImporter : IErpnextTaxImporter
         var notes = $"{ExternalRefPrefix}{source.Name}|modified:{source.Modified}";
 
         TaxCode upserted;
-        LedgerMigration.ImportAction action;
+        ImportAction action;
         if (existing is null)
         {
             upserted = TaxCode.Create(
@@ -138,7 +138,7 @@ public sealed class ErpnextTaxImporter : IErpnextTaxImporter
                 upserted = upserted with { IsActive = false };
             }
             await _codes.UpsertAsync(upserted, cancellationToken).ConfigureAwait(false);
-            action = LedgerMigration.ImportAction.Inserted;
+            action = ImportAction.Inserted;
         }
         else
         {
@@ -152,7 +152,7 @@ public sealed class ErpnextTaxImporter : IErpnextTaxImporter
                 Notes = notes,
             };
             await _codes.UpsertAsync(upserted, cancellationToken).ConfigureAwait(false);
-            action = LedgerMigration.ImportAction.Updated;
+            action = ImportAction.Updated;
         }
 
         // ERPNext doesn't model jurisdictions — each tax row in the
@@ -178,8 +178,10 @@ public sealed class ErpnextTaxImporter : IErpnextTaxImporter
             await _rates.UpsertAsync(candidate, cancellationToken).ConfigureAwait(false);
         }
 
-        return new LedgerMigration.ImportOutcome<TaxCode>(
-            upserted, action, $"Imported with {rateRows.Count} rate row(s).");
+        var detail = $"Imported with {rateRows.Count} rate row(s).";
+        return action == ImportAction.Inserted
+            ? new ImportOutcome<TaxCode>.Inserted(upserted, detail)
+            : new ImportOutcome<TaxCode>.Updated(upserted, detail);
     }
 
     private async Task<TaxCode?> FindExistingByExternalRefAsync(
