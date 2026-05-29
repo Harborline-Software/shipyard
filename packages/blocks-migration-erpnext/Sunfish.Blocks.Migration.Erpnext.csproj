@@ -7,7 +7,12 @@
     <PackageTags>sunfish;migration;erpnext;extraction;import;clean-room;blocks</PackageTags>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <NoWarn>CS1591</NoWarn>
+    <!-- NU1510 suppressed: the direct Microsoft.Extensions.DependencyInjection.Abstractions
+         PackageReference is required for IServiceCollection in the DI extension, but NuGet
+         flags it as "will not be pruned" because it's transitively available from a cluster
+         ProjectReference. Removing the ref breaks the build (CS0246); keeping it trips NU1510
+         which WarningsAsErrors escalates. Keep the ref, suppress the warning. -->
+    <NoWarn>CS1591;NU1510</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
