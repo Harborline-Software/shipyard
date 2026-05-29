@@ -1,6 +1,6 @@
 # Master Plan — Harborline Fleet (Sunfish ERP + Inverted Stack)
 
-**Last updated:** 2026-05-17 (post-restructure refresh; Phase 2 fleet ratification + W#72 reports cluster shipped + W#74 cohort-1 in flight + Harborline rebrand pass started)
+**Last updated:** 2026-05-21 (V4 #7 refresh by ONR per `admiral-directive-2026-05-21T14-05Z`; cohort-2 closed + pattern-009-tenant-keying-retrofit ratified + pattern-010→012 renumber + cohort-3 Stage-06 ready + cohort-4 Stage-05 ready + ADR 0091/0092 Accepted + Engineer post-cohort-2 substrate ladder defined)
 **Maintained by:** Admiral (cross-fleet PM; formerly XO)
 **Cadence:** updated when goal definition, milestone, or velocity baseline materially changes; not on every PR. The dynamic state lives in `active-workstreams.md` (shipyard repo); this file is the stable "where we're going."
 
@@ -62,15 +62,36 @@ Per `project_business_mvp_phase_1_progress` memory, G1-G6 substrate is **all mer
 
 `blocks-reports` is the read-side report-cartridge cluster. **All 7 PRs landed today (2026-05-17):** `IReportCartridge<,>` substrate + 5 Phase 1 MVP cartridges (Trial Balance, AR Aging, AP Aging, P&L by Property, Rent Roll v2 — supersedes the W#60 P5 thin slice). v1 Rent Roll deprecation path documented; no breaking change. This effectively closes the reporting half of W#60 P5 and replaces it with a richer surface.
 
-**W#74 — Anchor React Rebind Cohort 1 (NEW, in flight 2026-05-17):**
+**W#74 — Anchor React Rebind Cohort 1 (BUILT, closed 2026-05-18):**
 
-Cross-stack workstream rebinding Sunfish React app pages from direct-ERPNext calls onto the Bridge cockpit pattern. 4 PRs scoped (Properties / Leases / Maintenance / close-out + ledger flip).
-- PR 1 (Properties) — **MERGED**
-- PR 2 (Leases) — **MERGED**
-- PR 3 (Maintenance) — **In flight** (DRAFT; FED working through council verdict)
-- PR 4 (close-out + ledger flip + docs) — pending after PR 3 lands
+Cross-stack workstream rebinding Sunfish React app pages from direct-ERPNext calls onto the Bridge cockpit pattern. **All 4 PRs MERGED 2026-05-17 → 2026-05-18.** Properties + Leases + Maintenance + close-out shipped. Workstream `built` ledger flip 2026-05-18.
 
-Cohort 2 (broader page coverage) directive issued 2026-05-17T23-15Z — preparation begins after PR 4.
+**W#76 — Anchor React Rebind Cohort 2 — Financial Cluster (BUILT, closed 2026-05-21):**
+
+Cohort-2 hand-off (`shipyard/icm/_state/handoffs/anchor-react-rebind-cohort-2-stage06-handoff.md`) authored by ONR 2026-05-18 (961 lines; shipyard#42 MERGED). 8-PR cluster (substrate PR 0a/b/c/d + frontend PR 1/2/3 + close-out PR 4) targeting AccountingPage + LeaseDetailPage payments + RentCollectionPage rebinds.
+
+**Substrate PR 0 cluster (all MERGED 2026-05-20T23:40Z → 2026-05-21T00:16Z):**
+- shipyard#52 PR 0a — `blocks-financial-ar` IInvoiceRepository tenant-keyed
+- shipyard#57 PR 0b — `blocks-financial-ap` IBillRepository tenant-keyed
+- shipyard#60 PR 0c — `blocks-financial-payments` IPaymentRepository + IPaymentApplicationRepository tenant-keyed
+- shipyard#64 PR 0d — `blocks-financial-ledger` IJournalStore tenant-keyed
+- shipyard#63 — pattern-009-tenant-keying-retrofit catalog corrigendum (dual SPOT-CHECK ratification)
+
+**Pattern-009-tenant-keying-retrofit FORMALLY RATIFIED 2026-05-21** after 4 clean substrate shippings + dual sec-eng + .NET-architect SPOT-CHECK GREEN.
+
+**Frontend PR 1/2/3 + close-out PR 4 — in-flight by FED + net-architect SPOT-CHECKs returned 2026-05-21T02-25Z/02-28Z/02-19Z**; merge cascade expected this week.
+
+**W#77 — Anchor React Rebind Cohort 3 — Reports Cluster (Stage-06 READY, 2026-05-21):**
+
+Cohort-3 hand-off (`shipyard/icm/_state/handoffs/anchor-react-rebind-cohort-3-stage06-handoff.md`; shipyard#51 MERGED 2026-05-21T07:42Z; 841 lines) targets 4 report pages — Trial Balance (new) + AR Aging (new) + ProfitAndLossByPropertyPage (rewrite from PLReport) + RentRoll v2 (rewrite). Consumes W#72 blocks-reports cartridges. 5 FED PRs + 1 Engineer prereq (Bridge cartridge-runner endpoint family). AP Aging deferred to cohort-4+ (cartridge not shipped). Pattern-011-cartridge-read-via-post candidate from PR 1 + Engineer prereq.
+
+**Gates:**
+- PAO Track C cohort-3 design direction pending (`shipyard/_shared/design/cohort-3/`); FED PR 2-5 await
+- Engineer prereq PR 0 cartridge-runner endpoint family (~2-3h) when Admiral dispatches
+
+**W#78 — Anchor React Cohort 4 — Audit-Trail Viewer (Stage-06 READY, 2026-05-21):**
+
+Cohort-4 anchor selected: **C3 audit-trail viewer** per V2 #6 cohort-4 scope survey research. Hand-off (`shipyard/icm/_state/handoffs/cohort-4-c3-audit-trail-viewer-stage06-handoff.md`; shipyard#81; 659 lines) is the first canonical instance of the R3 Adversarial Brief protocol (per V3 #4 prototype). 4-PR cluster: 1 Engineer prereq (`GET /api/v1/audit-events` Bridge endpoint family with signed-cursor pagination + CSV export DoS protection) + 3 FED PRs (table view + detail page + close-out). ~6-9h dev. Consumes V2 #3 audit-emission Bridge retrofit (forensics surface).
 
 **Phase 2 completion estimate (revised 2026-05-17):** ~12-25 PRs remaining (W#72 closed today; W#74 closing imminently; WS-C and WS-D likely 0-3 PRs combined if ERPNext native handles them). CIC decision on C+D needed after W#60 P3 ships.
 
@@ -91,16 +112,36 @@ Cohort 2 (broader page coverage) directive issued 2026-05-17T23-15Z — preparat
 **Reporting (NEW, supersedes W#60 P5 v2):**
 - [x] W#72 blocks-reports cluster BUILT 2026-05-17 — Trial Balance, AR Aging, AP Aging, P&L by Property, Rent Roll v2 substrate + 5 cartridges + render pipeline
 
-**Anchor React rebind:**
-- [x] W#74 PR 1 (Properties) merged 2026-05-17
-- [x] W#74 PR 2 (Leases) merged 2026-05-17
-- [ ] W#74 PR 3 (Maintenance) — in flight
-- [ ] W#74 PR 4 (close-out + ledger flip)
+**Anchor React rebind cascade:**
+- [x] W#74 Cohort-1 (Properties/Leases/Maintenance/close-out) — BUILT 2026-05-18
+- [x] W#76 Cohort-2 substrate PR 0a-d — BUILT 2026-05-20/21 (pattern-009-tenant-keying-retrofit ratified)
+- [ ] W#76 Cohort-2 frontend PR 1/2/3 + close-out PR 4 — In flight; net-architect SPOT-CHECKs GREEN 2026-05-21; merge cascade imminent
+- [ ] W#77 Cohort-3 Reports (5 FED PRs + 1 Engineer prereq) — Stage-06 READY; gated on PAO Track C design + Engineer prereq dispatch
+- [ ] W#78 Cohort-4 Audit-Trail Viewer (3 FED PRs + 1 Engineer prereq) — Stage-06 READY; first canonical R3 Adversarial Brief instance
+
+**Engineer post-cohort-2 substrate ladder (V3 #3 plan):**
+
+Per ONR V3 #3 sequencing research (shipyard#79): ~21 PRs / ~40-60h Engineer effort across 6 phases.
+
+| Phase | Subject | Effort |
+|---|---|---|
+| 1 | Audit-emission Bridge retrofit (V2 #3) | 1-2h; unblocks forensics |
+| 2 | ADR 0091 Step 2.0 DbContext rewrite | 3-4h; foundational |
+| 3 | ADR 0092 Step 2 EFCore per-cluster | 8-12h × 4-8 PRs; parallelizable |
+| 4 | ADR 0091 Step 3 test fixture migration | 12-24h batched |
+| 5 | ADR 0091 Step 4 facade `[Obsolete]` + `RequestContextMixingAnalyzer` | 6-8h single PR |
+| 6 | ADR 0091 Step 5 facade deletion | 1-2h; one-cohort grace |
+
+~8-12 week ladder including the post-Step-4 one-cohort grace period.
 
 **Phase 2 Sunfish-layer workstreams:**
 - [x] ADR 0051 (Payments) Accepted 2026-04-28
 - [x] ADR 0052 (Outbound messaging) Accepted 2026-04-28
-- [ ] WS-E built (W#20 phases 4-9 — providers-postmark adapter + inbound webhook + audit + docs; ONR re-authoring hand-off per admiral directive 2026-05-17T23-15Z)
+- [x] **ADR 0091 (ITenantContext Divergence Resolution) Accepted 2026-05-19T02:40Z** — substrate for sum-interface facade decomposition (foundation-authorization)
+- [x] **ADR 0092 (Substrate Tenant-Keyed Repository Contract) Accepted 2026-05-19T05:45Z** — cohort-2 PR 0a-d substrate; B6 relaxed 07:45Z
+- [ ] **ADR 0093 (Stage-05 Adversarial Review Protocol Amendment) — drafting in progress** (authoring ownership pending Admiral routing per `onr-question-2026-05-21T14-08Z-v4-adr-authoring-scope`); V3 #4 prototype provides scaffold
+- [ ] **ADR 0094 (IAuditEventReader; cohort-4 prerequisite) — drafting in progress** (same authoring ownership pending)
+- [ ] WS-E built (W#20 phases 4-9 — providers-postmark adapter + inbound webhook + audit + docs; ONR addendum re-authored at shipyard#58 / V1 #4; Phase 10+ addendum at shipyard#75 / V2 #7; deeper Phase 10 research V4 #5 pending)
 - [ ] WS-D: **CIC decision needed** — ERPNext native Stripe may make this a no-op; defer until W#60 P3 ships
 - [ ] WS-A built (Sunfish team-context bound to ERPNext entities for 6-entity setup)
 - [ ] WS-C: **CIC decision needed** — ERPNext native bank feed vs. dedicated Plaid integration; defer until W#60 P3
@@ -189,9 +230,14 @@ Parallel rebrand sweep authored by Admiral directive 2026-05-17T23-15Z (PAO dire
 
 **2026-05-16 refresh:** W#23 + W#29 + W#44–W#62 cluster shipped across 2026-05-04–2026-05-16. Approximate total: 60–80 PRs merged in 18 days → **~4-5 substantive PRs/day sustained** in the legacy Sunfish monorepo.
 
-**2026-05-17 burst (post-restructure, today):** ~30 PRs merged in a single day spread across the new fleet — `shipyard` (W#72 blocks-reports 7 PRs + W#37 PR 3b.2 + various substrate + CI fixes), `sunfish` (W#74 PR 1 + PR 2 anchor-react rebinds, restructure rewires), `signal-bridge` (cockpit endpoints), `flight-deck` (restructure rewires), `the-inverted-stack` (Vol-1/Vol-2 rebrand prep). This is a CI/infra-heavy day driven by the Phase 2 restructure ratification, not pure MVP feature work — the burst inflates the daily rate without proportionally moving the MVP timeline forward.
+**2026-05-17 burst (post-restructure):** ~30 PRs merged in a single day spread across the new fleet — W#72 blocks-reports + W#74 cohort-1 anchor-react rebinds + restructure rewires.
 
-Velocity remains **bursty** — active build days hit 15-30 PRs (today's mark is the high-water for a single day); quiet days hit 0-2. Sustainable substantive-feature pace: **4-8 PRs/day** when actively working, with periodic infra bursts on top.
+**2026-05-19 → 2026-05-21 cohort-2 + ONR research bursts:**
+- 2026-05-19: ADR 0091 Step 1 + ADR 0092 cohort-2 substrate plan; W#23.3 iOS phases 1-3 across po-mac
+- 2026-05-20: V1 ONR batch (5 research PRs ~2,221 lines; ADR 0091 Step 2.0 + W#60 P4 + WS-E phases 4-9 + OIDC scoping + cohort-3 hand-off); cohort-2 PR 0 cluster shipped 4 substrate PRs
+- 2026-05-21: V2 ONR batch (7 PRs ~2,321 lines) + V3 ONR batch (6 PRs + 1 status ~1,844 lines) + pattern-010→012 renumber + V3 #4 Adversarial Brief prototype + V3 #1 cohort-4 Stage-05 hand-off
+
+Velocity remains **bursty** — active build days hit 15-30 PRs; quiet days hit 0-2. **ONR observed velocity 2026-05-21:** V2 batch (7 items) shipped in 3h 25min; V3 batch (7 items) shipped in 17 min for the lighter doc deliverables. Sustainable substantive-feature pace: **4-8 PRs/day** sustained; ONR research bursts add 15-25 PRs/day at peak.
 
 ### Book throughput
 
@@ -203,9 +249,29 @@ CIC on Pro Max ($200/mo). Recent overnight automation run consumed ~830K tokens 
 
 ---
 
+## Patterns + ADRs ratified since last refresh (2026-05-17 → 2026-05-21)
+
+### Standing patterns
+
+- **pattern-009-tenant-keying-retrofit** — RATIFIED FORMAL 2026-05-21 (4 clean substrate shippings: cohort-2 PR 0a-d at shipyard#52/57/60/64; dual sec-eng + .NET-architect SPOT-CHECK)
+- **pattern-010 → pattern-012 renumber** (V3 #2 today, shipyard#77) — `pattern-010-financial-write-path` was originally proposed but pattern-010 + pattern-011 slots were already in use; renumbered to `pattern-012-financial-write-path`. 1st instance: cohort-2 PR 3 RentCollection POST. 3rd-instance ratification candidate: W#60 P4 PR 2 `POST /api/v1/financial/journal-entries` (per V3 #2 package-design + V2 #4 Candidate A scoring)
+- **pattern-011 (cross-cluster event publisher wiring)** — candidate; needs 3 shippings (unchanged)
+
+### ADRs Accepted
+
+- **ADR 0091 — ITenantContext Divergence Resolution** — Accepted 2026-05-19T02:40Z; both councils GREEN on Revision 2
+- **ADR 0092 — Substrate Tenant-Keyed Repository Contract** — Accepted 2026-05-19T05:45Z; B6 relaxed 07:45Z; cohort-2 PR 0a-d ratification trigger
+
+### ADRs in drafting
+
+- **ADR 0093 — Stage-05 Adversarial Review Protocol Amendment** — drafting authoring ownership pending Admiral routing (per `onr-question-2026-05-21T14-08Z-v4-adr-authoring-scope`)
+- **ADR 0094 — IAuditEventReader (cohort-4 prerequisite)** — same routing pending
+
+---
+
 ## Estimated MVP date — user-business-MVP (G-1)
 
-**Revised 2026-05-17** (post-restructure; W#72 reports closed; W#74 cohort 1 closing):
+**Revised 2026-05-21** (cohort-2 BUILT; pattern-009-tenant-keying-retrofit ratified; cohort-3 + cohort-4 Stage-06 hand-offs ready; Engineer post-cohort-2 substrate ladder mapped at ~40-60h):
 
 | Track | Remaining work | Time estimate |
 |---|---|---|
