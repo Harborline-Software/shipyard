@@ -31,6 +31,9 @@ public static class FinancialApServiceCollectionExtensions
         services.TryAddSingleton<IDomainEventPublisher, NoopDomainEventPublisher>();
         services.TryAddSingleton<IBillPostingService, BillPostingService>();
         services.TryAddSingleton<IErpnextPurchaseInvoiceImporter, ErpnextPurchaseInvoiceImporter>();
+        // A4.2 ERPNext purchase-invoice orchestration pass (ADR 0100). Thin
+        // orchestrator over the per-record importer; transient.
+        services.TryAddTransient<ErpnextPurchaseInvoicePass>();
         return services;
     }
 }
