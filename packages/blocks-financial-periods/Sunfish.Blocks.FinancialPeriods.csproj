@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
     <ProjectReference Include="..\foundation-events\Sunfish.Foundation.Events.csproj" />
+    <ProjectReference Include="..\foundation-import\Sunfish.Foundation.Import.csproj" />
     <ProjectReference Include="..\blocks-financial-ledger\Sunfish.Blocks.FinancialLedger.csproj" />
   </ItemGroup>
 </Project>

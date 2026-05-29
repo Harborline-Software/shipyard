@@ -1,9 +1,9 @@
-using Sunfish.Blocks.FinancialLedger.Migration;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialPeriods.Migration;
 using Sunfish.Blocks.FinancialPeriods.Models;
 using Sunfish.Blocks.FinancialPeriods.Services;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Import.Outcomes;
 using Xunit;
 
 namespace Sunfish.Blocks.FinancialPeriods.Tests;
@@ -66,7 +66,7 @@ public sealed class ErpnextFiscalPeriodImporterTests
 
         Assert.Single(outcomes);
         Assert.Equal(ImportAction.Inserted, outcomes[0].Action);
-        Assert.Equal(FiscalPeriodKind.Annual, outcomes[0].Record.Kind);
+        Assert.Equal(FiscalPeriodKind.Annual, outcomes[0].Record().Kind);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class ErpnextFiscalPeriodImporterTests
 
         var outcomes = await h.Sut.SynthesizePeriodsForFiscalYearAsync(fy.Id);
         var validation = FiscalPeriodCollectionValidator.Validate(
-            fy, outcomes.Select(o => o.Record).ToList());
+            fy, outcomes.Select(o => o.Record()).ToList());
 
         Assert.True(validation.IsValid, string.Join(" | ", validation.Errors));
     }
@@ -99,9 +99,9 @@ public sealed class ErpnextFiscalPeriodImporterTests
 
         Assert.NotEmpty(outcomes);
         Assert.All(outcomes, o => Assert.Equal(ImportAction.Inserted, o.Action));
-        Assert.Equal(new DateOnly(2026, 9, 15), outcomes[^1].Record.EndDate);
+        Assert.Equal(new DateOnly(2026, 9, 15), outcomes[^1].Record().EndDate);
         var validation = FiscalPeriodCollectionValidator.Validate(
-            fy, outcomes.Select(o => o.Record).ToList());
+            fy, outcomes.Select(o => o.Record()).ToList());
         Assert.True(validation.IsValid, string.Join(" | ", validation.Errors));
     }
 

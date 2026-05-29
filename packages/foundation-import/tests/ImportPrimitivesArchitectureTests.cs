@@ -37,9 +37,11 @@ public sealed class ImportPrimitivesArchitectureTests
 
         // Known-legacy per-cluster copies pending retirement by A1–A4 (D7 collapse).
         // The A-unit PRs delete these; this allowlist must only ever SHRINK.
+        // A1 (Workstream A1, Pass-1 chart of accounts) retired the
+        // blocks-financial-ledger copy by migrating its ErpnextAccount /
+        // ErpnextJournalEntry importers onto Sunfish.Foundation.Import.
         var knownLegacy = new[]
         {
-            "packages/blocks-financial-ledger/Migration/ImportOutcome.cs",
             "packages/blocks-financial-ar/Migration/ImportOutcome.cs",
             "packages/blocks-financial-ap/Migration/ImportOutcome.cs",
             "packages/blocks-people-foundation/Migration/ImportOutcome.cs",

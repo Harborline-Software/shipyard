@@ -1,13 +1,16 @@
 using Sunfish.Blocks.FinancialLedger.Models;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialLedger.Migration;
 
 /// <summary>
-/// Pass 1 of the ERPNext → Anchor-native migration: idempotent upsert
+/// Pass 1 of the ERPNext → Sunfish-native migration: idempotent upsert
 /// of <see cref="GLAccount"/> records from <see cref="ErpnextAccountSource"/>.
-/// Lookup by <c>GLAccount.ExternalRef == source.Name</c>. Returns
-/// <see cref="ImportAction.Skipped"/> when the local version is at-or-newer
-/// than the source.
+/// Lookup by <c>GLAccount.ExternalRef == source.Name</c>. Returns the
+/// <see cref="ImportOutcome{T}.Skipped"/> arm when the local version is
+/// at-or-newer than the source (ADR 0100 C2 — the canonical
+/// <c>Sunfish.Foundation.Import</c> discriminated union, not the retired
+/// per-cluster copy).
 /// </summary>
 public interface IErpnextAccountImporter
 {

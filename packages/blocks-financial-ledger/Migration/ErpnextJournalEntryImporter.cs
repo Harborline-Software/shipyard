@@ -1,6 +1,7 @@
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.FinancialLedger.Services;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialLedger.Migration;
 
@@ -9,10 +10,17 @@ namespace Sunfish.Blocks.FinancialLedger.Migration;
 /// account FKs by external-ref name, builds a draft
 /// <see cref="JournalEntry"/>, posts via the canonical
 /// <see cref="IJournalPostingService"/>. Idempotent on
-/// <c>ExternalRef == source.Name</c>; posted entries are immutable.
+/// <c>ExternalRef == source.Name</c>; posted entries are immutable. Returns the
+/// canonical <c>Sunfish.Foundation.Import</c> <see cref="ImportOutcome{T}"/> DU
+/// (ADR 0100 C2/OQ-A): unresolved-account / imbalanced / post-rejected map to
+/// the <see cref="ImportOutcome{T}.Rejected"/> arm with a structured
+/// <see cref="ImportFailure"/> rather than a record-less <c>Skipped</c>.
 /// </summary>
 public sealed class ErpnextJournalEntryImporter : IErpnextJournalEntryImporter
 {
+    /// <summary>The ERPNext DocType this importer consumes — for census provenance.</summary>
+    public const string DocType = "Journal Entry";
+
     private readonly IAccountResolver _accounts;
     private readonly IJournalPostingService _posting;
     private readonly IJournalStore _store;
@@ -41,8 +49,8 @@ public sealed class ErpnextJournalEntryImporter : IErpnextJournalEntryImporter
             .FirstOrDefault(e => string.Equals(e.ExternalRef, source.Name, StringComparison.Ordinal));
         if (existing is not null)
         {
-            return new ImportOutcome<JournalEntry>(
-                existing, ImportAction.Skipped, "already imported (posted entries are immutable per spec §5.2)");
+            return new ImportOutcome<JournalEntry>.Skipped(
+                existing, "already imported (posted entries are immutable per spec §5.2)");
         }
 
         // Resolve account FKs by ExternalRef. The ErpnextJournalEntryLineSource
@@ -57,9 +65,13 @@ public sealed class ErpnextJournalEntryImporter : IErpnextJournalEntryImporter
             var acct = await ResolveAccountByExternalRefAsync(ln.AccountName, cancellationToken).ConfigureAwait(false);
             if (acct is null)
             {
-                return new ImportOutcome<JournalEntry>(
-                    null!, ImportAction.Skipped,
-                    $"unknown account name '{ln.AccountName}'");
+                return new ImportOutcome<JournalEntry>.Rejected(
+                    ImportFailure.Of(
+                        externalRef: source.Name,
+                        docType: DocType,
+                        reason: ImportRejectReason.UnresolvedReference,
+                        fieldName: "account",
+                        ruleViolated: $"unknown account name '{ln.AccountName}'"));
             }
             lines.Add(new JournalEntryLine(
                 accountId: acct.Id,
@@ -93,21 +105,27 @@ public sealed class ErpnextJournalEntryImporter : IErpnextJournalEntryImporter
         }
         catch (ArgumentException ex)
         {
-            return new ImportOutcome<JournalEntry>(
-                null!, ImportAction.Skipped,
-                $"imbalanced source: {ex.Message}");
+            return new ImportOutcome<JournalEntry>.Rejected(
+                ImportFailure.Of(
+                    externalRef: source.Name,
+                    docType: DocType,
+                    reason: ImportRejectReason.ConstraintViolation,
+                    fieldName: "lines",
+                    ruleViolated: $"imbalanced source: {ex.Message}"));
         }
 
         var result = await _posting.PostAsync(draft, cancellationToken).ConfigureAwait(false);
         if (!result.IsSuccess)
         {
-            return new ImportOutcome<JournalEntry>(
-                null!, ImportAction.Skipped,
-                $"post rejected: {result.Error} ({result.Detail})");
+            return new ImportOutcome<JournalEntry>.Rejected(
+                ImportFailure.Of(
+                    externalRef: source.Name,
+                    docType: DocType,
+                    reason: ImportRejectReason.ConstraintViolation,
+                    ruleViolated: $"post rejected: {result.Error} ({result.Detail})"));
         }
 
-        return new ImportOutcome<JournalEntry>(
-            result.Entry!, ImportAction.Inserted, null);
+        return new ImportOutcome<JournalEntry>.Inserted(result.Entry!);
     }
 
     private async Task<GLAccount?> ResolveAccountByExternalRefAsync(string externalRef, CancellationToken ct)

@@ -1,5 +1,5 @@
-using Sunfish.Blocks.FinancialLedger.Migration;
 using Sunfish.Blocks.FinancialPeriods.Models;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialPeriods.Migration;
 
@@ -17,9 +17,9 @@ public interface IErpnextFiscalPeriodImporter
     /// <summary>
     /// Synthesize the <see cref="FiscalPeriod"/> rows for an imported
     /// <see cref="FiscalYear"/>. Idempotent per-FY: re-running on a FY
-    /// whose periods already exist returns
-    /// <see cref="ImportAction.Skipped"/> for every shape; first run
-    /// returns <see cref="ImportAction.Inserted"/>.
+    /// whose periods already exist returns the
+    /// <see cref="ImportOutcome{T}.Skipped"/> arm for every shape; first run
+    /// returns <see cref="ImportOutcome{T}.Inserted"/>.
     /// </summary>
     /// <param name="fiscalYearId">FK to the previously-imported FY.</param>
     /// <param name="kind">Monthly (default) / Quarterly / Annual.</param>
