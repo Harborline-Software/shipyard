@@ -482,6 +482,10 @@
     <Project Path="packages/providers-mesh-headscale/Sunfish.Providers.Mesh.Headscale.csproj" />
     <Project Path="packages/providers-mesh-headscale/tests/Sunfish.Providers.Mesh.Headscale.Tests.csproj" />
   </Folder>
+  <Folder Name="/providers/postmark/">
+    <Project Path="packages/providers-postmark/Sunfish.Providers.Postmark.csproj" />
+    <Project Path="packages/providers-postmark/tests/Sunfish.Providers.Postmark.Tests.csproj" />
+  </Folder>
   <Folder Name="/providers/recaptcha/">
     <Project Path="packages/providers-recaptcha/Sunfish.Providers.Recaptcha.csproj" />
     <Project Path="packages/providers-recaptcha/tests/Sunfish.Providers.Recaptcha.Tests.csproj" />
