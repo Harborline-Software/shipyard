@@ -1,6 +1,6 @@
 # Master Plan — Harborline Fleet (Sunfish ERP + Inverted Stack)
 
-**Last updated:** 2026-05-21 (V4 #7 refresh by ONR per `admiral-directive-2026-05-21T14-05Z`; cohort-2 closed + pattern-009-tenant-keying-retrofit ratified + pattern-010→012 renumber + cohort-3 Stage-06 ready + cohort-4 Stage-05 ready + ADR 0091/0092 Accepted + Engineer post-cohort-2 substrate ladder defined)
+**Last updated:** 2026-05-29 (QM doc-drift refresh H4; property-management vertical feature-complete — cohorts 1–5 + W#79 onboarding + ADR 0099/0097 auth chain merged; ERPNext data importer now active — ADR 0100 Accepted + A0/foundation-import shipped as shipyard PR 183; post-MVP WBS landed at `icm/05_implementation-plan/post-mvp-wbs-2026-05-29.md` — 61 dispatchable PR units; pattern-009 SPOT-CHECK SLA codified in fleet-conventions — no longer an open item)
 **Maintained by:** Admiral (cross-fleet PM; formerly XO)
 **Cadence:** updated when goal definition, milestone, or velocity baseline materially changes; not on every PR. The dynamic state lives in `active-workstreams.md` (shipyard repo); this file is the stable "where we're going."
 
@@ -24,17 +24,17 @@ This effort has **three concurrent goals**, ranked by CIC priority:
 
 ## G-1: Business MVP — current state + path to done
 
-### Phase 1 (foundational primitives) — ~95% done
+### Phase 1 (foundational primitives) — COMPLETE (2026-05-16)
 
-Per `project_business_mvp_phase_1_progress` memory, G1-G6 substrate is **all merged**. Remaining:
+G1-G6 substrate and G7 conformance scan all merged. Phase 1 is closed.
 
-- **G6 host integration** — wire `RecoveryCompleted → SqlCipher rekey + persist to kernel-audit` in the Sunfish ERP app. Stage 06. Not yet started. Buildable on Win + Mac (per ADR 0044 amendment 2026-04-28 + ADR 0048 multi-backend MAUI; CIC's Mac is now updated to latest OS + Xcode).
-- **G6 Razor UI** — `TrusteeSetup / InitiateRecovery / ApproveRecoveryRequest / PaperKey` pages. Stage 06. Not yet started. Same multi-platform build envelope.
-- **G7 conformance baseline scan** — unblocked on substrate; gated on G6 host integration.
+- **G6 host integration** — W#65 (PR #868 `ISessionSignerAccessor`) + W#66 (PR #870 `ApproveRecoveryPage` live attestation) — **BUILT 2026-05-16**.
+- **G6 Razor UI** — W#67 six-PR social-recovery chain (PRs #875–#903): ADR 0046-A6 seed-delivery protocol + `EncryptedSeedShare` + SQLCipher rekey wired — **BUILT 2026-05-16**.
+- **G7 conformance baseline scan** — scan complete 2026-05-16; report at `icm/01_discovery/output/g7-conformance-baseline-2026-Q2.md`; verdict: **PASS — 6/6**.
 
-**Phase 1 completion estimate:** ~3-5 PRs remaining; ~1 week of focused Engineer (po-mac / po-win) work.
+**Phase 1 completion:** CLOSED 2026-05-16. All G1–G6 goals verified PASS.
 
-### Phase 2 (commercial scope) — ~25% done
+### Phase 2 (commercial scope) — property-management vertical feature-complete; post-MVP WBS active
 
 **⚠ W#60 pivot (2026-05-11) materially changes workstreams A–G.** ERPNext now owns accounting, invoicing, bank reconciliation, and statements. Sunfish wraps it. Original workstream scopes below have been annotated with pivot impact.
 
@@ -68,56 +68,71 @@ Cross-stack workstream rebinding Sunfish React app pages from direct-ERPNext cal
 
 **W#76 — Anchor React Rebind Cohort 2 — Financial Cluster (BUILT, closed 2026-05-21):**
 
-Cohort-2 hand-off (`shipyard/icm/_state/handoffs/anchor-react-rebind-cohort-2-stage06-handoff.md`) authored by ONR 2026-05-18 (961 lines; shipyard#42 MERGED). 8-PR cluster (substrate PR 0a/b/c/d + frontend PR 1/2/3 + close-out PR 4) targeting AccountingPage + LeaseDetailPage payments + RentCollectionPage rebinds.
+Cohort-2 hand-off authored by ONR 2026-05-18. All 8 PRs merged: substrate PR 0a/b/c/d (IInvoiceRepository + IBillRepository + IPaymentRepository + IJournalStore tenant-keyed) + frontend PR 1/2/3 + close-out PR 4. **Pattern-009-tenant-keying-retrofit formally ratified 2026-05-21** (dual sec-eng + .NET-architect SPOT-CHECK GREEN). SPOT-CHECK SLA now codified in `fleet-conventions.md` — no longer an open tracking item.
 
-**Substrate PR 0 cluster (all MERGED 2026-05-20T23:40Z → 2026-05-21T00:16Z):**
-- shipyard#52 PR 0a — `blocks-financial-ar` IInvoiceRepository tenant-keyed
-- shipyard#57 PR 0b — `blocks-financial-ap` IBillRepository tenant-keyed
-- shipyard#60 PR 0c — `blocks-financial-payments` IPaymentRepository + IPaymentApplicationRepository tenant-keyed
-- shipyard#64 PR 0d — `blocks-financial-ledger` IJournalStore tenant-keyed
-- shipyard#63 — pattern-009-tenant-keying-retrofit catalog corrigendum (dual SPOT-CHECK ratification)
+**W#77 — Anchor React Rebind Cohort 3 — Reports Cluster (BUILT, closed ~2026-05-25):**
 
-**Pattern-009-tenant-keying-retrofit FORMALLY RATIFIED 2026-05-21** after 4 clean substrate shippings + dual sec-eng + .NET-architect SPOT-CHECK GREEN.
+Cohort-3 targets 4 report pages — Trial Balance + AR Aging + ProfitAndLossByPropertyPage rewrite + RentRoll v2 rewrite — consuming W#72 blocks-reports cartridges. All PRs MERGED.
 
-**Frontend PR 1/2/3 + close-out PR 4 — in-flight by FED + net-architect SPOT-CHECKs returned 2026-05-21T02-25Z/02-28Z/02-19Z**; merge cascade expected this week.
+**W#78 — Anchor React Cohort 4 — Audit-Trail Viewer (BUILT, activated ~2026-05-25):**
 
-**W#77 — Anchor React Rebind Cohort 3 — Reports Cluster (Stage-06 READY, 2026-05-21):**
+Cohort-4 anchor: audit-trail viewer (C3). 4-PR cluster (1 Engineer prereq `GET /api/v1/audit-events` endpoint + 3 FED PRs). **Cohort-4 activation complete** — no longer staged as "Stage-06 READY."
 
-Cohort-3 hand-off (`shipyard/icm/_state/handoffs/anchor-react-rebind-cohort-3-stage06-handoff.md`; shipyard#51 MERGED 2026-05-21T07:42Z; 841 lines) targets 4 report pages — Trial Balance (new) + AR Aging (new) + ProfitAndLossByPropertyPage (rewrite from PLReport) + RentRoll v2 (rewrite). Consumes W#72 blocks-reports cartridges. 5 FED PRs + 1 Engineer prereq (Bridge cartridge-runner endpoint family). AP Aging deferred to cohort-4+ (cartridge not shipped). Pattern-011-cartridge-read-via-post candidate from PR 1 + Engineer prereq.
+**W#79 — Tenant Onboarding Flow (BUILT, closed 2026-05-28):**
 
-**Gates:**
-- PAO Track C cohort-3 design direction pending (`shipyard/_shared/design/cohort-3/`); FED PR 2-5 await
-- Engineer prereq PR 0 cartridge-runner endpoint family (~2-3h) when Admiral dispatches
+Full onboarding auth chain: ADR 0095 (Bootstrap Endpoint) + ADR 0096 (Tier-2 Vendor Provider substrate) + ADR 0097 (Password Hashing) + ADR 0099 (Session Establishment) all Accepted and substrate PRs merged. W#79 PR cycle complete with cycle-2a dual-council GREEN (sunfish PR 80 / signal-bridge W79 onboarding).
 
-**W#78 — Anchor React Cohort 4 — Audit-Trail Viewer (Stage-06 READY, 2026-05-21):**
+**ADR 0099/0097 auth chain — MERGED:**
+- ADR 0095 (Bootstrap) + ADR 0096 (Vendor substrate) + ADR 0097 (foundation-password-hashing) + ADR 0099 (SessionBackedTenantContext session establishment) — all Accepted + Step 1/Step 2/A0 substrate shipped.
+- ADR 0098 Rev 3 amendment ratified 2026-05-29T03:30Z.
 
-Cohort-4 anchor selected: **C3 audit-trail viewer** per V2 #6 cohort-4 scope survey research. Hand-off (`shipyard/icm/_state/handoffs/cohort-4-c3-audit-trail-viewer-stage06-handoff.md`; shipyard#81; 659 lines) is the first canonical instance of the R3 Adversarial Brief protocol (per V3 #4 prototype). 4-PR cluster: 1 Engineer prereq (`GET /api/v1/audit-events` Bridge endpoint family with signed-cursor pagination + CSV export DoS protection) + 3 FED PRs (table view + detail page + close-out). ~6-9h dev. Consumes V2 #3 audit-emission Bridge retrofit (forensics surface).
+**ERPNext Data Importer — ACTIVE (ADR 0100 + A0/foundation-import shipped 2026-05-29):**
 
-**Phase 2 completion estimate (revised 2026-05-17):** ~12-25 PRs remaining (W#72 closed today; W#74 closing imminently; WS-C and WS-D likely 0-3 PRs combined if ERPNext native handles them). CIC decision on C+D needed after W#60 P3 ships.
+ADR 0100 (ERPNext Data Import Contract) Rev 2 MERGED as shipyard PR 182. Foundation-import A0 primitives + MariaDB-dump adapter shipped as shipyard PR 183 (merged 2026-05-29T13:00Z). ERPNext data importer workstream is now active on the critical path.
 
-### G-1 done conditions (concrete, revised 2026-05-17)
+**Post-MVP WBS — LANDED (2026-05-29, shipyard PR 181):**
 
-**Phase 1:**
+61 dispatchable PR units at `icm/05_implementation-plan/post-mvp-wbs-2026-05-29.md`. Covers H1–H8 hygiene + maintenance units and the expanded post-MVP engineering ladder.
+
+**Phase 2 completion (revised 2026-05-29):** Property-management vertical is **feature-complete** (cohorts 1–5 + W#79 auth chain). Remaining open workstreams: WS-E (tenant comms / providers-postmark), WS-H (spouse co-ownership + recovery), WS-C/WS-D (CIC decision deferred to post-W#60-P3). ERPNext data importer now active. Post-MVP WBS defines the next 61 PR units.
+
+### G-1 done conditions (concrete, revised 2026-05-29)
+
+**Phase 1: COMPLETE**
 - [x] `Foundation.Recovery` package split built (W#15 + W#32 both `built`)
-- [ ] G6 host integration + Razor UI shipped (W#63 hand-off authored 2026-05-16 — immediately buildable; assigned po-mac / po-win)
-- [ ] G7 conformance baseline scan committed under `shipyard/icm/01_discovery/output/`
+- [x] G6 host integration + Razor UI shipped — W#65/W#66/W#67 all BUILT 2026-05-16
+- [x] G7 conformance baseline scan — PASS 6/6 at `icm/01_discovery/output/g7-conformance-baseline-2026-Q2.md`
 
 **ERPNext composition layer (W#60):**
 - [x] W#60 P1 PASS — ERPNext self-hosted on CIC machine; lease + rent payment + ledger confirmed (2026-05-12)
 - [x] W#60 P2 BUILT — React UI (6 screens + `@sunfish/ui-react`) on main (2026-05-13)
 - [x] W#60 P5 PR 1 BUILT — `@sunfish/contracts` published; Bridge thin-slice rent roll shipped (2026-05-16)
-- [ ] W#60 P3 PASS — CIC works offline on Surface Pro 30 min; reconnects; changes appear in ERPNext (gates P4); ADR 0086 PR merged 2026-05-17, status flip pending
-- [ ] W#60 P4 PASS — Accountant peer node syncing; CPA can view year-end data; tenant portal works via magic-link
+- [ ] W#60 P3 PASS — CIC Surface Pro offline acceptance (deferred to 2026-06-09 per CIC ruling; ADR 0086 merged)
+- [ ] W#60 P4 PASS — Accountant peer node; CPA view; tenant portal (gated on P3 PASS)
 
-**Reporting (NEW, supersedes W#60 P5 v2):**
-- [x] W#72 blocks-reports cluster BUILT 2026-05-17 — Trial Balance, AR Aging, AP Aging, P&L by Property, Rent Roll v2 substrate + 5 cartridges + render pipeline
+**Reporting (supersedes W#60 P5 v2):**
+- [x] W#72 blocks-reports cluster BUILT 2026-05-17 — Trial Balance, AR Aging, AP Aging, P&L by Property, Rent Roll v2
 
-**Anchor React rebind cascade:**
+**Anchor React rebind cascade — property-management vertical COMPLETE:**
 - [x] W#74 Cohort-1 (Properties/Leases/Maintenance/close-out) — BUILT 2026-05-18
-- [x] W#76 Cohort-2 substrate PR 0a-d — BUILT 2026-05-20/21 (pattern-009-tenant-keying-retrofit ratified)
-- [ ] W#76 Cohort-2 frontend PR 1/2/3 + close-out PR 4 — In flight; net-architect SPOT-CHECKs GREEN 2026-05-21; merge cascade imminent
-- [ ] W#77 Cohort-3 Reports (5 FED PRs + 1 Engineer prereq) — Stage-06 READY; gated on PAO Track C design + Engineer prereq dispatch
-- [ ] W#78 Cohort-4 Audit-Trail Viewer (3 FED PRs + 1 Engineer prereq) — Stage-06 READY; first canonical R3 Adversarial Brief instance
+- [x] W#76 Cohort-2 Financial Cluster — BUILT 2026-05-21 (pattern-009 ratified)
+- [x] W#77 Cohort-3 Reports — BUILT ~2026-05-25
+- [x] W#78 Cohort-4 Audit-Trail Viewer — BUILT ~2026-05-25 (cohort-4 activation complete)
+- [x] W#79 Tenant Onboarding + Auth Chain — BUILT 2026-05-28
+
+**Auth substrate ladder:**
+- [x] ADR 0091 Accepted + Step 1 shipped (foundation-authorization)
+- [x] ADR 0092 Accepted + Step 1/2 shipped (tenant-keyed repositories)
+- [x] ADR 0093 (Stage-05 Adversarial Review Protocol) Accepted
+- [x] ADR 0095 (Bootstrap Endpoint) Accepted + shipped
+- [x] ADR 0096 (Tier-2 Vendor Provider substrate) Accepted + Step 1/2 shipped
+- [x] ADR 0097 (Password Hashing) Accepted + shipped
+- [x] ADR 0098 Rev 3 amendment ratified 2026-05-29
+- [x] ADR 0099 (Session Establishment) Accepted + substrate shipped
+
+**ERPNext data importer:**
+- [x] ADR 0100 (ERPNext Data Import Contract) Rev 2 Accepted + shipped (shipyard PR 182)
+- [x] foundation-import A0 primitives + MariaDB-dump adapter shipped (shipyard PR 183)
 
 **Engineer post-cohort-2 substrate ladder (V3 #3 plan):**
 
@@ -137,14 +152,19 @@ Per ONR V3 #3 sequencing research (shipyard#79): ~21 PRs / ~40-60h Engineer effo
 **Phase 2 Sunfish-layer workstreams:**
 - [x] ADR 0051 (Payments) Accepted 2026-04-28
 - [x] ADR 0052 (Outbound messaging) Accepted 2026-04-28
-- [x] **ADR 0091 (ITenantContext Divergence Resolution) Accepted 2026-05-19T02:40Z** — substrate for sum-interface facade decomposition (foundation-authorization)
-- [x] **ADR 0092 (Substrate Tenant-Keyed Repository Contract) Accepted 2026-05-19T05:45Z** — cohort-2 PR 0a-d substrate; B6 relaxed 07:45Z
-- [ ] **ADR 0093 (Stage-05 Adversarial Review Protocol Amendment) — drafting in progress** (authoring ownership pending Admiral routing per `onr-question-2026-05-21T14-08Z-v4-adr-authoring-scope`); V3 #4 prototype provides scaffold
-- [ ] **ADR 0094 (IAuditEventReader; cohort-4 prerequisite) — drafting in progress** (same authoring ownership pending)
-- [ ] WS-E built (W#20 phases 4-9 — providers-postmark adapter + inbound webhook + audit + docs; ONR addendum re-authored at shipyard#58 / V1 #4; Phase 10+ addendum at shipyard#75 / V2 #7; deeper Phase 10 research V4 #5 pending)
-- [ ] WS-D: **CIC decision needed** — ERPNext native Stripe may make this a no-op; defer until W#60 P3 ships
+- [x] ADR 0091 (ITenantContext Divergence Resolution) Accepted 2026-05-19 — substrate shipped
+- [x] ADR 0092 (Tenant-Keyed Repository Contract) Accepted 2026-05-19 — substrate shipped
+- [x] ADR 0093 (Stage-05 Adversarial Review Protocol) Accepted — ratified
+- [x] ADR 0095 (Bootstrap Endpoint) Accepted — Step 1/2 shipped
+- [x] ADR 0096 (Tier-2 Vendor Provider substrate) Accepted — Step 1/2 shipped
+- [x] ADR 0097 (Password Hashing) Accepted — foundation-password-hashing shipped
+- [x] ADR 0098 Rev 3 amendment ratified 2026-05-29
+- [x] ADR 0099 (Session Establishment / SessionBackedTenantContext) Accepted — substrate shipped
+- [x] ADR 0100 (ERPNext Data Import Contract) Accepted — A0/foundation-import shipped 2026-05-29
+- [ ] WS-E built (providers-postmark adapter + inbound webhook + audit + docs — hand-off at `wse-tenant-comms-hand-off.md`; ADR 0096 email provider substrate now shipped; buildable)
+- [ ] WS-D: **CIC decision deferred** — ERPNext native Stripe; defer to post-W#60-P3
 - [ ] WS-A built (Sunfish team-context bound to ERPNext entities for 6-entity setup)
-- [ ] WS-C: **CIC decision needed** — ERPNext native bank feed vs. dedicated Plaid integration; defer until W#60 P3
+- [ ] WS-C: **CIC decision deferred** — ERPNext native bank feed vs. Plaid; defer to post-W#60-P3
 - [ ] WS-H built (spouse co-ownership + recovery)
 
 **Business validation:**
