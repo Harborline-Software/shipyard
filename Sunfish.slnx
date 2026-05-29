@@ -175,9 +175,13 @@
     <Project Path="packages/blocks-leases/Sunfish.Blocks.Leases.csproj" />
     <Project Path="packages/blocks-leases/tests/tests.csproj" />
   </Folder>
+  <Folder Name="/blocks/reviews/">
+    <Project Path="packages/blocks-reviews/Sunfish.Blocks.Reviews.csproj" />
+    <Project Path="packages/blocks-reviews/tests/tests.csproj" />
+  </Folder>
   <Folder Name="/blocks/inspections/">
+    <!-- Deprecated re-export shim for blocks-reviews per ADR 0098 (archived 90d post-MVP/Step 7). -->
     <Project Path="packages/blocks-inspections/Sunfish.Blocks.Inspections.csproj" />
-    <Project Path="packages/blocks-inspections/tests/tests.csproj" />
   </Folder>
   <Folder Name="/blocks/integrations/">
     <Project Path="packages/blocks-integrations/Sunfish.Blocks.Integrations.csproj" />

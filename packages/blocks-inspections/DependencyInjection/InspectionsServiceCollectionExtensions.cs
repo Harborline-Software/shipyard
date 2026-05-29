@@ -1,33 +1,30 @@
+using System;
+using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Sunfish.Blocks.Inspections.Services;
-using Sunfish.Foundation.Localization;
 
 namespace Sunfish.Blocks.Inspections.DependencyInjection;
 
 /// <summary>
-/// DI extension methods for registering Sunfish inspection-management services.
+/// Deprecated DI extension stub for the renamed <c>blocks-reviews</c> package
+/// (was <c>blocks-inspections</c>) per ADR 0098. <see cref="System.Runtime.CompilerServices.TypeForwardedToAttribute"/>
+/// forwards TYPES but not extension methods, so this stub preserves the old
+/// <c>AddInMemoryInspections</c> call-site by delegating to
+/// <c>Sunfish.Blocks.Reviews.DependencyInjection.ReviewsServiceCollectionExtensions.AddInMemoryReviews</c>
+/// (ADR 0098 §"Per-rename migration pattern" A6). Hidden from IntelliSense; still callable from
+/// already-compiled code.
 /// </summary>
+[Obsolete(
+    "Sunfish.Blocks.Inspections.DependencyInjection.AddInMemoryInspections is renamed to "
+    + "Sunfish.Blocks.Reviews.DependencyInjection.AddInMemoryReviews per ADR 0098.",
+    false)]
+[EditorBrowsable(EditorBrowsableState.Never)]
 public static class InspectionsServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="IInspectionsService"/> as a singleton backed by
-    /// <see cref="InMemoryInspectionsService"/>.
-    /// Also contributes the open-generic <see cref="ISunfishLocalizer{T}"/> binding
-    /// so consumers can resolve the inspections <c>SharedResource</c> bundle. Caller
-    /// is responsible for wiring <c>services.AddLocalization()</c> in the composition
-    /// root (matches the cluster-A sentinel pattern; class libraries don't take a
-    /// hard PackageReference on <c>Microsoft.Extensions.Localization</c>).
-    /// Suitable for development, testing, and demo scenarios.
-    /// Replace with a persistence-backed implementation for production.
+    /// Deprecated alias for
+    /// <c>Sunfish.Blocks.Reviews.DependencyInjection.ReviewsServiceCollectionExtensions.AddInMemoryReviews</c>.
     /// </summary>
-    /// <param name="services">The service collection to register into.</param>
-    /// <returns>The same <paramref name="services"/> for fluent chaining.</returns>
     public static IServiceCollection AddInMemoryInspections(this IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        services.AddSingleton<IInspectionsService, InMemoryInspectionsService>();
-        services.TryAddSingleton(typeof(ISunfishLocalizer<>), typeof(SunfishLocalizer<>));
-        return services;
-    }
+        => Sunfish.Blocks.Reviews.DependencyInjection.ReviewsServiceCollectionExtensions
+            .AddInMemoryReviews(services);
 }

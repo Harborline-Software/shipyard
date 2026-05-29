@@ -13,9 +13,9 @@ namespace Sunfish.Blocks.Maintenance.Models;
 /// <param name="Status">Current lifecycle status of this request.</param>
 /// <param name="RequestedDate">The calendar date on which the request was submitted.</param>
 /// <param name="DeficiencyReference">
-/// Optional opaque reference to a deficiency in <c>blocks-inspections</c>.
-/// This is a plain string so that <c>blocks-maintenance</c> has no compile-time dependency on
-/// <c>Sunfish.Blocks.Inspections</c>; consumer code is responsible for translating between
+/// Optional opaque reference to a deficiency in <c>blocks-reviews</c> (was <c>blocks-inspections</c>
+/// before the ADR 0098 rename). This is a plain string so that <c>blocks-maintenance</c> has no
+/// compile-time dependency on <c>Sunfish.Blocks.Reviews</c>; consumer code is responsible for translating between
 /// a real <c>DeficiencyId</c> and this string. See independence note in the package README.
 /// </param>
 /// <param name="CreatedAtUtc">The instant this record was first persisted.</param>

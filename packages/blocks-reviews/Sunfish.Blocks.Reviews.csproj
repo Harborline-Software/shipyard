@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Sunfish.Blocks.Reviews</PackageId>
+    <!-- Major bump (0.1.0 inherited -> 1.0.0): renamed from Sunfish.Blocks.Inspections per
+         ADR 0098. Binary-compat-survivable via the blocks-inspections re-export shim. -->
+    <Version>1.0.0</Version>
+    <Description>Review-management block for Sunfish (renamed from Sunfish.Blocks.Inspections per ADR 0098 block-naming generalization) — templates, scheduled reviews, state transitions, deficiency tracking, and report generation. Generalized from property inspections to a cross-vertical review surface.</Description>
+    <PackageTags>blazor;reviews;inspections;property;blocks;domain;sunfish</PackageTags>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- TODO(SUNFISH_I18N_002): Path A temporary suppression — SharedResource scaffolded
+         ahead of consumer wiring. Remove once IStringLocalizer references land. -->
+    <NoWarn>CS1591;SUNFISH_I18N_002</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sunfish.Blocks.Reviews.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
+    <ProjectReference Include="..\ui-core\Sunfish.UICore.csproj" />
+    <ProjectReference Include="..\ui-adapters-blazor\Sunfish.UIAdapters.Blazor.csproj" />
+    <!-- Property-Equipment FK target for EquipmentConditionAssessment (workstream #25 EXTEND). -->
+    <ProjectReference Include="..\blocks-property-equipment\Sunfish.Blocks.PropertyEquipment.csproj" />
+  </ItemGroup>
+</Project>

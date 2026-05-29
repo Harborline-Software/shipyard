@@ -6,7 +6,7 @@ namespace Sunfish.Blocks.Maintenance.Services;
 /// </summary>
 /// <remarks>
 /// Part of the public API surface of <c>blocks-maintenance</c> per ADR 0053
-/// amendment A5 — exposed so cluster modules (Work Orders, Inspections,
+/// amendment A5 — exposed so cluster modules (Work Items, Reviews,
 /// Leases, Property-Equipment, etc.) can compose their own state machines on
 /// the same primitive instead of duplicating the table-with-Guard pattern.
 /// </remarks>

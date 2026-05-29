@@ -1,29 +1,26 @@
-<Project Sdk="Microsoft.NET.Sdk.Razor">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <PackageId>Sunfish.Blocks.Inspections</PackageId>
-    <Description>Inspection-management block for Sunfish — templates, scheduled inspections, state transitions, deficiency tracking, and report generation.</Description>
-    <PackageTags>blazor;inspections;property;blocks;domain;sunfish</PackageTags>
+    <!-- Major bump to 1.0.0: now a deprecated re-export shim for the renamed
+         Sunfish.Blocks.Reviews package per ADR 0098. Archived 90 days after the later of
+         MVP launch / Step 7 analyzer landing. -->
+    <Version>1.0.0</Version>
+    <!-- GenerateAssemblyInfo=false avoids duplicate AssemblyTitle/AssemblyDescription
+         across the shim build and the forwarded-to Reviews build (ADR 0098 A5c). -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Description>Deprecated re-export shim for the renamed Sunfish.Blocks.Reviews package (was Sunfish.Blocks.Inspections) per ADR 0098 block-naming generalization. Forwards all public types — including the ReviewListBlock Blazor component — via [assembly: TypeForwardedTo]. Update consumers to Sunfish.Blocks.Reviews; this package is archived 90 days after MVP launch / Step 7 analyzer landing.</Description>
+    <PackageTags>deprecated;shim;inspections;reviews;blocks;sunfish</PackageTags>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- TODO(SUNFISH_I18N_002): Path A temporary suppression — SharedResource scaffolded
-         ahead of consumer wiring. Remove once IStringLocalizer references land. -->
-    <NoWarn>CS1591;SUNFISH_I18N_002</NoWarn>
+    <NoWarn>CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="tests/**/*.cs" />
-  </ItemGroup>
-  <ItemGroup>
+    <!-- Required to resolve the forwarded ReviewListBlock component type (ComponentBase). -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Sunfish.Blocks.Inspections.Tests" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
-    <ProjectReference Include="..\ui-core\Sunfish.UICore.csproj" />
-    <ProjectReference Include="..\ui-adapters-blazor\Sunfish.UIAdapters.Blazor.csproj" />
-    <!-- Property-Equipment FK target for EquipmentConditionAssessment (workstream #25 EXTEND). -->
-    <ProjectReference Include="..\blocks-property-equipment\Sunfish.Blocks.PropertyEquipment.csproj" />
+    <!-- Re-export shim: forwards every public type to the renamed package. -->
+    <ProjectReference Include="..\blocks-reviews\Sunfish.Blocks.Reviews.csproj" />
   </ItemGroup>
 </Project>
