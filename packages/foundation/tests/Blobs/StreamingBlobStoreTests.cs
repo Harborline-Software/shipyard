@@ -15,7 +15,7 @@ public class StreamingBlobStoreTests : IDisposable
 
     public StreamingBlobStoreTests()
     {
-        _root = Path.Combine(Path.GetTempPath(), "sunfish-streaming-tests-" + Path.GetRandomFileName());
+        _root = Path.Combine(LargeIoTempRoot(), "sunfish-streaming-tests-" + Path.GetRandomFileName());
         _store = new FileSystemBlobStore(_root);
     }
 
@@ -24,6 +24,32 @@ public class StreamingBlobStoreTests : IDisposable
         if (Directory.Exists(_root))
         {
             Directory.Delete(_root, recursive: true);
+        }
+    }
+
+    // Large-IO temp-volume helpers. The 100-MiB test below is infra-flaky (not code-flaky): on a
+    // disk-pressured runner the payload write throws "No space left on device" (reddened shipyard
+    // PR 200/202). Prefer the roomier RUNNER_TEMP mount on CI, and self-skip cleanly when the
+    // volume genuinely cannot hold the payload — see Xunit.SkippableFact (the xUnit 2 skip idiom).
+    private static string LargeIoTempRoot() =>
+        Environment.GetEnvironmentVariable("RUNNER_TEMP") is { Length: > 0 } runnerTemp
+            ? runnerTemp
+            : Path.GetTempPath();
+
+    private static void SkipIfInsufficientTempSpace(string root, long payloadBytes)
+    {
+        const long headroomBytes = 64L * 1024 * 1024; // cleanup + filesystem headroom
+        try
+        {
+            var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(root))!);
+            Skip.If(
+                drive.AvailableFreeSpace < payloadBytes + headroomBytes,
+                $"Temp volume '{drive.Name}' has {drive.AvailableFreeSpace:N0} bytes free; need " +
+                $"{payloadBytes + headroomBytes:N0}. Large-IO test self-excluded on a disk-starved runner.");
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            // Can't stat the volume (unusual path) — don't skip; let the test run and surface any real error.
         }
     }
 
@@ -37,7 +63,7 @@ public class StreamingBlobStoreTests : IDisposable
         var cidFromBytes = await _store.PutAsync(payload);
 
         // Use a fresh store to avoid the idempotency short-circuit on the streaming path.
-        var root2 = Path.Combine(Path.GetTempPath(), "sunfish-streaming-tests2-" + Path.GetRandomFileName());
+        var root2 = Path.Combine(LargeIoTempRoot(), "sunfish-streaming-tests2-" + Path.GetRandomFileName());
         try
         {
             var store2 = new FileSystemBlobStore(root2);
@@ -105,11 +131,13 @@ public class StreamingBlobStoreTests : IDisposable
     /// asserts that the managed-memory delta for the current thread is well below the payload size.
     /// This is the key evidence that <see cref="FileSystemBlobStore"/> streams without buffering.
     /// </summary>
-    [Fact]
+    [SkippableFact]
     public async Task PutStreamingAsync_100MiB_DoesNotBufferPayloadInManagedMemory()
     {
         const int payloadBytes = 100 * 1024 * 1024; // 100 MiB
         const long memoryBudgetBytes = 4 * 1024 * 1024; // 4 MiB delta allowed
+
+        SkipIfInsufficientTempSpace(_root, payloadBytes);
 
         // Allocate the payload up-front so the allocation itself is not attributed to the PUT.
         var payload = new byte[payloadBytes];

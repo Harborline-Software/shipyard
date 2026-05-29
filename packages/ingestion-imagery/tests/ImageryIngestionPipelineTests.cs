@@ -13,7 +13,7 @@ public class ImageryIngestionPipelineTests : IDisposable
 
     public ImageryIngestionPipelineTests()
     {
-        _tempRoot = Path.Combine(Path.GetTempPath(), "sunfish-imagery-" + Path.GetRandomFileName());
+        _tempRoot = Path.Combine(LargeIoTempRoot(), "sunfish-imagery-" + Path.GetRandomFileName());
         _blobs = new FileSystemBlobStore(_tempRoot);
     }
 
@@ -29,6 +29,32 @@ public class ImageryIngestionPipelineTests : IDisposable
         catch
         {
             // best-effort cleanup
+        }
+    }
+
+    // Large-IO temp-volume helpers. The 100-MiB test below is infra-flaky (not code-flaky): on a
+    // disk-pressured runner the payload write throws "No space left on device" (reddened shipyard
+    // PR 200/202). Prefer the roomier RUNNER_TEMP mount on CI, and self-skip cleanly when the
+    // volume genuinely cannot hold the payload — see Xunit.SkippableFact (the xUnit 2 skip idiom).
+    private static string LargeIoTempRoot() =>
+        Environment.GetEnvironmentVariable("RUNNER_TEMP") is { Length: > 0 } runnerTemp
+            ? runnerTemp
+            : Path.GetTempPath();
+
+    private static void SkipIfInsufficientTempSpace(string root, long payloadBytes)
+    {
+        const long headroomBytes = 64L * 1024 * 1024; // cleanup + filesystem headroom
+        try
+        {
+            var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(root))!);
+            Skip.If(
+                drive.AvailableFreeSpace < payloadBytes + headroomBytes,
+                $"Temp volume '{drive.Name}' has {drive.AvailableFreeSpace:N0} bytes free; need " +
+                $"{payloadBytes + headroomBytes:N0}. Large-IO test self-excluded on a disk-starved runner.");
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            // Can't stat the volume (unusual path) — don't skip; let the test run and surface any real error.
         }
     }
 
@@ -124,7 +150,7 @@ public class ImageryIngestionPipelineTests : IDisposable
         Assert.NotNull(result.Value.Body["imageBlobCid"]);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Ingest_100MbStream_StreamsWithoutMemoryExplosion()
     {
         // Spec §7.5 streaming blob upload path. FileSystemBlobStore.PutStreamingAsync streams
@@ -132,6 +158,8 @@ public class ImageryIngestionPipelineTests : IDisposable
         // memory. The managed-allocation delta for the current thread is used as a soft guard.
         const int payloadBytes = 100 * 1024 * 1024; // 100 MiB
         const long memoryBudgetBytes = 8 * 1024 * 1024; // 8 MiB delta (generous: metadata + framing)
+
+        SkipIfInsufficientTempSpace(_tempRoot, payloadBytes);
 
         var payload = new byte[payloadBytes];
         new Random(9876).NextBytes(payload);
