@@ -91,6 +91,17 @@ public sealed record Payment : IMustHaveTenant
     /// <summary>External system reference (e.g., ERPNext <c>PE-0001</c>) for migration / sync.</summary>
     public string? ExternalRef { get; init; }
 
+    /// <summary>
+    /// Canonical version stamp of the external source record this payment was last
+    /// imported from — the ERPNext <c>modified</c> timestamp (ADR 0100 C7 / OQ-B:
+    /// the external-ref version is a first-class indexed field, NOT smuggled into
+    /// <see cref="Notes"/>). An ordinal compare against the inbound source
+    /// <c>Modified</c> decides Skipped (same/older) vs Updated (newer) on re-import.
+    /// Null for payments created natively (not via import). <see cref="Notes"/> is
+    /// reserved for operator free-text and is never overwritten by the importer.
+    /// </summary>
+    public string? ExternalRefVersion { get; init; }
+
     // ── CRDT envelope ──
     public required Instant CreatedAtUtc { get; init; }
     public PartyId? CreatedBy { get; init; }
@@ -119,6 +130,7 @@ public sealed record Payment : IMustHaveTenant
         string? reference = null,
         string? notes = null,
         string? externalRef = null,
+        string? externalRefVersion = null,
         Instant? createdAtUtc = null)
     {
         var now = createdAtUtc ?? Instant.Now;
@@ -140,6 +152,7 @@ public sealed record Payment : IMustHaveTenant
             UnappliedAmount = amount,
             Notes = notes,
             ExternalRef = externalRef,
+            ExternalRefVersion = externalRefVersion,
             CreatedAtUtc = now,
             CreatedBy = createdBy,
             UpdatedAtUtc = now,

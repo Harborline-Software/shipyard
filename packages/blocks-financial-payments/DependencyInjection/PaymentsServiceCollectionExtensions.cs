@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Sunfish.Blocks.FinancialAp.Services;
 using Sunfish.Blocks.FinancialAr.Services;
 using Sunfish.Blocks.FinancialLedger.Services;
+using Sunfish.Blocks.FinancialPayments.Migration;
 using Sunfish.Blocks.FinancialPayments.Models;
 using Sunfish.Blocks.FinancialPayments.Services;
 
@@ -56,6 +57,12 @@ public static class PaymentsServiceCollectionExtensions
         services.TryAddSingleton<IPaymentApplicationRepository, InMemoryPaymentApplicationRepository>();
         services.TryAddScoped<IPaymentPostingService, DefaultPaymentPostingService>();
         services.TryAddScoped<IPaymentApplicationService, DefaultPaymentApplicationService>();
+
+        // A4.3 ERPNext payment importer + orchestration pass (ADR 0100). The
+        // per-record importer is the long-lived DI singleton; the pass is a thin
+        // orchestrator wrapper registered transiently for callers that want it injected.
+        services.TryAddSingleton<IErpnextPaymentImporter, ErpnextPaymentImporter>();
+        services.TryAddTransient<ErpnextPaymentPass>();
 
         return services;
     }
