@@ -3,6 +3,7 @@ using Sunfish.Blocks.FinancialAp.Services;
 using Sunfish.Blocks.FinancialLedger.Models;
 using Sunfish.Blocks.People.Foundation.Models;
 using Sunfish.Foundation.Assets.Common;
+using Sunfish.Foundation.Import.Outcomes;
 
 namespace Sunfish.Blocks.FinancialAp.Migration;
 
@@ -12,11 +13,28 @@ namespace Sunfish.Blocks.FinancialAp.Migration;
 /// vendor's own number from ERPNext's <c>bill_no</c> (falling back to
 /// <c>name</c> when bill_no is blank) — AP doesn't mint canonical
 /// numbers like AR does.
+///
+/// <para>
+/// Returns the <c>foundation-import</c> <see cref="ImportOutcome{T}"/> DU
+/// (ADR 0100 C2/OQ-A). A missing required field on the source becomes the
+/// <see cref="ImportOutcome{T}.Rejected"/> arm carrying a structured,
+/// allowlisted <see cref="ImportFailure"/> (ADR 0100 C9 — the reject carries
+/// the opaque ERPNext <c>name</c> + DocType + reason code + offending field
+/// NAME only; never a party name/address or a monetary value).
+/// </para>
+///
+/// <para>
+/// Idempotency uses the dedicated <see cref="Bill.ExternalRefVersion"/> field
+/// (ADR 0100 C7) — the source <c>Modified</c> stamp is stored there, NOT in
+/// <see cref="Bill.Notes"/>.
+/// </para>
 /// </summary>
 public sealed class ErpnextPurchaseInvoiceImporter : IErpnextPurchaseInvoiceImporter
 {
     private const string ExternalRefPrefix = "erpnext:pinv:";
-    private const string ModifiedKeyPrefix = "erpnextModified:";
+
+    /// <summary>The ERPNext DocType this importer consumes — used for reject provenance (ADR 0100 C9).</summary>
+    public const string DocType = "Purchase Invoice";
 
     private readonly IBillRepository _bills;
 
@@ -27,8 +45,8 @@ public sealed class ErpnextPurchaseInvoiceImporter : IErpnextPurchaseInvoiceImpo
 
     /// <inheritdoc />
     public async Task<ImportOutcome<Bill>> UpsertPurchaseInvoiceAsync(
-        ErpnextPurchaseInvoiceSource source,
         TenantId tenantId,
+        ErpnextPurchaseInvoiceSource source,
         ChartOfAccountsId chartId,
         PartyId vendorPartyId,
         GLAccountId apAccountId,
@@ -36,25 +54,29 @@ public sealed class ErpnextPurchaseInvoiceImporter : IErpnextPurchaseInvoiceImpo
         CancellationToken cancellationToken = default)
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
+
+        // Missing-required-field rejects. The reject carries only the opaque
+        // ERPNext name + the offending field NAME — never the field's value
+        // (ADR 0100 C9). When the name itself is empty we have no natural key
+        // to cite, so fall back to a sentinel marker.
         if (string.IsNullOrWhiteSpace(source.Name))
-            return new ImportOutcome<Bill>(ImportOutcomeKind.Failed, null, "ERPNext PurchaseInvoice.name is empty.");
+            return Reject("(unknown)", "name", "ERPNext PurchaseInvoice.name is empty.");
         if (string.IsNullOrWhiteSpace(source.Supplier))
-            return new ImportOutcome<Bill>(ImportOutcomeKind.Failed, null, "ERPNext PurchaseInvoice.supplier is empty.");
+            return Reject(source.Name, "supplier", "ERPNext PurchaseInvoice.supplier is empty.");
         if (source.Items is null || source.Items.Count == 0)
-            return new ImportOutcome<Bill>(ImportOutcomeKind.Failed, null, "ERPNext PurchaseInvoice has no items.");
+            return Reject(source.Name, "items", "ERPNext PurchaseInvoice has no items.");
 
         var externalRef = ExternalRefPrefix + source.Name;
-        var modifiedMarker = ModifiedKeyPrefix + source.Modified;
 
         var existing = await _bills.GetByExternalRefAsync(tenantId, chartId, externalRef, cancellationToken)
             .ConfigureAwait(false);
 
+        // C7 idempotency: compare the source Modified stamp against the dedicated
+        // ExternalRefVersion companion field (NOT a marker smuggled into Notes).
         if (existing is not null
-            && existing.Notes is not null
-            && existing.Notes.Contains(modifiedMarker, StringComparison.Ordinal))
+            && string.Equals(existing.ExternalRefVersion, source.Modified, StringComparison.Ordinal))
         {
-            return new ImportOutcome<Bill>(
-                ImportOutcomeKind.Skipped,
+            return new ImportOutcome<Bill>.Skipped(
                 existing,
                 $"Already imported at modified={source.Modified}.");
         }
@@ -120,7 +142,8 @@ public sealed class ErpnextPurchaseInvoiceImporter : IErpnextPurchaseInvoiceImpo
             Status = canonicalStatus,
             ApAccountId = apAccountId,
             ExternalRef = externalRef,
-            Notes = modifiedMarker,
+            ExternalRefVersion = source.Modified,
+            Notes = existing?.Notes,
             CreatedAtUtc = existing?.CreatedAtUtc ?? now,
             CreatedBy = existing?.CreatedBy,
             UpdatedAtUtc = now,
@@ -130,9 +153,22 @@ public sealed class ErpnextPurchaseInvoiceImporter : IErpnextPurchaseInvoiceImpo
         await _bills.UpsertAsync(tenantId, bill, cancellationToken).ConfigureAwait(false);
 
         return existing is null
-            ? new ImportOutcome<Bill>(ImportOutcomeKind.Inserted, bill, $"Imported {source.Name}.")
-            : new ImportOutcome<Bill>(ImportOutcomeKind.Updated, bill, $"Reconciled {source.Name} to modified={source.Modified}.");
+            ? new ImportOutcome<Bill>.Inserted(bill, $"Imported {source.Name}.")
+            : new ImportOutcome<Bill>.Updated(bill, $"Reconciled {source.Name} to modified={source.Modified}.");
     }
+
+    /// <summary>
+    /// Build a <see cref="ImportOutcome{T}.Rejected"/> for a missing required
+    /// field. Only the opaque ERPNext name, the DocType, the reason code, and the
+    /// offending field NAME are carried — never the field's value (ADR 0100 C9).
+    /// </summary>
+    private static ImportOutcome<Bill>.Rejected Reject(string externalRef, string fieldName, string ruleViolated) =>
+        new(ImportFailure.Of(
+            externalRef: externalRef,
+            docType: DocType,
+            reason: ImportRejectReason.MissingRequiredField,
+            fieldName: fieldName,
+            ruleViolated: ruleViolated));
 
     /// <summary>
     /// Map ERPNext Purchase Invoice <c>status</c> codes to canonical AP.

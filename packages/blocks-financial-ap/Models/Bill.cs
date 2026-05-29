@@ -92,6 +92,17 @@ public sealed record Bill : IMustHaveTenant
     /// <summary>Optional external-system reference (e.g., ERPNext <c>PINV-0001</c>) for migration / sync.</summary>
     public string? ExternalRef { get; init; }
 
+    /// <summary>
+    /// Optional external-system version stamp paired with <see cref="ExternalRef"/>
+    /// (ADR 0100 C7 / OQ-B). For ERPNext this is the source row's <c>Modified</c>
+    /// timestamp. Drives import idempotency: a re-run whose source
+    /// <c>Modified</c> equals the stored value is a no-op (<c>Skipped</c>); a newer
+    /// value reconciles the row (<c>Updated</c>). A dedicated, indexable companion
+    /// field — NOT smuggled into <see cref="Notes"/>, which is reserved for
+    /// operator-facing free text printed on bill-review screens.
+    /// </summary>
+    public string? ExternalRefVersion { get; init; }
+
     /// <summary>The Record journal entry; null until <c>IBillPostingService.RecordAsync</c> runs (PR 2).</summary>
     public JournalEntryId? JournalEntryId { get; init; }
 
@@ -139,6 +150,7 @@ public sealed record Bill : IMustHaveTenant
         string? notes = null,
         string? termsId = null,
         string? externalRef = null,
+        string? externalRefVersion = null,
         Instant? createdAtUtc = null)
     {
         var now = createdAtUtc ?? Instant.Now;
@@ -168,6 +180,7 @@ public sealed record Bill : IMustHaveTenant
             Notes = notes,
             TermsId = termsId,
             ExternalRef = externalRef,
+            ExternalRefVersion = externalRefVersion,
             CreatedAtUtc = now,
             CreatedBy = createdBy,
             UpdatedAtUtc = now,
