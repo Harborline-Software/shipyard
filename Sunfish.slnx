@@ -126,6 +126,10 @@
     <Project Path="packages/foundation-taxonomy/Sunfish.Foundation.Taxonomy.csproj" />
     <Project Path="packages/foundation-taxonomy/tests/Sunfish.Foundation.Taxonomy.Tests.csproj" />
   </Folder>
+  <Folder Name="/foundation/forms/">
+    <Project Path="packages/foundation-forms/Sunfish.Foundation.Forms.csproj" />
+    <Project Path="packages/foundation-forms/tests/Sunfish.Foundation.Forms.Tests.csproj" />
+  </Folder>
   <Folder Name="/foundation/integrations/">
     <Project Path="packages/foundation-integrations/Sunfish.Foundation.Integrations.csproj" />
     <Project Path="packages/foundation-integrations/tests/tests.csproj" />
