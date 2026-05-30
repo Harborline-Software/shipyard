@@ -37,4 +37,18 @@ public sealed class InMemoryTimeEntryRepository
             .Where(e => e.TenantId.Value.Equals(tenantId.Value, StringComparison.Ordinal)
                         && e.DeletedAt is null)
             .ToList();
+
+    /// <summary>
+    /// Non-deleted entries for a single project within the tenant (H5).
+    /// Project-scoped predicate — the public read surface
+    /// (<see cref="ITimeEntryService.GetByProjectAsync"/>) routes here so
+    /// the future Postgres impl can serve it with a single indexed query
+    /// rather than an unbounded tenant scan.
+    /// </summary>
+    internal IReadOnlyList<TimeEntry> ListByProject(TenantId tenantId, ProjectId projectId)
+        => _entries.Values
+            .Where(e => e.TenantId.Value.Equals(tenantId.Value, StringComparison.Ordinal)
+                        && e.ProjectId == projectId
+                        && e.DeletedAt is null)
+            .ToList();
 }
