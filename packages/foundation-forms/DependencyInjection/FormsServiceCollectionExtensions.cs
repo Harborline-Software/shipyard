@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Sunfish.Foundation.Forms.DependencyInjection;
 
@@ -23,6 +24,30 @@ public static class FormsServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers <see cref="NoopFormDefinitionStore"/> as the default
+    /// <see cref="IFormDefinitionStore"/> via <c>TryAddSingleton</c> —
+    /// reads return empty / <see cref="Exceptions.FormDefinitionNotFoundException"/>;
+    /// lifecycle mutators throw <see cref="NotSupportedException"/>.
+    /// Read-side composition (Ship's Office browser, status surfaces) gets
+    /// a non-throwing default; host composition overrides with
+    /// <see cref="AddInMemoryFormDefinitionStore"/> (or a Postgres-backed
+    /// registration) when authoring is wired.
+    /// </summary>
+    /// <remarks>
+    /// Block-tier packages (cf. <c>blocks-ships-office</c>) call this from
+    /// their <c>AddSunfish*Defaults()</c> extension so that consumers
+    /// composing the block without an explicit forms store still get a
+    /// non-throwing read surface. <c>TryAdd</c> ensures a real store
+    /// already registered by the host wins.
+    /// </remarks>
+    public static IServiceCollection TryAddNoopFormDefinitionStore(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton<IFormDefinitionStore, NoopFormDefinitionStore>();
         return services;
     }
 }

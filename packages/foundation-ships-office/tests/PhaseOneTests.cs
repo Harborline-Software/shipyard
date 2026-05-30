@@ -43,8 +43,9 @@ public class DataModelTests
     public void ShipsOfficeDocumentKind_HasFiveValues_IncludingDynamicTemplate()
     {
         // W#55 Phase 5: DynamicTemplate joined the enum once ADR 0055
-        // reached Status: Accepted (PR #916). Consumed via local
-        // IFormSchemaStore stub per xo-ruling-T02-43Z.
+        // reached Status: Accepted. Sourced from the canonical
+        // Sunfish.Foundation.Forms.IFormDefinitionStore keystone
+        // (shipyard#218 + FN-4 sweep).
         var values = Enum.GetValues<ShipsOfficeDocumentKind>();
         Assert.Equal(5, values.Length);
         Assert.Contains(ShipsOfficeDocumentKind.BundleManifest, values);

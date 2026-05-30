@@ -12,8 +12,9 @@ using Sunfish.Blocks.Maintenance.Services;
 using Sunfish.Foundation.Assets.Common;
 using Sunfish.Foundation.Catalog.Bundles;
 using Sunfish.Foundation.MissionSpace;
+using Sunfish.Foundation.Forms;
+using Sunfish.Foundation.Forms.Models;
 using Sunfish.Foundation.ShipsOffice;
-using Sunfish.Foundation.ShipsOffice.Services;
 
 namespace Sunfish.Blocks.ShipsOffice;
 
@@ -57,7 +58,7 @@ internal sealed class ShipsOfficeDataProvider : IShipsOfficeDataProvider
     private readonly ILeaseDocumentVersionLog _leaseDocLog;
     private readonly IMaintenanceService _maintenanceService;
     private readonly IW9DocumentService _w9Service;
-    private readonly IFormSchemaStore _formSchemas;
+    private readonly IFormDefinitionStore _formDefinitions;
     private readonly IMissionEnvelopeProvider _missionEnvelopeProvider;
     private readonly IOptions<ShipsOfficeOptions> _options;
     private readonly TimeProvider _time;
@@ -68,7 +69,7 @@ internal sealed class ShipsOfficeDataProvider : IShipsOfficeDataProvider
         ILeaseDocumentVersionLog leaseDocLog,
         IMaintenanceService maintenanceService,
         IW9DocumentService w9Service,
-        IFormSchemaStore formSchemas,
+        IFormDefinitionStore formDefinitions,
         IMissionEnvelopeProvider missionEnvelopeProvider,
         IOptions<ShipsOfficeOptions> options,
         TimeProvider? timeProvider = null)
@@ -78,7 +79,7 @@ internal sealed class ShipsOfficeDataProvider : IShipsOfficeDataProvider
         ArgumentNullException.ThrowIfNull(leaseDocLog);
         ArgumentNullException.ThrowIfNull(maintenanceService);
         ArgumentNullException.ThrowIfNull(w9Service);
-        ArgumentNullException.ThrowIfNull(formSchemas);
+        ArgumentNullException.ThrowIfNull(formDefinitions);
         ArgumentNullException.ThrowIfNull(missionEnvelopeProvider);
         ArgumentNullException.ThrowIfNull(options);
         _bundleCatalog = bundleCatalog;
@@ -86,7 +87,7 @@ internal sealed class ShipsOfficeDataProvider : IShipsOfficeDataProvider
         _leaseDocLog = leaseDocLog;
         _maintenanceService = maintenanceService;
         _w9Service = w9Service;
-        _formSchemas = formSchemas;
+        _formDefinitions = formDefinitions;
         _missionEnvelopeProvider = missionEnvelopeProvider;
         _options = options;
         _time = timeProvider ?? TimeProvider.System;
@@ -273,39 +274,74 @@ internal sealed class ShipsOfficeDataProvider : IShipsOfficeDataProvider
         // 4. SignatureEnvelope — H6 pending (ADR 0004 Stage 06 not yet shipped).
         // Revisit when ISignatureEnvelopeStore ships a queryable tenant surface.
 
-        // 5. DynamicTemplate — ADR 0055 (W#55 Phase 5). Sourced from
-        // local IFormSchemaStore stub per xo-ruling-T02-43Z; canonical
-        // foundation-forms substrate will replace this when a forcing
-        // function surfaces. §Trust redaction policy applies — the
-        // FormSchema record carries name + status only; no payload data.
-        foreach (var schema in await _formSchemas.ListByTenantAsync(tenant, ct).ConfigureAwait(false))
+        // 5. DynamicTemplate — ADR 0055 (W#55 Phase 5). Sourced from the
+        // canonical Sunfish.Foundation.Forms.IFormDefinitionStore keystone
+        // (shipyard#218 + the FN-4 relocation sweep). The store enumerates
+        // one record per (id, version) revision across every lifecycle
+        // status; the browse view collapses each definition id to a single
+        // row — the current-Published revision when one exists, otherwise
+        // the highest version. §Trust redaction holds at the
+        // ShipsOfficeDocumentView boundary: only the resolved title +
+        // lifecycle status surface; the overlay/schema body never leaves
+        // the keystone.
+        var definitions = new List<FormDefinition>();
+        await foreach (var def in _formDefinitions.ListByTenantAsync(tenant, ct).ConfigureAwait(false))
         {
+            definitions.Add(def);
+        }
+
+        foreach (var revisions in definitions.GroupBy(d => d.Id))
+        {
+            var representative = revisions
+                .OrderByDescending(d => d.Status == FormDefinitionStatus.Published)
+                .ThenByDescending(d => d.Version)
+                .First();
+
             views.Add(new ShipsOfficeDocumentView(
-                Id: new ShipsOfficeDocumentId($"form-schema:{schema.Id.Value}"),
+                Id: new ShipsOfficeDocumentId($"form-definition:{representative.Id.Value}"),
                 Kind: ShipsOfficeDocumentKind.DynamicTemplate,
-                Title: schema.Name,
-                Status: MapFormSchemaStatus(schema.Status),
-                UpdatedAt: schema.UpdatedAt,
-                LastModifiedBy: schema.LastModifiedBy,
-                VersionLabel: null));
+                Title: ResolveTitle(representative),
+                Status: MapFormDefinitionStatus(representative.Status),
+                UpdatedAt: representative.UpdatedAt,
+                LastModifiedBy: new ActorId(representative.Owner.ToString()),
+                VersionLabel: representative.Version.ToString()));
         }
 
         return views;
     }
 
-    private static DocumentStatus MapFormSchemaStatus(FormSchemaStatus status) => status switch
+    private static DocumentStatus MapFormDefinitionStatus(FormDefinitionStatus status) => status switch
     {
-        FormSchemaStatus.Draft     => DocumentStatus.Draft,
-        FormSchemaStatus.Published => DocumentStatus.Published,
-        FormSchemaStatus.Archived  => DocumentStatus.Archived,
-        // Fail loud on unknown enum value — the local-stub FormSchemaStatus
-        // is sealed today but the canonical-substrate sweep will reshape
-        // this enum; silent fall-through to Published would silently
-        // promote unknown future values to visible (§Trust posture says
-        // fail-loud, not fail-safe-to-published).
+        FormDefinitionStatus.Draft      => DocumentStatus.Draft,
+        FormDefinitionStatus.Published  => DocumentStatus.Published,
+        FormDefinitionStatus.Deprecated => DocumentStatus.Archived,
+        FormDefinitionStatus.Withdrawn  => DocumentStatus.Archived,
+        // Fail loud on an unmapped lifecycle value rather than silently
+        // promoting an unknown future status to a visible state. ADR 0083
+        // §Trust posture is fail-loud, not fail-safe-to-published — this is
+        // the guard the relocation directive named for the sweep PR.
         _ => throw new InvalidOperationException(
-            $"Unknown FormSchemaStatus value '{status}' — update MapFormSchemaStatus when the substrate enum gains values."),
+            $"Unknown FormDefinitionStatus value '{status}' — update MapFormDefinitionStatus when the keystone enum gains values."),
     };
+
+    private static string ResolveTitle(FormDefinition definition)
+    {
+        // The canonical FormDefinition has no flat Name; the human label
+        // lives in the optional localized overlay title. Resolve with an
+        // empty locale chain (falls back to the overlay's DefaultLocale,
+        // then first available value); fall back to the definition id when
+        // no title is authored.
+        if (definition.Overlay.Title is { } title)
+        {
+            var resolved = title.Resolve(Array.Empty<string>());
+            if (!string.IsNullOrEmpty(resolved))
+            {
+                return resolved;
+            }
+        }
+
+        return definition.Id.Value;
+    }
 
     private static DocumentStatus MapBundleStatus(BundleStatus status) => status switch
     {

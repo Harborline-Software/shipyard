@@ -15,6 +15,7 @@
     <ProjectReference Include="..\blocks-maintenance\Sunfish.Blocks.Maintenance.csproj" />
     <ProjectReference Include="..\foundation\Sunfish.Foundation.csproj" />
     <ProjectReference Include="..\foundation-catalog\Sunfish.Foundation.Catalog.csproj" />
+    <ProjectReference Include="..\foundation-forms\Sunfish.Foundation.Forms.csproj" />
     <ProjectReference Include="..\foundation-mission-space\Sunfish.Foundation.MissionSpace.csproj" />
     <ProjectReference Include="..\foundation-multitenancy\Sunfish.Foundation.MultiTenancy.csproj" />
     <ProjectReference Include="..\foundation-ship-common\Sunfish.Foundation.Ship.Common.csproj" />
