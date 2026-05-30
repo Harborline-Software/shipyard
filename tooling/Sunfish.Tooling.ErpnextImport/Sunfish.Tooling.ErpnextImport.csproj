@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sunfish.Tooling.ErpnextImport
+    A7-5 — the CLI host for the ERPNext->Sunfish import pipeline (ADR 0100, spec §8).
+
+    Thin host: it does flag parsing + disk I/O (resolve the .sql dump and the optional
+    CO verification-snapshot JSONs under the source directory, write migration-report.md
+    back there) and delegates ALL business logic to the package via AddErpnextImportPipeline
+    + ErpnextImportOrchestrator.RunAsync. No import logic lives here.
+
+    Packaged as a .NET local tool (PackAsTool=true) so it installs via
+    `dotnet tool install` and runs as `sunfish-migrate import erpnext` without an MSBuild
+    context — mirrors the Sunfish.Tooling.LocExtraction / LocQuality pattern. The command
+    tree (`import erpnext`) mirrors spec §8 verbatim so it lifts cleanly under a future
+    master CLI.
+
+    RUN against a real ERPNext dump stays CIC-dump-gated (shipyard#270). BUILD + tests
+    exercise this against synthetic v15 fixtures only.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Sunfish.Tooling.ErpnextImport</RootNamespace>
+    <AssemblyName>Sunfish.Tooling.ErpnextImport</AssemblyName>
+
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Pack as a dotnet local tool, invoked as `sunfish-migrate import erpnext ...`. -->
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>sunfish-migrate</ToolCommandName>
+    <PackageId>Sunfish.Tooling.ErpnextImport</PackageId>
+    <Description>ERPNext-&gt;Sunfish migration CLI host (ADR 0100, spec §8). Runs the six-pass importer (`import erpnext --source &lt;dir&gt;`) against an ERPNext MariaDB dump, drives the orchestrator's --dry-run / --from-pass / --reject-threshold option set, and renders migration-report.md. Thin host; all import logic lives in Sunfish.Blocks.Migration.Erpnext.</Description>
+    <PackageTags>sunfish;migration;erpnext;import;cli;tooling</PackageTags>
+
+    <!-- Dev dependency: never transitively pulled into product binaries. -->
+    <DevelopmentDependency>true</DevelopmentDependency>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      System.CommandLine is not yet listed in Directory.Packages.props (same situation
+      as Sunfish.Tooling.LocExtraction / LocQuality). Pin via VersionOverride, byte-for-byte
+      matching the sister tools to avoid restore-graph drift. Promote to CPM when adoption
+      broadens beyond the loc + migration tools.
+    -->
+    <PackageReference Include="System.CommandLine" VersionOverride="2.0.0-beta4.22272.1" />
+    <!-- Full DI container (ServiceCollection / BuildServiceProvider / CreateScope) — the
+         package only references the Abstractions; the host owns the concrete container. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The importer pipeline: AddErpnextImportPipeline + ErpnextImportOrchestrator + the
+         report renderer + the request/options/snapshot contracts. -->
+    <ProjectReference Include="..\..\packages\blocks-migration-erpnext\Sunfish.Blocks.Migration.Erpnext.csproj" />
+    <!-- The read-side source reader (MariaDbDumpSourceReader / ISourceReader) the host
+         constructs from the dump and hands to AddErpnextImportPipeline. -->
+    <ProjectReference Include="..\..\packages\foundation-import\Sunfish.Foundation.Import.csproj" />
+  </ItemGroup>
+
+</Project>

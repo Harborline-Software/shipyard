@@ -13,6 +13,10 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
+    <!-- A7-6 orchestrator tests build the full pipeline via AddErpnextImportPipeline
+         and resolve ErpnextImportOrchestrator from a DI scope (the composition root is
+         the system under test), so the concrete container is a direct test dependency. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
 
   <ItemGroup>

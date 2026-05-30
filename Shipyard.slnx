@@ -401,6 +401,7 @@
   <Folder Name="/tooling/">
     <Project Path="tooling/Sunfish.Tooling.LocQuality/Sunfish.Tooling.LocQuality.csproj" />
     <Project Path="tooling/Sunfish.Tooling.ColorAudit/Sunfish.Tooling.ColorAudit.csproj" />
+    <Project Path="tooling/Sunfish.Tooling.ErpnextImport/Sunfish.Tooling.ErpnextImport.csproj" />
     <Project Path="tooling/design-tokens-codegen/DesignTokensCodegenTool.csproj" />
   </Folder>
   <Folder Name="/foundation/channels/">
