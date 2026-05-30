@@ -22,6 +22,9 @@
 see who owes what, and close your books, without a monthly bill or a vendor
 holding your records.**
 
+Property management is the first of several workspaces built on the same open
+blocks — project management is next.
+
 (Twitter-length variant, 138 chars: *Open-source property management for small landlords. Track leases, see who owes what, close your books. Run it yourself. MIT.*)
 
 ---
@@ -61,13 +64,15 @@ bills you per door, per month, forever.
    Aspire-based `local-node-host` both exist in-repo.)*
 
 3. **Built from composable blocks, not a monolith.** Shipyard is assembled from
-   business-case *bundles* (Property Management today; Asset Management and
-   Project Management in build) that compose reusable *blocks* — leases, rent
-   collection, maintenance, inspections, accounting, tax. You turn on what you
-   need. *(Verified: `foundation-catalog/Manifests/Bundles/` holds
-   property-management, asset-management, project-management, facility-operations,
-   acquisition-underwriting manifests; all currently `status: Draft, maturity:
-   Scaffold` — see "Honesty ledger" below.)*
+   business-case *bundles* (vertical workspaces) that compose reusable *blocks* —
+   leases, rent collection, maintenance, inspections, accounting, tax. You turn on
+   what you need. ONR-accurate vertical state: **Property Management** cockpit is
+   verified live; **Project Management** substrate is complete (cockpit in active
+   build — the lead v1 companion candidate); **Facility Operations** is the next
+   cheapest cockpit (zero net-new shared blocks, secondary "rolling in" candidate);
+   **Asset Management** and **Acquisition/Underwriting** are roadmap (Asset-Mgmt
+   substrate ADR is at Rev 1; Acquisition/Underwriting needs two net-new shared
+   blocks). *(Verified: ONR reconcile table, shipyard#207 §1.0.)*
 
 4. **Your data is yours and stays readable.** Tenant-owned data, exportable to
    JSON/CSV in every deployment mode; full data portability is a stated
@@ -82,7 +87,9 @@ bills you per door, per month, forever.
 
 ---
 
-## What the MVP actually ships at launch
+## What's in v1
+
+### (a) Property-Management cockpit — verified capabilities
 
 The launch surface is the **property-management cockpit**: a logged-in operator
 lands in a multi-company workspace and works real records. Verified live in the
@@ -101,9 +108,13 @@ web app router (`sunfish/apps/web/src/app.tsx`) and backed by native data hooks:
 | Audit-event trail | (cohort-4 audit viewer) | Pages present (`AuditEventsPage`) |
 | Multi-company switching | CompanySwitcher in header | Yes |
 
-**Property Management is the MVP core. Asset Management and Project Management
-bundles are in build** (manifests authored; substrate ADR-0101 for asset-mgmt is
-at Rev 1) and should be positioned as *coming*, not *shipping*.
+### (b) Additional cockpits — modular, not fixed
+
+Plus any vertical cockpit that is finished by launch — **Project Management is
+the lead candidate** (substrate complete; cockpit in active build). A cockpit can
+be added to or pulled from the v1 set near launch without touching the table above.
+Do not name a count of workspaces ("5 products at launch"); name the verticals
+that are confirmed shipped. Everything else is "rolling in" or "roadmap."
 
 ---
 

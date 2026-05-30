@@ -132,14 +132,37 @@ inline notes for FED (Yeoman is offline; PAO supplies both copy and direction).
 
 **Body:**
 > Shipyard is assembled from building blocks — leases, rent collection,
-> maintenance, inspections, accounting, tax — composed into a property-management
-> workspace. The same blocks power other workspaces too: asset management and
-> project management are on the way. Start with property management today; grow
-> into the rest without switching tools.
+> maintenance, inspections, accounting, tax — composed into workspaces.
+> Property management today. Project management rolling in. More workspaces —
+> facility operations, asset management — built on the same blocks.
+> Start with what you need; the rest follows without switching tools.
 
-> **Honesty note.** Asset Management and Project Management bundles are **in
-> build** (manifests authored, substrate landing). Say "on the way," never
-> "available." Do not list their feature cards as if shippable.
+> **Honesty note.** Only cockpit-complete verticals ship in v1. Project
+> Management substrate is done — cockpit is in active build (lead v1 candidate).
+> Facility Operations is secondary ("rolling in"); never "shipping." Asset
+> Management and Acquisition/Underwriting are roadmap — do not imply they are
+> near. Never name a count ("5 workspaces"); name the verticals that are
+> confirmed shipped at the time of publication.
+
+> **FED-facing UX direction.** Build Section 5 as a data-driven list — a
+> `bundles[]` array in a config file, each entry carrying a
+> `status: "live" | "rolling-in" | "roadmap"` field. The component reads the
+> array and renders a status badge or ordering tier accordingly. That way a
+> cockpit's status flips with one config change at launch (or post-launch slip)
+> without touching the component or the copy. Example shape:
+>
+> ```ts
+> const bundles = [
+>   { name: "Property Management",       status: "live"       },
+>   { name: "Project Management",        status: "rolling-in" },
+>   { name: "Facility Operations",       status: "rolling-in" },
+>   { name: "Asset Management",          status: "roadmap"    },
+>   { name: "Acquisition/Underwriting",  status: "roadmap"    },
+> ];
+> ```
+>
+> "rolling-in" entries can be conditionally promoted to "live" or demoted to
+> "roadmap" in the same config without a code change.
 
 ---
 

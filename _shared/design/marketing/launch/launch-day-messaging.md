@@ -65,6 +65,16 @@ words inherited from `../shipyard-marketing-copy.md`.
 - *Open-source property management. No monthly bill, no middleman.*
 - *The property app that doesn't own your data.*
 
+> **Platform-frame A/B variant (optional trailing clause).** If a second cockpit
+> (Project Management) lands in v1, every hook in section E — and the paragraph
+> announcements A and B — can carry this optional closing clause:
+> *"— the first workspace on an open, multi-vertical platform."*
+>
+> If only the Property-Management cockpit ships, DROP the clause entirely. The
+> PM-led hooks stand on their own; the multi-vertical frame is additive, not
+> load-bearing. Never hard-code the clause into a version that goes to press
+> before the cockpit-complete set is confirmed.
+
 ---
 
 ## F. Hacker News / dev-audience variant (different register, ~70 words)
@@ -100,3 +110,8 @@ words inherited from `../shipyard-marketing-copy.md`.
    counts at launch.
 6. **Banned words:** *powerful*, *seamless*, *all-in-one*, *revolutionary*,
    *enterprise-grade*, *game-changing*.
+7. **Don't name a count of products at launch.** Say "property management today,
+   more rolling in" — not "5 workspaces" or "4 verticals." A cockpit can slip
+   between final build and launch day; the copy must survive that slip unchanged.
+   Name only the verticals confirmed shipped; let the others be implied by
+   "more rolling in."
