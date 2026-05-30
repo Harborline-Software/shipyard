@@ -5,9 +5,9 @@ namespace Sunfish.Foundation.ShipsOffice;
 /// <summary>
 /// Discriminator for Ship's Office documents per ADR 0083 §1. Five
 /// kinds — <c>DynamicTemplate</c> (Phase 5) joined the enum once
-/// ADR 0055 reached <c>Status: Accepted</c>; consumed via local
-/// <see cref="Services.IFormSchemaStore"/> stub per xo-ruling-T02-43Z
-/// pending canonical <c>foundation-forms</c> substrate.
+/// ADR 0055 reached <c>Status: Accepted</c>; sourced from the canonical
+/// <c>Sunfish.Foundation.Forms.IFormDefinitionStore</c> registry (FN-4
+/// relocation on top of the shipyard#218 keystone).
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ShipsOfficeDocumentKind
@@ -25,9 +25,9 @@ public enum ShipsOfficeDocumentKind
     SignatureEnvelope,
 
     /// <summary>
-    /// A dynamic form template per ADR 0055 (W#55 Phase 5). Sourced
-    /// from <see cref="Services.IFormSchemaStore"/> — local stub until
-    /// canonical <c>foundation-forms</c> substrate ships.
+    /// A dynamic form template per ADR 0055 (W#55 Phase 5). Sourced from
+    /// the canonical <c>Sunfish.Foundation.Forms.IFormDefinitionStore</c>
+    /// keystone (shipyard#218 + FN-4 sweep).
     /// </summary>
     DynamicTemplate,
 }

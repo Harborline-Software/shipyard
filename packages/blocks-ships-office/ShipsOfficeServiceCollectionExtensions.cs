@@ -1,8 +1,8 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Sunfish.Foundation.Forms.DependencyInjection;
 using Sunfish.Foundation.ShipsOffice;
-using Sunfish.Foundation.ShipsOffice.Services;
 
 namespace Sunfish.Blocks.ShipsOffice;
 
@@ -29,6 +29,12 @@ public static class ShipsOfficeServiceCollectionExtensions
     /// store).</description></item>
     /// <item><description><see cref="IContentEditorSurface"/> →
     /// <see cref="NoopContentEditorSurface"/> (read-only stub; Phase 5 conditional).</description></item>
+    /// <item><description><c>Sunfish.Foundation.Forms.IFormDefinitionStore</c>
+    /// → <c>NoopFormDefinitionStore</c> via <c>TryAdd</c> (read-only default;
+    /// host composition overrides with <c>AddInMemoryFormDefinitionStore()</c>
+    /// or a Postgres-backed registration when forms authoring is wired).
+    /// FN-4 relocation on top of the shipyard#218 keystone — replaces the
+    /// W#55 Phase 5 local <c>IFormSchemaStore</c> stub per xo-ruling-T02-43Z.</description></item>
     /// </list>
     /// </summary>
     public static IServiceCollection AddSunfishShipsOfficeDefaults(
@@ -40,10 +46,10 @@ public static class ShipsOfficeServiceCollectionExtensions
         services.TryAddSingleton<IShipsOfficeCommandService, ShipsOfficeCommandService>();
         services.TryAddSingleton<IContentEditorSurface, NoopContentEditorSurface>();
         services.TryAddSingleton<IDocumentDiffService, DocumentDiffService>();
-        // ADR 0055 DynamicTemplate substrate — local stub pending canonical
-        // foundation-forms hand-off per xo-ruling-T02-43Z. Hosts override
-        // with a real impl when wiring a forms backing store.
-        services.TryAddSingleton<IFormSchemaStore, NoopFormSchemaStore>();
+        // ADR 0055 DynamicTemplate substrate — canonical foundation-forms
+        // keystone (shipyard#218 + FN-4). Read-only Noop default; host
+        // composition replaces with a real IFormDefinitionStore.
+        services.TryAddNoopFormDefinitionStore();
         return services;
     }
 }
