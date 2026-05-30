@@ -815,6 +815,11 @@ public readonly record struct AuditEventType(string Value)
     /// <summary>An emergency key rotation was triggered (Captain + 1 officer approval; rate-limited 1/24h per actor) per ADR 0068 §1.4.2. Distinguishes from cadence rotation.</summary>
     public static readonly AuditEventType SecurityPolicyKeyEmergencyRotation = new("Sunfish.SecurityPolicy.KeyEmergencyRotation");
 
+    // ===== PM-pilot project-governance write surface =====
+
+    /// <summary>Catch-all denial event emitted by the Bridge project-governance write endpoints (<c>ProjectsWriteEndpoints</c>) when an authorization guard refuses a time-entry rate-set, time-approval, or time-rejection action. Carries a <c>denial_reason</c> in the payload (one of <c>"rate-authority-denied"</c>, <c>"approval-authority-denied"</c>, <c>"self-approval-denied"</c>, <c>"self-rejection-denied"</c>) alongside the project, actor-party, and time-entry identifiers. Mirrors the catch-all-plus-<c>denialReason</c> shape of <see cref="TacticalAuthorizationDenied"/>.</summary>
+    public static readonly AuditEventType ProjectGovernanceAuthorizationDenied = new("ProjectGovernanceAuthorizationDenied");
+
     /// <inheritdoc />
     public override string ToString() => Value;
 }
