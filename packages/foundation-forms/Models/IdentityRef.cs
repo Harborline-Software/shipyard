@@ -2,11 +2,11 @@ namespace Sunfish.Foundation.Forms.Models;
 
 /// <summary>
 /// Stable reference to a principal (party / user / system actor) for
-/// authorship metadata on a <see cref="FormSchema"/> (ADR 0055).
+/// authorship metadata on a <see cref="FormDefinition"/> (ADR 0055).
 /// </summary>
 /// <remarks>
 /// <para>
-/// Held by value on schema metadata (<see cref="FormSchema.Owner"/>,
+/// Held by value on schema metadata (<see cref="FormDefinition.Owner"/>,
 /// authorship audit). The schema substrate treats the reference as opaque;
 /// resolution to a concrete <c>IPartyContext</c> (the ADR 0102 substrate that
 /// shipyard#216 landed) is the consumer's responsibility — the keystone does

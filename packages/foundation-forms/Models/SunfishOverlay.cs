@@ -1,7 +1,7 @@
 namespace Sunfish.Foundation.Forms.Models;
 
 /// <summary>
-/// Sunfish-specific overlay carried alongside a <see cref="FormSchema"/>'s
+/// Sunfish-specific overlay carried alongside a <see cref="FormDefinition"/>'s
 /// JSON Schema document (ADR 0055 §"Schema Registry").
 /// </summary>
 /// <remarks>
@@ -15,7 +15,7 @@ namespace Sunfish.Foundation.Forms.Models;
 /// (ADR 0049).
 /// </para>
 /// <para>
-/// <b>Invariants checked by <see cref="IFormSchemaRegistry"/>:</b>
+/// <b>Invariants checked by <see cref="IFormDefinitionStore"/>:</b>
 /// </para>
 /// <list type="bullet">
 /// <item><description>Every key in <see cref="Fields"/> MUST correspond to
@@ -28,12 +28,10 @@ namespace Sunfish.Foundation.Forms.Models;
 ///   within the overlay.</description></item>
 /// </list>
 /// <para>
-/// The keystone registry enforces these invariants at registration time;
-/// callers receive a <c>FormSchemaValidationException</c> on violation
-/// (forthcoming exception type — for the keystone PR the in-memory
-/// reference registry throws <see cref="ArgumentException"/> with a
-/// descriptive message, and the exception type will be promoted to a
-/// dedicated class once a second consumer surfaces the need).
+/// The keystone store enforces these invariants at registration time;
+/// callers receive a <see cref="Exceptions.FormDefinitionValidationException"/>
+/// on violation (named after the type that failed and the specific invariant
+/// violated in the message).
 /// </para>
 /// </remarks>
 /// <param name="Fields">Per-field overlay map keyed by JSON property name.</param>

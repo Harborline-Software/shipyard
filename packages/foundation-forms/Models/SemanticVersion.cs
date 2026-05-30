@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Sunfish.Foundation.Forms.Models;
 
 /// <summary>
-/// Semantic version (Major.Minor.Patch) used to pin a <see cref="FormSchema"/>
+/// Semantic version (Major.Minor.Patch) used to pin a <see cref="FormDefinition"/>
 /// revision (ADR 0055 §"Schema Registry").
 /// </summary>
 /// <remarks>

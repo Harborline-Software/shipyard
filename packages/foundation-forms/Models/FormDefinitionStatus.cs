@@ -1,7 +1,7 @@
 namespace Sunfish.Foundation.Forms.Models;
 
 /// <summary>
-/// Lifecycle status of a <see cref="FormSchema"/> definition (ADR 0055
+/// Lifecycle status of a <see cref="FormDefinition"/> definition (ADR 0055
 /// §"Schema Registry"). The CRDT-sync substrate (ADR 0028) respects this
 /// field — only <see cref="Published"/> definitions affect production
 /// rendering; <see cref="Draft"/> definitions sync but stay invisible to
@@ -9,7 +9,7 @@ namespace Sunfish.Foundation.Forms.Models;
 /// but raise an authoring warning; <see cref="Withdrawn"/> definitions
 /// reject new writes outright.
 /// </summary>
-public enum FormSchemaStatus
+public enum FormDefinitionStatus
 {
     /// <summary>Authoring scratch; not yet visible to the form engine.</summary>
     Draft = 0,

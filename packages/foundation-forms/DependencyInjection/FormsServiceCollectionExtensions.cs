@@ -8,7 +8,7 @@ namespace Sunfish.Foundation.Forms.DependencyInjection;
 public static class FormsServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers the in-memory <see cref="IFormSchemaRegistry"/> reference
+    /// Registers the in-memory <see cref="IFormDefinitionStore"/> reference
     /// implementation as a singleton. Suitable for tests, single-process
     /// bootstrapping, and the early authoring-UX iteration loop. The
     /// production Postgres-backed registry registers via a separate
@@ -19,10 +19,10 @@ public static class FormsServiceCollectionExtensions
     /// double-register or throw. The first registration wins, matching the
     /// fleet's convention for substrate DI hygiene.
     /// </remarks>
-    public static IServiceCollection AddInMemoryFormSchemaRegistry(this IServiceCollection services)
+    public static IServiceCollection AddInMemoryFormDefinitionStore(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        services.AddSingleton<IFormSchemaRegistry, InMemoryFormSchemaRegistry>();
+        services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
         return services;
     }
 }

@@ -9,13 +9,13 @@ using Xunit;
 namespace Sunfish.Foundation.Forms.Tests;
 
 /// <summary>
-/// Keystone-PR behaviour tests for the canonical <see cref="FormSchema"/>
-/// record + the <see cref="IFormSchemaRegistry"/> facade + the in-memory
+/// Keystone-PR behaviour tests for the canonical <see cref="FormDefinition"/>
+/// record + the <see cref="IFormDefinitionStore"/> facade + the in-memory
 /// reference implementation. These tests exercise the contract surface
 /// that every downstream consumer (form engine, entity store, rule
 /// evaluator, authoring UX) will bind against.
 /// </summary>
-public sealed class FormSchemaKeystoneTests
+public sealed class FormDefinitionKeystoneTests
 {
     private static readonly TenantId TenantA = new("tenant:acme");
     private static readonly TenantId TenantB = new("tenant:zenith");
@@ -24,7 +24,7 @@ public sealed class FormSchemaKeystoneTests
     [Fact]
     public async Task Register_then_Get_round_trips_the_record()
     {
-        using var registry = new InMemoryFormSchemaRegistry(new FixedClock(Now));
+        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
         var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA);
 
         var registered = await registry.RegisterAsync(schema);
@@ -37,22 +37,22 @@ public sealed class FormSchemaKeystoneTests
     [Fact]
     public async Task Get_other_tenant_throws_NotFound()
     {
-        using var registry = new InMemoryFormSchemaRegistry(new FixedClock(Now));
+        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
         var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA);
         await registry.RegisterAsync(schema);
 
-        await Assert.ThrowsAsync<FormSchemaNotFoundException>(
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => registry.GetAsync(TenantB, schema.Id, schema.Version).AsTask());
     }
 
     [Fact]
     public async Task Duplicate_version_throws_Conflict()
     {
-        using var registry = new InMemoryFormSchemaRegistry(new FixedClock(Now));
+        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
         var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA);
         await registry.RegisterAsync(schema);
 
-        var conflict = await Assert.ThrowsAsync<FormSchemaConflictException>(
+        var conflict = await Assert.ThrowsAsync<FormDefinitionConflictException>(
             () => registry.RegisterAsync(schema).AsTask());
         Assert.Equal(schema.Id, conflict.SchemaId);
         Assert.Equal(schema.Version, conflict.Version);
@@ -61,10 +61,10 @@ public sealed class FormSchemaKeystoneTests
     [Fact]
     public async Task GetCurrentPublishedAsync_picks_highest_Published_version()
     {
-        using var registry = new InMemoryFormSchemaRegistry(new FixedClock(Now));
-        var v1 = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormSchemaStatus.Published);
-        var v2 = NewSchema("property", new SemanticVersion(2, 0, 0), TenantA, status: FormSchemaStatus.Published);
-        var v3draft = NewSchema("property", new SemanticVersion(3, 0, 0), TenantA, status: FormSchemaStatus.Draft);
+        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        var v1 = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormDefinitionStatus.Published);
+        var v2 = NewSchema("property", new SemanticVersion(2, 0, 0), TenantA, status: FormDefinitionStatus.Published);
+        var v3draft = NewSchema("property", new SemanticVersion(3, 0, 0), TenantA, status: FormDefinitionStatus.Draft);
 
         await registry.RegisterAsync(v1);
         await registry.RegisterAsync(v2);
@@ -79,14 +79,14 @@ public sealed class FormSchemaKeystoneTests
     public async Task PublishAsync_transitions_Draft_to_Published_and_stamps_UpdatedAt()
     {
         var clock = new FixedClock(Now);
-        using var registry = new InMemoryFormSchemaRegistry(clock);
-        var draft = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormSchemaStatus.Draft);
+        using var registry = new InMemoryFormDefinitionStore(clock);
+        var draft = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormDefinitionStatus.Draft);
         await registry.RegisterAsync(draft);
 
         clock.Advance(TimeSpan.FromMinutes(7));
         var published = await registry.PublishAsync(TenantA, draft.Id, draft.Version);
 
-        Assert.Equal(FormSchemaStatus.Published, published.Status);
+        Assert.Equal(FormDefinitionStatus.Published, published.Status);
         Assert.Equal(Now.AddMinutes(7), published.UpdatedAt);
         Assert.Equal(draft.CreatedAt, published.CreatedAt);
     }
@@ -94,8 +94,8 @@ public sealed class FormSchemaKeystoneTests
     [Fact]
     public async Task WithdrawAsync_then_PublishAsync_is_rejected()
     {
-        using var registry = new InMemoryFormSchemaRegistry(new FixedClock(Now));
-        var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormSchemaStatus.Published);
+        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
+        var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormDefinitionStatus.Published);
         await registry.RegisterAsync(schema);
         await registry.WithdrawAsync(TenantA, schema.Id, schema.Version);
 
@@ -106,7 +106,7 @@ public sealed class FormSchemaKeystoneTests
     [Fact]
     public async Task Overlay_with_orphan_section_field_is_rejected()
     {
-        using var registry = new InMemoryFormSchemaRegistry(new FixedClock(Now));
+        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
         var bogus = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA) with
         {
             Overlay = new SunfishOverlay(
@@ -122,7 +122,7 @@ public sealed class FormSchemaKeystoneTests
                 Rules: Array.Empty<RuleDefinition>()),
         };
 
-        var ex = await Assert.ThrowsAsync<FormSchemaValidationException>(
+        var ex = await Assert.ThrowsAsync<FormDefinitionValidationException>(
             () => registry.RegisterAsync(bogus).AsTask());
         Assert.Contains("city", ex.Message);
     }
@@ -130,25 +130,25 @@ public sealed class FormSchemaKeystoneTests
     [Fact]
     public async Task Lineage_to_unregistered_parent_is_rejected()
     {
-        using var registry = new InMemoryFormSchemaRegistry(new FixedClock(Now));
+        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
         var orphanChild = NewSchema("equipment", new SemanticVersion(1, 0, 0), TenantA) with
         {
-            Lineage = new FormSchemaLineage(new FormSchemaId("property"), new SemanticVersion(1, 0, 0)),
+            Lineage = new FormDefinitionLineage(new FormDefinitionId("property"), new SemanticVersion(1, 0, 0)),
         };
 
-        await Assert.ThrowsAsync<FormSchemaValidationException>(
+        await Assert.ThrowsAsync<FormDefinitionValidationException>(
             () => registry.RegisterAsync(orphanChild).AsTask());
     }
 
     [Fact]
     public async Task ListByTenantAsync_returns_only_that_tenants_schemas()
     {
-        using var registry = new InMemoryFormSchemaRegistry(new FixedClock(Now));
+        using var registry = new InMemoryFormDefinitionStore(new FixedClock(Now));
         await registry.RegisterAsync(NewSchema("property", new SemanticVersion(1, 0, 0), TenantA));
         await registry.RegisterAsync(NewSchema("equipment", new SemanticVersion(1, 0, 0), TenantA));
         await registry.RegisterAsync(NewSchema("property", new SemanticVersion(1, 0, 0), TenantB));
 
-        var listA = new List<FormSchema>();
+        var listA = new List<FormDefinition>();
         await foreach (var s in registry.ListByTenantAsync(TenantA))
         {
             listA.Add(s);
@@ -162,11 +162,11 @@ public sealed class FormSchemaKeystoneTests
     public async Task DI_registration_resolves_a_singleton_registry()
     {
         var sp = new ServiceCollection()
-            .AddInMemoryFormSchemaRegistry()
+            .AddInMemoryFormDefinitionStore()
             .BuildServiceProvider();
 
-        var a = sp.GetRequiredService<IFormSchemaRegistry>();
-        var b = sp.GetRequiredService<IFormSchemaRegistry>();
+        var a = sp.GetRequiredService<IFormDefinitionStore>();
+        var b = sp.GetRequiredService<IFormDefinitionStore>();
         Assert.Same(a, b);
     }
 
@@ -200,18 +200,18 @@ public sealed class FormSchemaKeystoneTests
 
     // -------------------- helpers --------------------
 
-    private static FormSchema NewSchema(
+    private static FormDefinition NewSchema(
         string id,
         SemanticVersion version,
         TenantId tenant,
-        FormSchemaStatus status = FormSchemaStatus.Draft)
+        FormDefinitionStatus status = FormDefinitionStatus.Draft)
         => new(
-            Id: new FormSchemaId(id),
+            Id: new FormDefinitionId(id),
             Version: version,
             Status: status,
             Tenant: tenant,
             Owner: IdentityRef.System,
-            JsonSchema: """{"type":"object","properties":{"street":{"type":"string"}}}""",
+            SchemaRef: new SchemaId($"sha256:test-{id}-{version}"),
             Overlay: new SunfishOverlay(
                 Fields: new Dictionary<string, FieldOverlay> { ["street"] = SimpleFieldOverlay("Street") },
                 Sections: new[]

@@ -1,7 +1,7 @@
 namespace Sunfish.Foundation.Forms.Models;
 
 /// <summary>
-/// A grouping of fields within a <see cref="FormSchema"/> (ADR 0055
+/// A grouping of fields within a <see cref="FormDefinition"/> (ADR 0055
 /// §"Section-based permissions"; composes the dynamic-forms-authorization
 /// UPF Approach F).
 /// </summary>
@@ -17,7 +17,7 @@ namespace Sunfish.Foundation.Forms.Models;
 /// </para>
 /// </remarks>
 /// <param name="Id">Stable section identifier, unique within the owning
-/// <see cref="FormSchema"/>. Recommended format <c>{purpose}</c>
+/// <see cref="FormDefinition"/>. Recommended format <c>{purpose}</c>
 /// (<c>tenancy</c>, <c>financial</c>, <c>maintenance</c>). MUST be non-empty.</param>
 /// <param name="Title">Localized section title.</param>
 /// <param name="Fields">Ordered list of field names that belong to this

@@ -1,7 +1,7 @@
 namespace Sunfish.Foundation.Forms.Models;
 
 /// <summary>
-/// One cross-field rule attached to a <see cref="FormSchema"/> (ADR 0055
+/// One cross-field rule attached to a <see cref="FormDefinition"/> (ADR 0055
 /// §"Three-tier rules", composing the cross-field-rules-engine UPF).
 /// </summary>
 /// <remarks>
@@ -22,7 +22,7 @@ namespace Sunfish.Foundation.Forms.Models;
 /// </para>
 /// </remarks>
 /// <param name="Id">Stable rule identifier, unique within the owning
-/// <see cref="FormSchema"/>. Recommended format <c>{scope}.{purpose}</c>
+/// <see cref="FormDefinition"/>. Recommended format <c>{scope}.{purpose}</c>
 /// (for example <c>section.tenancy.read</c>). MUST be non-empty.</param>
 /// <param name="Tier">Expression language tier.</param>
 /// <param name="Scope">What the rule targets — a field, a section, or the
