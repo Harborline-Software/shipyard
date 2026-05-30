@@ -106,6 +106,10 @@ public sealed class InMemoryTimeEntryService : ITimeEntryService
     public Task<TimeEntry?> GetByIdAsync(TenantId tenantId, TimeEntryId id, CancellationToken cancellationToken = default)
         => Task.FromResult(_repo.GetById(tenantId, id));
 
+    /// <inheritdoc />
+    public Task<IReadOnlyList<TimeEntry>> GetByProjectAsync(TenantId tenantId, ProjectId projectId, CancellationToken cancellationToken = default)
+        => Task.FromResult(_repo.ListByProject(tenantId, projectId));
+
     private TimeEntry RequireByTenantId(TenantId tenantId, TimeEntryId id)
         => _repo.GetById(tenantId, id)
            ?? throw new InvalidOperationException($"TimeEntry {id.Value} not found in tenant {tenantId}.");

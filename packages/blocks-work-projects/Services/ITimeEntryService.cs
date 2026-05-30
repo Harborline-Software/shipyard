@@ -72,4 +72,16 @@ public interface ITimeEntryService
         TenantId tenantId,
         TimeEntryId id,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// All non-deleted entries for a single project within the tenant
+    /// (H5-scoped). Empty when the project has no entries or is owned by
+    /// another tenant — never returns cross-tenant rows. Project-scoped
+    /// (not an unbounded tenant scan) so the future Postgres impl can
+    /// serve it with a single indexed predicate.
+    /// </summary>
+    Task<IReadOnlyList<TimeEntry>> GetByProjectAsync(
+        TenantId tenantId,
+        ProjectId projectId,
+        CancellationToken cancellationToken = default);
 }

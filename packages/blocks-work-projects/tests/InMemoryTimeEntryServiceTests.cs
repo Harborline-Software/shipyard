@@ -165,4 +165,32 @@ public sealed class InMemoryTimeEntryServiceTests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             svc.SubmitAsync(Tenant, entry.Id, Instant.Now, Worker));
     }
+
+    [Fact]
+    public async Task GetByProjectAsync_ReturnsOnlyEntriesForThatProject()
+    {
+        var (_, svc, _, _) = Build();
+        var projectA = ProjectId.NewId();
+        var projectB = ProjectId.NewId();
+        await svc.OpenAsync(Tenant, Worker, ActivityKind.Labor, Instant.Now, Worker, projectId: projectA);
+        await svc.OpenAsync(Tenant, Worker, ActivityKind.Labor, Instant.Now, Worker, projectId: projectA);
+        await svc.OpenAsync(Tenant, Worker, ActivityKind.Labor, Instant.Now, Worker, projectId: projectB);
+
+        var aEntries = await svc.GetByProjectAsync(Tenant, projectA);
+
+        Assert.Equal(2, aEntries.Count);
+        Assert.All(aEntries, e => Assert.Equal(projectA, e.ProjectId));
+    }
+
+    [Fact]
+    public async Task GetByProjectAsync_CrossTenant_ReturnsEmpty()
+    {
+        // H5: a caller authenticated to OtherTenant must not see Tenant's
+        // project entries even when it knows the ProjectId.
+        var (_, svc, _, _) = Build();
+        var project = ProjectId.NewId();
+        await svc.OpenAsync(Tenant, Worker, ActivityKind.Labor, Instant.Now, Worker, projectId: project);
+
+        Assert.Empty(await svc.GetByProjectAsync(OtherTenant, project));
+    }
 }
