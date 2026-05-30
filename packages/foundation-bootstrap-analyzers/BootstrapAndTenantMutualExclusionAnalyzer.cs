@@ -82,13 +82,17 @@ public sealed class BootstrapAndTenantMutualExclusionAnalyzer : DiagnosticAnalyz
         };
 
     /// <summary>
-    /// Map* endpoint-registration extension method names recognized inside
-    /// a <c>MapBootstrapEndpoints</c> body. <c>MapGroup</c> is included
-    /// because it returns an <c>IEndpointRouteBuilder</c> whose own
-    /// Map* calls participate in the same registration tree; declaring
-    /// <c>.RequireAuthorization()</c> via <c>MapGroup</c> in a bootstrap
-    /// branch would itself be a bug, so we still expect explicit
-    /// <c>.AllowAnonymous()</c> on the group or on each leaf endpoint.
+    /// HTTP-verb Map* endpoint-registration extension method names recognized
+    /// inside a <c>MapBootstrapEndpoints</c> body. These are the leaf calls
+    /// that actually register an endpoint, so they are the precise surface for
+    /// Gap D's "explicit <c>.AllowAnonymous()</c> at registration" rule.
+    /// <c>MapGroup</c> is intentionally excluded: it is a routing-tree
+    /// construct, not an endpoint, and the analyzer cannot syntactically track
+    /// AllowAnonymous inherited from a group down to its leaves — including it
+    /// would add false positives (a group-level AllowAnonymous applied to bare
+    /// leaves) without adding safety. Each leaf must carry an inline
+    /// <c>.AllowAnonymous()</c>; the group-local-with-deferred-AllowAnonymous
+    /// shape is the documented accepted edge (rewrite inline).
     /// </summary>
     private static readonly HashSet<string> MapEndpointMethodNames =
         new(StringComparer.Ordinal)
@@ -99,7 +103,6 @@ public sealed class BootstrapAndTenantMutualExclusionAnalyzer : DiagnosticAnalyz
             "MapPatch",
             "MapDelete",
             "MapMethods",
-            "MapGroup",
         };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
