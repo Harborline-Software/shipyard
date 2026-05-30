@@ -24,8 +24,8 @@ inline notes for FED (Yeoman is offline; PAO supplies both copy and direction).
 > leases, see who owes what, and close your books, without a monthly bill or a
 > vendor holding your records.
 
-**Primary CTA:** `Get started` → (see CTA note below)
-**Secondary CTA:** `View on GitHub`
+**Primary CTA:** `Get started on GitHub`
+**Secondary CTA:** `See how it works`
 
 > **FED / UX direction.** Hero is text-left, product-screenshot-right on
 > desktop; stacked on mobile. The screenshot should be the **Properties list or
@@ -33,15 +33,12 @@ inline notes for FED (Yeoman is offline; PAO supplies both copy and direction).
 > illustration. The proof here is "this is a finished tool," so show finished
 > UI. Keep the hero to one viewport height; no carousel.
 >
-> **CTA note (load-bearing — see Honesty ledger #1 + #4).** Until the
-> signup -> verify -> login flow is merged and smoke-tested, the primary CTA
-> must NOT promise hosted signup. Two safe options:
-> - **If launch is self-hosted-only:** Primary = `Get started on GitHub`,
->   Secondary = `See how it works` (anchor to the demo/feature section).
-> - **If hosted onboarding is live + ratified:** Primary = `Create your
->   workspace` (→ /signup), Secondary = `Or run it yourself` (→ GitHub).
-> FED should wire the primary CTA behind a single config flag so it flips
-> cleanly the moment the auth smoke-test passes.
+> **CTA note (RESOLVED — CIC ruled Request 4 = self-hosted-first,
+> 2026-05-30).** Primary CTA is `Get started on GitHub` → the repo + deploy
+> docs. There is no Harborline-hosted signup in v1; do NOT use "Create your
+> workspace / Sign up / Start free." The login a user creates is a local seed
+> login on their own deploy (`BRIDGE_SEED_LOGIN_PASSWORD`), not a hosted
+> account. Secondary CTA `See how it works` anchors to the feature section.
 
 ---
 
@@ -111,18 +108,20 @@ inline notes for FED (Yeoman is offline; PAO supplies both copy and direction).
 **Heading:** Your records, your machine, no middleman
 
 **Body:**
-> Shipyard runs where you put it — on your own computer, on a node you host for
-> the office, or on a hosted node if you'd rather not run your own. Whichever you
-> pick, the data is yours: exportable to plain JSON and CSV any time, and
-> readable for as long as you keep the files. Because the code is MIT-licensed
-> and open, there's no company in the middle that can raise a price, change the
-> terms, or shut the doors.
+> Shipyard runs where you put it — on your own computer, or on a node you host
+> for your office. Your infrastructure, your control. (A managed
+> Harborline-hosted option is on the roadmap, not part of this release.)
+> Whichever you pick, the data is yours: exportable to plain JSON and CSV any
+> time, and readable for as long as you keep the files. Because the code is
+> MIT-licensed and open, there's no company in the middle that can raise a
+> price, change the terms, or shut the doors.
 
-> **UX direction.** Two- or three-column "deployment shapes" row: *On your
-> machine* (desktop) / *Self-host a node* (office) / *Hosted node* (we run it).
-> Show the same screenshot under each to make the point that it's one app. **Per
-> Honesty ledger #4, only show the "Hosted node" column if CIC ratifies a hosted
-> offering for launch.** Default to two columns (desktop + self-host) otherwise.
+> **UX direction.** Two-column "deployment shapes" row: *On your machine*
+> (desktop) / *Self-host a node* (office). Show the same screenshot under each
+> to make the point that it's one app. Optionally add a third, visually-muted
+> *Managed hosting — on the roadmap* tile, clearly future, with NO signup/CTA.
+> Never present managed hosting as an available action in v1 (CIC ruled
+> Request 4 = self-hosted-first, 2026-05-30).
 
 ---
 
@@ -190,8 +189,7 @@ inline notes for FED (Yeoman is offline; PAO supplies both copy and direction).
 > Shipyard is free, open source, and yours to run. Bring your leases, rent, and
 > books into one place — on your machine, on your terms.
 
-**Primary CTA:** `Get started on GitHub` (or `Create your workspace` per the
-hero CTA decision — keep both CTAs consistent)
+**Primary CTA:** `Get started on GitHub`
 **Secondary CTA:** `Read the docs`
 
 ---
@@ -203,8 +201,10 @@ hero CTA decision — keep both CTAs consistent)
   run yourself.*
 - **Links:** GitHub · Docs · License (MIT) · The architecture behind it (book /
   paper) · Other Harborline projects.
-- **No "© Harborline SaaS" / no "Terms of Service" implying a hosted account**
-  unless a hosted offering ships and CIC ratifies it.
+- **No "© Harborline SaaS" and no "Terms of Service" / "Sign up" implying a
+  Harborline-run hosted account.** v1 is self-hosted-first; the login is a
+  local seed login on the operator's own deploy. (Managed hosting is a roadmap
+  line only.)
 
 ---
 

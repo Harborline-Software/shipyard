@@ -57,11 +57,12 @@ bills you per door, per month, forever.
    confirms all fleet products MIT OSS.)*
 
 2. **You choose where it runs.** The same app supports running on your own
-   machine (a Tauri desktop build exists), self-hosting a node for your office,
-   or using a hosted node — your records stay exportable to JSON/CSV in every
-   mode. *(Verified: bundle manifests declare `deploymentModesSupported:
-   ["Lite", "SelfHosted", "HostedSaaS"]`; a Tauri desktop app and an
-   Aspire-based `local-node-host` both exist in-repo.)*
+   machine (a Tauri desktop build exists) or self-hosting a node for your
+   office — your infrastructure either way, with your records exportable to
+   JSON/CSV in every mode. (A managed Harborline-hosted option is on the
+   roadmap, not in this release.) *(Verified: bundle manifests declare
+   `deploymentModesSupported: ["Lite", "SelfHosted", "HostedSaaS"]`; a Tauri
+   desktop app and an Aspire-based `local-node-host` both exist in-repo.)*
 
 3. **Built from composable blocks, not a monolith.** Shipyard is assembled from
    business-case *bundles* (vertical workspaces) that compose reusable *blocks* —
@@ -132,8 +133,10 @@ instinct would like. Admiral / CIC should confirm or trim:
    the full signup/verify/invite surface — but **the public onboarding entry
    point is the launch gate**, consistent with the brief's "gated only on a live
    auth smoke-test." *Do not publish copy that promises a one-click signup until
-   that flow is merged and the smoke-test passes.* The landing-page CTA is
-   written with a self-hosted fallback so it stays true either way.
+   that flow is merged and the smoke-test passes.* Per the Request-4 ruling
+   (self-hosted-first, 2026-05-30), the landing-page hero CTA is now
+   `Get started on GitHub` — no hosted signup promise — so this gate no longer
+   binds the hero copy; it remains a guard against any future signup CTA.
 
 2. **All bundle manifests are `status: Draft, maturity: Scaffold`.** The manifests
    describe intended composition (which blocks a bundle pulls in), not a
@@ -151,14 +154,13 @@ instinct would like. Admiral / CIC should confirm or trim:
    browser." (The earlier `shipyard-marketing-copy.md` line "it works whether or
    not you're online" overreaches for the web app — flagged for that doc too.)
 
-4. **Self-hosted vs. hosted tension.** The earlier copy says "not on our servers —
-   we don't have any." The launch onboarding flow (signup -> tenant cockpit) is a
-   *hosted node*. Both are legitimate inverted-stack deployment shapes, but the
-   public story must not say both "we have no servers" AND "sign up for a hosted
-   account." Recommended resolution: lead with **open-source + run-it-yourself**;
-   present any hosted option as "a hosted node, if you'd rather not run your own"
-   — same code, your choice. CIC to ratify whether a Harborline-hosted offering
-   is in scope for launch messaging at all.
+4. **Self-hosted vs. hosted — RESOLVED (CIC ruled self-hosted-first,
+   2026-05-30).** v1 is self-hosted-first: lead with open-source +
+   run-it-yourself. There is no Harborline-operated hosted signup at launch —
+   the "account" a user creates is a local seed login on their own deploy
+   (`BRIDGE_SEED_LOGIN_PASSWORD`). Managed Harborline hosting is a roadmap line,
+   shown (if at all) as clearly-future, never as a present signup. The
+   hero/CTA/deployment copy in `landing-page-copy.md` reflects this.
 
 5. **README is stale.** `shipyard/README.md` still calls the platform "Sunfish"
    and references commercial-add-on licensing — pre-rebrand and pre-MIT-decision.

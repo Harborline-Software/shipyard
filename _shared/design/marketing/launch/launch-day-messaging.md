@@ -104,8 +104,9 @@ words inherited from `../shipyard-marketing-copy.md`.
    signup -> verify -> login flow is merged and the auth smoke-test passes.
 3. **No full-offline claim for the web app.** "Run it on your machine /
    self-host" is true; "works offline in your browser" is not (yet).
-4. **No SaaS-only framing.** Lead with run-it-yourself + open source. A hosted
-   node, if mentioned, is an option — not the product.
+4. **Self-hosted-first.** Lead with run-it-yourself + open source. There is no
+   Harborline-hosted signup in v1; never imply one. Managed hosting is a roadmap
+   line only, never a present "sign up." (CIC ruled Request 4, 2026-05-30.)
 5. **No fabricated proof.** No fake users, testimonials, logos, or install
    counts at launch.
 6. **Banned words:** *powerful*, *seamless*, *all-in-one*, *revolutionary*,
