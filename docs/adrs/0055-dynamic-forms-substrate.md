@@ -3,11 +3,13 @@ id: 55
 title: Dynamic Forms Substrate
 status: Accepted
 date: 2026-04-29
+revised: 2026-05-30
+revision: 4
 tier: foundation
 concern:
   - persistence
   - configuration
-- dev-experience
+  - dev-experience
 composes:
   - 1
   - 5
@@ -16,6 +18,7 @@ composes:
   - 32
   - 46
   - 49
+  - 56
 extends: []
 supersedes: []
 superseded_by: null
@@ -23,9 +26,22 @@ amendments: []
 ---
 # ADR 0055 — Dynamic Forms Substrate
 
-**Status:** Proposed
-**Date:** 2026-04-29
-**Resolves:** Synthesizes a multi-turn architectural conversation 2026-04-29 (CEO directive establishing dynamic forms as the load-bearing MVP feature) into a coherent substrate ADR. Composes 4 prior research artifacts: [`oss-primitive-types-research-2026-04-29.md`](../../icm/01_discovery/output/oss-primitive-types-research-2026-04-29.md) (PR #231), [`dynamic-forms-authorization-permissions-upf-2026-04-29.md`](../../icm/00_intake/output/dynamic-forms-authorization-permissions-upf-2026-04-29.md) (PR #230), [`contact-use-enum-upf-2026-04-29.md`](../../icm/00_intake/output/contact-use-enum-upf-2026-04-29.md) + [`taxonomy-management-substrate-intake-2026-04-29.md`](../../icm/00_intake/output/taxonomy-management-substrate-intake-2026-04-29.md) (PR #234), [`cross-field-rules-engine-upf-2026-04-29.md`](../../icm/00_intake/output/cross-field-rules-engine-upf-2026-04-29.md) (PR #235).
+**Status:** Accepted (Rev 4 — dual-council AMBER verdicts folded 2026-05-30; both councils pre-cleared this fold for a discretionary Admiral flip with no third council round)
+**Date:** 2026-04-29 (Rev 1) · **Revised:** 2026-05-30 (Rev 4)
+**Resolves:** Synthesizes a multi-turn architectural conversation 2026-04-29 (CEO directive establishing dynamic forms as the load-bearing MVP feature) into a coherent substrate ADR. Composes 4 prior research artifacts: [`oss-primitive-types-research-2026-04-29.md`](../../icm/01_discovery/output/oss-primitive-types-research-2026-04-29.md) (PR #231), [`dynamic-forms-authorization-permissions-upf-2026-04-29.md`](../../icm/00_intake/output/dynamic-forms-authorization-permissions-upf-2026-04-29.md) (PR #230), [`contact-use-enum-upf-2026-04-29.md`](../../icm/00_intake/output/contact-use-enum-upf-2026-04-29.md) + [`taxonomy-management-substrate-intake-2026-04-29.md`](../../icm/00_intake/output/taxonomy-management-substrate-intake-2026-04-29.md) (PR #234), [`cross-field-rules-engine-upf-2026-04-29.md`](../../icm/00_intake/output/cross-field-rules-engine-upf-2026-04-29.md) (PR #235). Rev 2 rebases onto the [dynamic-forms substrate scoping study](../../icm/01_discovery/research/dynamic-forms-substrate-scoping-2026-05-30.md) (ONR, shipyard#208).
+
+---
+
+## Revision history
+
+| Rev | Date | Status | Summary |
+|---|---|---|---|
+| 1 | 2026-04-29 | Proposed (never attested) | Original Option-A decision; 8-phase / ~16-week from-scratch build. **Status was internally inconsistent** — frontmatter said `Accepted`, but the body header and sign-off both said `Proposed, awaiting CEO sign-off after a council-review dispatch the sign-off recorded as not-yet-run.** No `council-verdict-0055-*` beacon exists anywhere in `coordination/` — the council review the sign-off promised never ran. The frontmatter `Accepted` was a scaffolding/template artifact, not a real acceptance. |
+| 2 | 2026-05-30 | **Proposed** | **Reconciliation + re-scope.** (1) Status reset to a single consistent **Proposed** across frontmatter, body, and sign-off. (2) **Namespace/reuse plan rebased** onto ~5 weeks of substrate that shipped underneath Rev 1: the schema registry is the shipped **`Sunfish.Kernel.SchemaRegistry`** (NOT Rev 1's `Sunfish.Foundation.Schema`); the JSONB entity store is the shipped **`Sunfish.Foundation.Assets`** (NOT a net-new `IEntityInstanceStore`); the Taxonomy substrate is the **Accepted ADR 0056** (`foundation-taxonomy`). ~60% of Rev 1's "new" substrate is already built. (3) **First implementation wave re-scoped** to a minimal-v1 keystone — a facade/overlay/engine-slice OVER the existing substrate — relocating the `foundation-ships-office` `FormSchema` stub to canonical `Sunfish.Foundation.Forms`. (4) Full ERPNext DocType parity (authoring UX, Web Forms, Customize-Form, naming series, child tables, Tier-2/3 rules, Postgres adapter, typed-record migration) **deferred to Phase 2+** with an explicit boundary. (5) **Council posture: dual-council MANDATORY** (security-engineering + dotnet-architect), matching the ADR 0095–0101 substrate-tier cadence. |
+| 3 | 2026-05-30 | **Proposed** | **Scope settled by CIC ruling 2026-05-30T1322Z** (`admiral-ruling-2026-05-30T1322Z-adr-0055-oq5-postgres-in-keystone-oq6-code-json.md`). (1) **OQ-5 — CIC OVERRODE the Rev 2 in-memory recommendation:** the keystone now ships a **Postgres-backed `IEntityStore` at its definition-of-done** — durable at the keystone, not a fast-follow. Rationale: the keystone is the required-module spine of all five reference bundles; CIC wants it durable at DoD rather than carrying a persistence migration as a separate later workstream. (2) **OQ-6 — CIC AFFIRMED Rev 2:** code/JSON-defined schemas for v1; no authoring UX in v1 (Phase-2). (3) Consequent scope move: the **Postgres/JSONB persistence adapter** and the **JSONB index strategy** (ONR Finding-8 risk #4) move OUT of the Phase-2+ deferred list and INTO the v1 keystone boundary; the dual-council reviews the index strategy as part of the keystone. Acceptance-provenance + tenant-isolation now land on real Postgres storage, not the in-memory shim. (4) **OQ-3 stays the council-ratifiable recommendation** (reference a registry `SchemaId`, do not inline the blob). Scope is now settled for the dual-council; status remains **Proposed** pending dual-green. |
+| 4 | 2026-05-30 | **Accepted** | **Dual-council AMBER verdicts folded; status flipped Proposed→Accepted.** Both councils returned **AMBER** on Rev 3 (`council-verdict-net-arch-…-adr-0055-rev3.md` + `council-verdict-sec-eng-…-adr-0055-rev3.md`, both 2026-05-30T1333Z) and **both explicitly pre-cleared a discretionary Admiral flip on the Rev-4 fold diff** — no third council round (net-arch: "the architecture decision itself needs no further review"; sec-eng: "on a Rev 4 that folds S1–S5, sec-eng's account is GREEN and Admiral may flip"). **net-arch Finding A (gating, factual):** the Postgres `IEntityStore` adapter the ADR repeatedly called "net-new / not-yet-built" is **already shipped** as `foundation-assets-postgres` — the keystone CONSUMES it; the genuine net-new sliver is only a JSONB **content**-index strategy (+ optional `EntityQuery` body-predicate). **Finding B:** the store is tenant-aware end-to-end (`CreateOptions.Tenant` + `EntityQuery.Tenant` SQL filter) — isolation is two-layer, not "over-specified"; `EntityId = (Scheme, Authority, LocalPart)` (the `(Scheme, Authority, Nonce, Issuer)` parenthetical was the idempotency tuple, now corrected). **Finding C:** DbContext lifetime is already solved (`IDbContextFactory` + singleton-store). **sec-eng S1 (HIGH):** read-path tenant gap (`GetAsync` is not tenant-scoped; `EntityQuery.Tenant == null` is fail-OPEN) → pinned a fail-closed read-assertion invariant + named test. **S2 (HIGH):** schema-validation resource bounds (ReDoS / `$ref`-depth / size caps). **S3 (MED):** `FieldOverlay.Pii` enforcement invariant + default-secure + arch test. **S4 (MED):** audit-append-per-`SaveAsync` + Postgres append-only DB grants. **S5 (LOW):** OQ-3 cross-tenant `SchemaId` reference is a Phase-2 self-authoring security gate. **OQ-3 RATIFIED by both councils.** |
+
+> **Reconciliation note (load-bearing).** Rev 1's `Accepted` frontmatter must never be trusted by any downstream artifact: the council dispatch its sign-off promised never ran, and no acceptance beacon existed for it. Any prior work that cited "per ADR 0055 acceptance" (e.g., `xo-ruling-T02-43Z`, the `cob-status` "W#55 Phase 5 (ADR 0055 Accepted)" line) relied on an acceptance that did not happen with council attestation. **Rev 4's Accepted disposition is the real one:** the dual-council DID run (both verdicts AMBER, both dated 2026-05-30T1333Z, both on disk in `coordination/inbox/`), both councils pre-cleared the discretionary flip on a faithful fold, and Rev 4 folds every amendment they named (net-arch A/B/C + sec-eng S1–S5 + OQ-3 ratification). The disposition is now, unambiguously, **Accepted with council attestation on the record.**
 
 ---
 
@@ -33,7 +49,7 @@ amendments: []
 
 Sunfish was conceived as a no-code platform for collaborative software, but the property-operations cluster (workstreams #16–#30, drafted 2026-04-28) treated Property + Equipment + Inspection + Lease as fixed C# records — a substrate-amnesia anti-pattern that ignored Sunfish's actual platform substrate (ADR 0001 Schema Registry, ADR 0005 Type Customization, `blocks-forms`, `blocks-businesscases`).
 
-CEO redirected 2026-04-29: **dynamic forms is load-bearing for MVP.** Specifically:
+CEO redirected 2026-04-29: **dynamic forms is load-bearing.** Specifically:
 - Properties + Equipment + Address + Inspection are not hard-coded entities; they are *type definitions* registered in the schema registry
 - Asset structure is a tree node hierarchy (type-tree + instance-tree)
 - Properties/value-objects compose: Address can be USAddress | EUAddress | MXAddress (variant), each with custom fields, optionally with LatLng
@@ -42,174 +58,164 @@ CEO redirected 2026-04-29: **dynamic forms is load-bearing for MVP.** Specifical
 - Cross-field rules need their own substrate (conditional / validation / computed)
 - Cross-device sync of both schemas and entity instances is mandatory
 
-The cluster intakes' fixed-schema assumption is wrong. The platform Sunfish *actually is* requires this dynamic-forms substrate to be foundational, with shipped Property/Equipment/Inspection records becoming *seed type definitions* registered through the substrate (or retiring entirely in favor of JSONB-stored instances).
+**Rev 2 forcing function (CIC, 2026-05-29):** CIC elevated dynamic-forms to the **highest-leverage post-MVP substrate**, because `sunfish.blocks.forms` is a `requiredModules` entry of **all five** reference bundles — property-management, asset-management, project-management, facility-operations, AND acquisition-underwriting (verified on disk; the Rev 1 framing of "four non-PM bundles" undercounts). Every bundle declares forms required; every bundle readiness audit marks forms COMPLETE — because the **presentation block** (`blocks-forms`) exists. But that block renders only **statically-typed** model forms; the dynamic engine behind it is the `NoopFormSchemaStore`, which returns empty. So no bundle can author a user-defined type today. CIC's elevation names exactly this gap. It is also the explicit "CO directs canonicalization" forcing function that `xo-ruling-T02-43Z` named when it created the local stub.
 
-This ADR specifies the substrate. It is the largest single architectural commit of the cluster work because it touches schema definition, type taxonomy, form rendering, cross-field rules, permissions, storage, and sync — all simultaneously.
+This ADR specifies the substrate. Rev 2 reframes it from "the largest single architectural commit of the cluster work" (Rev 1) to **a minimal-v1 keystone that wires existing substrate together behind a form-engine facade** — because the schema registry, entity store, taxonomy, workflow, and macaroons it depends on have all shipped since Rev 1.
 
 ---
 
 ## Decision drivers
 
 - **CEO directive 2026-04-29:** dynamic forms is load-bearing; admin-defined types in v1; JSONB required; section-based permissions; type tree + instance tree; cross-field rules separate substrate
-- **Cluster impact:** 14 cluster intakes (workstreams #16–#30) reframe from typed-records to schema-registry-driven; ~5 cluster ADRs (0051, 0052, 0053, 0054, this one) compose
-- **Substrate composition:** ADR 0001 (Schema Registry), 0005 (Type Customization), 0007 (Bundle Manifest), 0028 (CRDT), 0032 (Macaroons), 0049 (Audit), 0046 (Recovery — for tenant-key-encrypted blob storage) — all already in flight; this ADR composes them
+- **CIC directive 2026-05-29:** dynamic-forms is the highest-leverage post-MVP substrate; it is the shared required-module spine of ALL FIVE reference bundles; the keystone is what unblocks bundle authoring surfaces
+- **Substrate already shipped (the Rev 2 pivot):** the schema registry (`Sunfish.Kernel.SchemaRegistry`), the JSONB entity store (`Sunfish.Foundation.Assets`), the taxonomy substrate (ADR 0056 Accepted; `foundation-taxonomy`), the workflow primitive (`blocks-workflow`), the rule-event bridge (`foundation-rule-engine-event-bridge`), and macaroons (ADR 0032) are all present on `origin/main`. The keystone composes them; it does not re-author storage/schema/sync.
 - **Multi-platform requirement:** rules + forms must run on Web (Photino+Blazor or browser), .NET Anchor desktop, future iOS/Swift — eliminates code-as-rule patterns
-- **Local-first + sync:** schemas and entity instances must CRDT-sync across devices per paper §6; schema versioning per paper §7 epoch model
-- **Admin authoring:** non-developer authors compose types + rules + permissions; UX must be approachable without enterprise-RBAC training overhead
+- **Local-first + sync:** schemas and entity instances must CRDT-sync across devices per paper §6; schema versioning per paper §7 epoch model (the registry already ships Epochs/Lenses/Upcasters)
+- **Admin authoring (Phase 2+):** non-developer authors compose types + rules + permissions; UX must be approachable — but v1 accepts code/JSON-defined schemas; the no-code studio is the differentiator, not the unblock
 - **Provider-neutrality:** ADR 0013 enforcement gate active; substrate must not couple to vendor SDKs
-- **Storage migration risk:** typed-records (Property, Equipment, Inspection) shipped today; reframing them as schema-registered types must be non-breaking or have a clean migration
+- **Highest-PII-risk substrate:** user-defined forms store arbitrary tenant-authored field shapes + section-based permissions + per-tenant schema isolation — security is non-optional, hence dual-council MANDATORY
+
+---
+
+## On-disk reuse inventory (Rev 2 — verified 2026-05-30 @ origin/main 87b7266)
+
+Rev 1's "Affected packages → new" table listed 5 net-new foundation packages. On disk, 3 of the 5 already exist (under kernel/foundation namespaces Rev 1 didn't anticipate), the 4th (taxonomy) is a separate Accepted ADR + shipped package, and only the form engine + compounds are genuinely net-new. Each row below was verified by reading the on-disk surface.
+
+| Rev 1 "new" package | On-disk reality (origin/main 87b7266) | Verdict |
+|---|---|---|
+| `Sunfish.Foundation.Schema` (schema registry) | **SHIPPED as `Sunfish.Kernel.SchemaRegistry`** (`packages/kernel-schema-registry/`; types namespaced `Sunfish.Kernel.Schema`). `ISchemaRegistry`: `RegisterAsync` (content-addressed CID, idempotent, `JsonSchema.Net`, draft 2020-12) + `GetAsync` + `ValidateAsync` (`SchemaValidationResult` with RFC-6901 pointer errors) + `ListAsync(tagFilter)` + `PlanMigrationAsync`/`MigrateAsync`. Dirs present: `Epochs/ Lenses/ Upcasters/ Migration/ Compaction/`. README maps to "ADR 0055 (dynamic-forms substrate; schema-registry consumer)." | **BUILT.** 0055 *consumes*, not re-authors. Bonus: the schema-evolution machinery Rev 1 deferred to v2/v3 (lenses/upcasters/epochs) is already present at the kernel tier. |
+| `Sunfish.Foundation.Forms` (form engine) | **DOES NOT EXIST** (grep: no `namespace Sunfish.Foundation.Forms` anywhere). | **NET-NEW.** The keystone's genuine deliverable. |
+| `Sunfish.Foundation.RuleEngine` (three-tier rules) | **PARTIAL — `foundation-rule-engine-event-bridge` exists** (rule-event integration seam). The Tier-2 (JsonLogic) evaluator is net-new; Tier-3 (Power Fx) was already deferred to v2 by Rev 1. Tier-1 (JSON-Schema if/then/else) comes **free** via the kernel registry's draft-2020-12 validation. | **PARTIAL.** |
+| `Sunfish.Foundation.Compounds` (20 primitives) | **DOES NOT EXIST** as a named package. Some primitives exist piecemeal (`Money` per ADR 0051; `Address`/`Email`/`Phone` in `blocks-people-foundation`; `InternationalizedText` in foundation I18n). | **NET-NEW (partially scavengeable; v1 needs only a subset).** |
+| `Sunfish.Foundation.Taxonomy` | **SHIPPED as `foundation-taxonomy`; ADR 0056 = Accepted.** Rev 1 referenced it as "future ADR." | **BUILT.** Reference ADR 0056. |
+| JSONB Entity Store (`IEntityInstanceStore`) | **SHIPPED as `Sunfish.Foundation.Assets`** (`packages/foundation/Assets/`). `IEntityStore` (`CreateAsync(SchemaId, JsonDocument body, CreateOptions)` idempotent mint — `CreateOptions` carries a **required** `TenantId Tenant` / `GetAsync` with as-of `VersionSelector` / `UpdateAsync` append-version / `DeleteAsync` tombstone / `QueryAsync` stream with `EntityQuery.Tenant` `TenantSelection` filter) + `IVersionStore` (SHA-256 hash chain) + `IAuditLog` (hash-chained) + `IHierarchyService` (temporal split/merge/reparent tree). Each entity carries a `SchemaId` and a `TenantId Tenant`. **The Postgres/JSONB backend is ALSO shipped** — see verdict below. | **BUILT (contract + in-memory tier + Postgres adapter).** This IS Rev 1's "JSONB Entity Store + tree-hierarchy." **Rev 4 (net-arch Finding A — gating, verified on disk):** the durable backend is **already shipped** as `packages/foundation-assets-postgres/` — a complete, tested, DI-wired `PostgresEntityStore`/`PostgresVersionStore`/`PostgresAuditLog`/`PostgresHierarchyService` + `AssetStoreDbContext` (`body_json`/`diff_json`/`payload_json`/`metadata_json` are `jsonb` columns; EntityId stored as three columns for natural joins/indexes) + applied EF migration `20260418144952_InitialSchema` + `AddSunfishAssetsPostgres(connStr)` DI via `IDbContextFactory<AssetStoreDbContext>` + tests. The keystone **CONSUMES** it via `AddSunfishAssetsPostgres` — it does NOT author a new adapter. The genuinely net-new keystone work is far smaller: **(1) a JSONB *content*-index strategy** (GIN / `jsonb_path_ops` / per-field expression indexes added as a NEW EF migration over the existing `entities.body_json` column — the shipped migration creates only B-tree indexes on scalar columns: `ix_entities_schema`/`ix_entities_tenant`/version/audit/hierarchy), and **(2) IF the bundles must query form instances by field value, a body-predicate extension to `EntityQuery` + `PostgresEntityStore.QueryAsync`** (today `EntityQuery` exposes only `Schema`/`Tenant`/`AsOf`/`IncludeDeleted`/`Limit` — no body/JsonPath predicate). Both are an INCREMENT on a shipped adapter, not a from-scratch build. **Rev 3's "the adapter is real net-new work" framing was wrong on disk — Rev 4 corrects it.** |
+| State machines (forms drive workflow) | **SHIPPED as `blocks-workflow`** (`WorkflowDefinition`/`StateMachine<TState,TEvent>`/`IWorkflowRuntime`). | **BUILT.** The forms→workflow seam is wiring, not new substrate. |
+
+### Correction to ONR's framing (trust-but-verify)
+
+ONR's scoping study (shipyard#208) is accurate on every reuse claim above except one nuance the ADR must not propagate: **the shipped registry's `Schema` record does NOT carry a `SchemaStatus{Draft,Published,Deprecated,Withdrawn}` field.** The shipped `Sunfish.Kernel.Schema.Schema` record is *content-addressed and immutable* — `(SchemaId, JsonSchemaText, ParentSchemas, Migrations, Tags, ContentAddress, BlobThreshold?)`. There is no lifecycle enum on it; a registered schema is a frozen, CID-identified document. Consequently:
+
+- The `FormDefinition` lifecycle (`Draft / Published / Archived`) **lives on the FormDefinition overlay layer**, NOT delegated to a registry status field that does not exist. Rev 1's recommendation to "align the form-definition lifecycle to the registry's `SchemaStatus`" rests on an enum that isn't there. **Decision pinned (Rev 2):** keep the stub's `Draft / Published / Archived` on `FormDefinition`; do not try to mirror a registry status. Publishing a form pins a specific immutable `SchemaId` (a content address); "evolving" the schema means registering a new CID and re-pointing the form-definition — the registry's immutability gives free versioning, but the *publication lifecycle* is the form layer's concern.
+- **Entity tenancy is a first-class store concern, enforced at BOTH layers (Rev 4 — net-arch Finding B + sec-eng S1; corrects the Rev 2/3 "over-specified store-level arg" framing).** The store IS tenant-aware end-to-end: `CreateOptions` carries a **required** `TenantId Tenant` (every create is tenant-stamped); `Entity`/`EntityRow` persist `TenantId Tenant` (B-tree-indexed `ix_entities_tenant`); `EntityQuery.Tenant` (`TenantSelection?`) filters at the SQL layer (`PostgresEntityStore.QueryAsync` → `WHERE e.Tenant = …` / `IN (…)` / sentinel-excluded all-accessible). Tenant isolation is therefore **two-layer defense-in-depth**: the Authorization-facade `ITenantContext` (ADR 0091 R2 — NOT the MultiTenancy narrowed variant; the signal-bridge#34 CS0104 trap) resolves *which* tenant at the form-engine boundary, AND the entity store filters by that tenant at the query layer. The `EntityQuery.Tenant` filter is the store-level backstop, **not** an over-specification.
+- **The real isolation gap is on the READ path — sec-eng S1 (HIGH); pinned as a fail-closed invariant below (commitment 7).** `IEntityStore.GetAsync(EntityId, …)` resolves by `EntityId` **alone** with NO tenant check — it returns the entity regardless of the caller's tenant. And `EntityQuery.Tenant == null` is documented as *"system-scope (sentinels visible)"* — i.e. **fail-OPEN**: an unscoped query sees every tenant's data. On the durable shared Postgres store (Rev 3 OQ-5), and with `IFormEngine.RenderAsync`/`SaveAsync` taking a raw `EntityId`, this means an attacker-supplied foreign-tenant `EntityId` is a direct cross-tenant read unless the form engine asserts `Entity.Tenant == ITenantContext.TenantId` and fails closed. This is the catastrophic-failure backstop the keystone MUST ship (commitment 7 / risk 2).
+- **EntityId identity correction (Rev 4 — net-arch Finding B):** `EntityId = (Scheme, Authority, LocalPart)`. The `(Scheme, Authority, Nonce, Issuer)` tuple Rev 3 wrote here is the **idempotency tuple** (from `CreateOptions`, folded into ID derivation), NOT the identity-record shape — keep the two distinct.
+
+These corrections are flagged here so the *as-shipped* contract is on the record, not Rev 1's sketch — and so no downstream artifact re-discovers the shipped Postgres adapter or the read-path tenant gap.
+
+### The stub (what canonicalizes)
+
+Exactly one stub surface carries `TODO-RELOCATE-WHEN-CANONICAL … ADR 0055` markers (5 source-level markers: 3 in `FormSchema.cs`, 2 in `IFormSchemaStore.cs`):
+
+- `foundation-ships-office/Services/FormSchema.cs` — `FormSchema(Id, TenantId, Name, FormSchemaStatus{Draft,Published,Archived}, UpdatedAt, LastModifiedBy)` + `FormSchemaId` (UUIDv7).
+- `foundation-ships-office/Services/IFormSchemaStore.cs` — 2-method interface (`GetByIdAsync`, `ListByTenantAsync`) + `NoopFormSchemaStore` no-op default.
+
+**Consumers of the stub (grep-verified):** `blocks-ships-office` (`ShipsOfficeServiceCollectionExtensions.cs`, `ShipsOfficeDataProvider.cs`, `ShipsOfficeDocumentKind.cs` — the `DynamicTemplate` kind) + tests. **One consuming surface, all inside `blocks-ships-office`.** The relocation blast radius is small (5 files + tests). The `FormSchemaStatus → DocumentStatus` mapping in `ShipsOfficeDocumentKind.cs` is a **guard for the sweep PR** — it must be preserved across the relocation.
 
 ---
 
 ## Considered options
 
-### Option A — Schema-registry-driven dynamic substrate (CTO recommendation)
+Rev 1's option analysis stands (the schema-registry-driven dynamic substrate is the right architecture). Rev 2 adds an axis Rev 1 could not have considered: **build-vs-consume**, because the substrate Rev 1 would have built has since shipped.
 
-Build a foundation-tier substrate that:
-- Defines types as data via JSON Schema 2020-12 + Sunfish overlay
-- Stores instances as JSONB documents in `Sunfish.Foundation.Assets` IEntityStore
-- Renders forms automatically from schemas
-- Evaluates cross-field rules via three-tier engine (per cross-field-rules UPF)
-- Enforces section-based permissions via macaroons (per permissions UPF)
-- Supports admin authoring of new types
-- Composes existing CRDT, audit, recovery, taxonomy substrates
+### Option A — Schema-registry-driven dynamic substrate (chosen; rebased in Rev 2)
 
-Existing typed records (Property, Equipment, Inspection, Lease) become **starter type definitions** registered through the schema registry; instances persist via JSONB; typed records remain as developer-ergonomic projections.
+Build a foundation-tier substrate that defines types as data (JSON Schema 2020-12 + Sunfish overlay), stores instances as JSONB documents, renders forms automatically, evaluates cross-field rules, and enforces section-based permissions via macaroons.
 
-- **Pro:** Aligns with paper's no-code-platform vision
+**Rev 2 refinement:** *consume* the shipped registry + entity store + taxonomy + workflow + macaroons rather than re-authoring them. The net-new is the form engine + overlay + a Tier-2 evaluator + a compounds subset + a dynamic render component. Existing typed records (Property, Equipment, Inspection) remain developer-ergonomic projections; their migration to JSONB is **decoupled** to a follow-on ADR (see "What this ADR does NOT do").
+
+- **Pro:** Aligns with the paper's no-code-platform vision
 - **Pro:** Admin-defined types in v1 unblocked
-- **Pro:** Composes existing substrate without major new primitives
-- **Con:** 12-16 weeks MVP work; substantial
-- **Con:** Existing typed-record persistence migrates to JSONB; non-trivial
+- **Pro (Rev 2):** Composes *already-shipped* substrate — materially smaller than Rev 1's 16 weeks
+- **Con:** The JSONB-vs-typed query ergonomics trade-off persists — and is now an in-scope v1 concern (Rev 3 — CIC OQ-5 moved the Postgres adapter + JSONB index strategy into the keystone DoD; the dual-council reviews it)
 
 ### Option B — Keep fixed schemas; add dynamic forms as v2
 
-Ship MVP on shipped C# records (Property, Equipment, Inspection); defer dynamic forms substrate to v2.
-
-- **Pro:** Faster MVP; ~3-5 weeks for cluster typed-record completion
-- **Con:** Direct conflict with CEO directive ("dynamic forms is load-bearing for MVP")
-- **Con:** Defers the no-code platform vision; rebuilds typed records later
-
-**Verdict:** Rejected. CEO directive precludes.
+Rejected (Rev 1). CEO directive precludes; CIC's keystone elevation re-confirms.
 
 ### Option C — Hybrid: typed records + parallel JSONB path
 
-Existing typed records persist; new admin-defined types use JSONB. Two storage paths in parallel.
-
-- **Pro:** Preserves shipped work
-- **Pro:** Faster than full Option A
-- **Con:** Split-brain UX; admin authors don't know which path their type is on
-- **Con:** Cross-type queries (e.g., "all entities classified as Equipment") become complex
-- **Con:** Migration of typed records to JSONB later is the same work that Option A does now
-
-**Verdict:** Rejected. Defers the migration cost without saving total work.
+Rejected (Rev 1). Split-brain UX; defers the migration cost without saving total work.
 
 ### Option D — Full event-sourced substrate
 
-Every entity is an append-only event log; current state is a CRDT projection.
+Rejected (Rev 1). Reserved as v3+. (Note: the shipped `IVersionStore` already provides an append-only SHA-256 hash chain per entity, so a degree of event-fidelity is present without re-architecting reads around events.)
 
-- **Pro:** Sync-friendly; audit-trail-native
-- **Pro:** Schema evolution handled via lenses (paper §7.3)
-- **Con:** Read-path complexity; projection management overhead
-- **Con:** All cluster modules and form-rendering re-architect around events
-- **Con:** Substantial additional work over Option A; not warranted at SMB-scale Phase 2
-
-**Verdict:** Rejected. Reserved as v3+ if scale or audit-fidelity requires.
+**Verdict:** Adopt Option A, rebased onto shipped substrate per Rev 2.
 
 ---
 
 ## Decision
 
-**Adopt Option A.** Foundation-tier dynamic forms substrate composing existing primitives. Specific architectural commitments:
+**Adopt Option A — a foundation-tier dynamic-forms substrate that composes the shipped kernel/foundation primitives, delivered as a minimal-v1 keystone with full DocType parity deferred to Phase 2+.**
 
-### Substrate components
+### Canonical namespace home
+
+**`Sunfish.Foundation.Forms`** (new `packages/foundation-forms/` package) is the canonical home for the form engine, definition, overlay, and store. The `foundation-ships-office` stub relocates here; `blocks-ships-office` re-references the canonical types; the `TODO-RELOCATE-WHEN-CANONICAL` markers are swept.
+
+### Substrate components (Rev 2 — composition view)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Dynamic Forms Substrate                      │
-│                                                                  │
-│  ┌──────────────────┐  ┌──────────────────────────────────────┐ │
-│  │ Schema Registry  │  │ Form Engine                          │ │
-│  │ (type defs as    │  │ (renders forms; reads schemas;       │ │
-│  │  data; CRDT-sync;│  │  evaluates rules; enforces perms)    │ │
-│  │  versioned)      │  │                                      │ │
-│  └────────┬─────────┘  └──────────┬───────────────────────────┘ │
-│           │                       │                              │
-│  ┌────────▼─────────┐  ┌──────────▼───────────────────────────┐ │
-│  │ Type Taxonomy    │  │ Three-Tier Rules Engine              │ │
-│  │ (20 primitives + │  │ Tier 1: JSON Schema if/then/else     │ │
-│  │  Variant +       │  │ Tier 2: JsonLogic + custom operators │ │
-│  │  Reference)      │  │ Tier 3: Power Fx (computed; v2)      │ │
-│  └────────┬─────────┘  └──────────────────────────────────────┘ │
-│           │                                                      │
-│  ┌────────▼──────────────────────────────────────────────────┐  │
-│  │ JSONB Entity Store (foundation-assets-postgres extension) │  │
-│  │ - per-tenant                                              │  │
-│  │ - schema-validated on write                               │  │
-│  │ - tree-hierarchy support (parent-child references)        │  │
-│  │ - tenant-key-encrypted PII fields                         │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-   ┌──────────────────────────┼──────────────────────────────┐
-   │ Composes existing substrates                            │
-   │ - ADR 0001 Schema Registry Governance                   │
-   │ - ADR 0005 Type Customization Model                     │
-   │ - ADR 0007 Bundle Manifest                              │
-   │ - ADR 0028 CRDT engine (schema + instance sync)         │
-   │ - ADR 0032 Macaroon capability model (permissions)      │
-   │ - ADR 0049 Audit Trail Substrate                        │
-   │ - Foundation.Recovery (tenant-key encryption)           │
-   │ - Forthcoming Taxonomy Substrate (Coding/CodeableConcept │
-   │   refs to versioned taxonomies)                         │
-   └─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                  Dynamic Forms Substrate (Sunfish.Foundation.Forms)    │
+│                                                                        │
+│   NET-NEW (the keystone):                                             │
+│   ┌────────────────────┐   ┌──────────────────────────────────────┐  │
+│   │ FormDefinition +   │   │ IFormEngine                          │  │
+│   │ FormOverlay        │   │  RenderAsync / ValidateAsync /       │  │
+│   │ (sections, field-  │   │  SaveAsync (resolve schema+overlay → │  │
+│   │  overlays, rules,  │   │  render/validate/save; section-      │  │
+│   │  SchemaId ref)     │   │  filtered by macaroon scope)         │  │
+│   └─────────┬──────────┘   └──────────┬───────────────────────────┘  │
+│             │   composes (does NOT re-author):                       │
+│   ┌─────────▼───────────────────────────────────────────────────┐    │
+│   │  SHIPPED substrate                                          │    │
+│   │  • Sunfish.Kernel.SchemaRegistry  (validation core; CID;     │    │
+│   │    JSON-Schema 2020-12; Epochs/Lenses/Upcasters/Migration)   │    │
+│   │  • Sunfish.Foundation.Assets  (IEntityStore JSONB body +     │    │
+│   │    IVersionStore SHA-256 chain + IAuditLog + IHierarchyService)│   │
+│   │  • foundation-taxonomy (ADR 0056) — Coding/CodeableConcept   │    │
+│   │  • blocks-workflow — forms→workflow transitions (wiring)     │    │
+│   │  • foundation-rule-engine-event-bridge — rule-event seam     │    │
+│   │  • ADR 0032 macaroons — section-scope enforcement            │    │
+│   │  • ADR 0091 R2 ITenantContext (Authorization facade) —       │    │
+│   │    per-tenant isolation                                      │    │
+│   └─────────────────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Initial contract surface (sketch)
+### Initial contract surface (Rev 2 — recommendation for council to ratify)
 
-**Schema Registry**
+The cleanest framing, consistent with the shipped registry: **separate the validation core from the form overlay.** The validation core is a registered JSON Schema (CID-addressed, immutable, lens/upcaster/epoch-aware) — it already exists in `Sunfish.Kernel.SchemaRegistry`. The *form* layer is a thin overlay that **references** a registered schema by `SchemaId`. Do NOT inline the JSON-Schema blob on the form definition.
 
 ```csharp
-namespace Sunfish.Foundation.Schema;
+namespace Sunfish.Foundation.Forms;
 
-public sealed record SchemaDefinition
+// The canonical type — relocates the foundation-ships-office stub's FormSchema.
+public sealed record FormDefinition
 {
-    public required SchemaId Id { get; init; }
-    public required SemanticVersion Version { get; init; }
-    public required SchemaStatus Status { get; init; }
-    public required IdentityRef Owner { get; init; }
-    public required JsonSchemaDocument JsonSchema { get; init; }       // validation core (JSON Schema 2020-12)
-    public required SunfishOverlay Overlay { get; init; }              // UI hints + i18n + permissions + rules
-    public required TenantId Tenant { get; init; }
-    public SchemaLineage? Lineage { get; init; }                       // optional; set if extends another schema
+    public required FormDefinitionId Id { get; init; }          // UUIDv7 (relocate FormSchemaId)
+    public required TenantId TenantId { get; init; }            // multi-tenant isolation (IMustHaveTenant)
+    public required string Name { get; init; }                  // kept from stub
+    public required SchemaId SchemaId { get; init; }            // → kernel registry; the JSON-Schema blob
+                                                                //   lives THERE (CID), not inlined here
+    public required FormDefinitionStatus Status { get; init; }  // Draft/Published/Archived — form-LAYER lifecycle
+                                                                //   (the registry record has NO status field)
+    public required FormOverlay Overlay { get; init; }          // sections + field overlays + rules + i18n
+    public required DateTimeOffset UpdatedAt { get; init; }     // kept from stub
+    public required ActorId LastModifiedBy { get; init; }       // kept from stub
 }
 
-public enum SchemaStatus { Draft, Published, Deprecated, Withdrawn }
+public enum FormDefinitionStatus { Draft, Published, Archived } // preserve the stub's enum + DocumentStatus mapping
 
-public interface ISchemaRegistry
+public sealed record FormOverlay
 {
-    Task<SchemaDefinition?> GetAsync(SchemaId id, SemanticVersion? version, CancellationToken ct);
-    Task<SchemaDefinition> RegisterAsync(SchemaDefinition definition, CancellationToken ct);
-    Task<IReadOnlyList<SchemaDefinition>> ListByTenantAsync(TenantId tenant, CancellationToken ct);
-    Task<SchemaDefinition> PublishAsync(SchemaId id, CancellationToken ct);
-    Task<SchemaDefinition> DeprecateAsync(SchemaId id, SemanticVersion version, CancellationToken ct);
+    public required IReadOnlyList<FormSection> Sections { get; init; }            // Approach F permission unit
+    public required IReadOnlyDictionary<string, FieldOverlay> Fields { get; init; } // control hint, i18n, PII tag
+    public required IReadOnlyList<RuleDefinition> Rules { get; init; }            // Tier-1 only in v1
+    public InternationalizedText? Title { get; init; }
+    public InternationalizedText? Description { get; init; }
 }
 
-public sealed record SunfishOverlay
-{
-    public required IReadOnlyDictionary<string, FieldOverlay> Fields { get; init; }
-    public required IReadOnlyList<FormSection> Sections { get; init; }    // permissions UPF Approach F
-    public required IReadOnlyList<RuleDefinition> Rules { get; init; }    // cross-field rules per UPF
-    public required InternationalizedText? Title { get; init; }
-    public required InternationalizedText? Description { get; init; }
-}
-```
-
-**Type Taxonomy** — 20 compound primitives + Variant + Reference + meta-types per OSS primitives research (PR #231).
-
-**Form Section + Permissions** — section-based with macaroon scope per Permissions UPF Approach F.
-
-```csharp
 public sealed record FormSection
 {
     public required string Id { get; init; }
@@ -222,106 +228,110 @@ public sealed record SectionAccess
 {
     public required IReadOnlyList<string> ReadRoles { get; init; }
     public required IReadOnlyList<string> WriteRoles { get; init; }
-    public string? ReadConditionExpression { get; init; }              // Tier 1 conditional
+    public string? ReadConditionExpression { get; init; }   // Tier-1 conditional (JSON-Schema if/then/else)
 }
-```
 
-**Rules** — three-tier engine per cross-field rules UPF.
-
-```csharp
-public sealed record RuleDefinition
+public sealed record FieldOverlay
 {
-    public required string Id { get; init; }
-    public required RuleTier Tier { get; init; }
-    public required RuleScope Scope { get; init; }                     // Field | Section | Schema
-    public required string Expression { get; init; }                   // JSON Schema, JsonLogic, or Power Fx (per tier)
-    public required RuleActionKind Action { get; init; }               // Visibility | Required | ReadOnly | Validate | Compute
-    public InternationalizedText? ErrorMessage { get; init; }
+    public ControlHint? Control { get; init; }              // date-picker, address-card, map-pin, …
+    public InternationalizedText? Label { get; init; }
+    public PiiSensitivity Pii { get; init; }                // per-field PII tag (risk 1 mitigation)
 }
 
-public enum RuleTier { JsonSchema, JsonLogic, PowerFx }
-public enum RuleActionKind { Visibility, Required, ReadOnly, Validate, Compute }
-```
-
-**Form Engine**
-
-```csharp
 public interface IFormEngine
 {
-    Task<FormView> RenderAsync(SchemaId schema, EntityInstance? instance, CapabilityToken token, CancellationToken ct);
-    Task<ValidationResult> ValidateAsync(SchemaId schema, EntityInstance candidate, CapabilityToken token, CancellationToken ct);
-    Task<EntityInstance> SaveAsync(SchemaId schema, EntityInstance candidate, CapabilityToken token, CancellationToken ct);
+    // schema + overlay + instance → section-filtered view (filtered by macaroon scope).
+    // S1 INVARIANT: every EntityId is resolved through a tenant-checked read that asserts the
+    // loaded Entity.Tenant == active ITenantContext.TenantId and FAILS CLOSED (NotFound) on
+    // mismatch — GetAsync alone is not tenant-scoped (see invariants section below).
+    Task<FormView> RenderAsync(FormDefinitionId form, EntityId? instance, CapabilityToken token, CancellationToken ct);
+    // registry validation (free Tier-1 if/then/else) + overlay Tier-1 rules.
+    // S2 INVARIANT: validation runs under the schema-validation safety boundary (size/$ref-depth
+    // caps + non-backtracking/MatchTimeout regex) so a tenant-authored schema cannot ReDoS a write.
+    Task<ValidationResult> ValidateAsync(FormDefinitionId form, JsonDocument candidate, CapabilityToken token, CancellationToken ct);
+    // validate → write through Sunfish.Foundation.Assets.IEntityStore (carries the SchemaId).
+    // OQ-3 CAVEAT: SaveAsync MUST thread the resolved TenantId into CreateOptions/UpdateOptions
+    //   (Tenant is `required` on CreateOptions) — a builder cannot construct a write without a tenant.
+    // S4 INVARIANT: every SaveAsync emits a matching IAuditLog.AppendAsync (acceptance-provenance).
+    Task<EntityId> SaveAsync(FormDefinitionId form, JsonDocument candidate, CapabilityToken token, CancellationToken ct);
 }
-```
 
-**Entity Store (JSONB-backed)**
-
-```csharp
-public sealed record EntityInstance
+// The canonical IFormSchemaStore — relocates the stub's interface + NoopFormSchemaStore default.
+public interface IFormDefinitionStore
 {
-    public required EntityId Id { get; init; }
-    public required SchemaId Schema { get; init; }
-    public required SemanticVersion SchemaVersion { get; init; }       // version-pinned at save time
-    public required TenantId Tenant { get; init; }
-    public required JsonDocument Payload { get; init; }                // JSONB column
-    public required IReadOnlyList<EntityClassification> Classifications { get; init; }   // taxonomy refs
-    public EntityId? ParentId { get; init; }                            // tree hierarchy
-    public required DateTimeOffset CreatedAt { get; init; }
-    public required IdentityRef CreatedBy { get; init; }
-    public DateTimeOffset? UpdatedAt { get; init; }
-    public IdentityRef? UpdatedBy { get; init; }
-    public DateTimeOffset? DeletedAt { get; init; }                    // soft-delete
-}
-
-public interface IEntityInstanceStore
-{
-    Task<EntityInstance?> GetAsync(TenantId tenant, EntityId id, CancellationToken ct);
-    Task<IReadOnlyList<EntityInstance>> QueryAsync(EntityQuery query, CancellationToken ct);
-    Task<EntityInstance> UpsertAsync(EntityInstance instance, CancellationToken ct);
-    Task<IReadOnlyList<EntityInstance>> ListChildrenAsync(TenantId tenant, EntityId parent, CancellationToken ct);
+    Task<FormDefinition?> GetByIdAsync(FormDefinitionId id, CancellationToken ct = default);
+    Task<IReadOnlyList<FormDefinition>> ListByTenantAsync(TenantId tenantId, CancellationToken ct = default);
 }
 ```
 
-### Key architectural commitments
+**On the fields `xo-ruling-T02-43Z` withheld:**
+- **JSON-schema blob** → NOT inlined on `FormDefinition`. Stored in the registry (CID-addressed) and referenced by `SchemaId`. Cleaner than Rev 1's inline `JsonSchema { get; init; }` and avoids duplicating the registry's job.
+- **Field-level metadata** → lives in `FormOverlay.Fields` (UI hints, i18n, PII-sensitivity tag). Validation/type metadata lives in the JSON Schema in the registry.
+- **Revision history / versioning** → the registry provides schema versioning (CID + Migrations + lenses/upcasters/epochs); entity *instances* version independently via `Sunfish.Foundation.Assets.IVersionStore` (SHA-256 chain). **Do NOT build a third versioning mechanism** on `FormDefinition`. The form-definition pins a `SchemaId` (immutable CID); "evolving" = register a new CID + re-point.
 
-**1. Storage path: JSONB primary; typed records become projections.** Existing `blocks-properties.Property` + `blocks-property-equipment.Equipment` + `blocks-inspections.Inspection` move from typed-record persistence to JSONB-backed instances. Their C# record shapes remain as developer-ergonomic read projections; writes go through the form engine; storage is JSONB. Per-record-class CP/AP classification per paper §6.3 still applies.
+### Security & durability invariants (Rev 4 — folded from the dual-council AMBER verdicts)
 
-**2. Schema registry as canonical type system.** Property + Equipment + Address (US) + Inspection + Lease + Receipt + Vendor + WorkOrder + remaining cluster types all become schemas registered in the registry. Cluster's `EquipmentClass` enum becomes a Coding-references against a Taxonomy (per Taxonomy Substrate intake). Property's `PostalAddress` becomes the Address compound primitive (USAddress variant in v1).
+The dual-council's standing requirement (cerebrum Key-Learning 2026-05-29) is to state the **POSITIVE, TESTABLE, NON-BYPASSABLE enforcement invariant**, not just the obligation. The keystone (P1–P3) MUST satisfy each of the following; each is an Engineer Stage-05 acceptance condition with a named test:
 
-**3. 20-primitive catalog (per OSS research):** MonetaryAmount, QuantitativeValue, Percentage, Progress, Period, Duration, RecurrenceRule, PersonName, PersonReference, ContactPoint (Pattern G — Role/Type + UseContext map per Contact use-enum UPF), Address (variant), GeoPoint, Identifier, Coding, CodeableConcept (refs to Taxonomy), Rating, Tag/TagList, InternationalizedText, AutoNumber, Attachment. Plus meta-concepts Variant + Reference (with cardinality + parent-child).
+- **INV-S1 (HIGH — read-path tenant fail-closed).** The form engine MUST resolve every `EntityId` (in `RenderAsync`/`SaveAsync`/any read) through a tenant-checked read that asserts the loaded `Entity.Tenant == active Authorization-facade ITenantContext.TenantId` and **fails closed (returns NotFound, never the body) on mismatch** — because `IEntityStore.GetAsync(EntityId, …)` is NOT tenant-scoped on its own. The Postgres adapter's `QueryAsync` MUST reject a `null`/`AllAccessible`/`TenantSelection.All` selection on any form-engine call path (only an explicitly capability-gated admin path may use `TenantSelection.All`), so the fail-open default cannot reach tenant data. **Named test:** *"engine read with a foreign-tenant `EntityId` returns NotFound, never the body."*
+- **INV-S2 (HIGH — schema-validation resource bounds).** Schema registration + validation MUST run under a safety boundary, since v1 schemas are tenant/operator-authored (OQ-6) and validate on every write to the durable store: (a) a max canonical schema-size byte cap at `RegisterAsync`; (b) a `$ref`/recursion-depth cap at register time (reject schemas exceeding it); (c) regex evaluation for JSON-Schema `pattern`/`patternProperties` MUST use `RegexOptions.NonBacktracking` **or** a bounded `MatchTimeout` (no catastrophic-backtracking ReDoS); (d) a per-validation wall-clock/size budget on `ValidateAsync`. The ADR pins these as v1-keystone invariants; the implementation may site them in the registry or in a form-engine pre-flight, but it is **non-optional for v1**.
+- **INV-S3 (MED — PII tagging enforced, default-secure).** `SaveAsync` MUST route every field carrying `PiiSensitivity != None` through the tenant-key encryption seam (ADR 0046 / `foundation-recovery`) **and** emit a PII-access audit append. A field whose overlay is **absent** is treated as the most-restrictive class (default-secure), not as cleartext. **Named test (arch):** *"no `IEntityStore` write from the engine carries a PII-tagged field in cleartext."* (P2/P3 gate.)
+- **INV-S4 (MED — audit completeness + DB-level append-only).** (a) The form-engine write path MUST emit a matching `IAuditLog.AppendAsync` for **every** `SaveAsync` (acceptance-provenance — a missing link is not a broken link, so the hash chain alone cannot reveal an omitted append), enforced by test. (b) The Postgres audit/version tables MUST be **append-only at the database grant level** (no `UPDATE`/`DELETE` for the app role; revision via new rows only) — "append-only" on Postgres is a DB-permission property, not a code property; this is a keystone DoD invariant the dotnet-architect/DBA review confirms.
+- **INV-S5 (LOW — OQ-3 cross-tenant schema reference is a Phase-2 gate).** The reference model (OQ-3) is the *more secure* choice: `SchemaId` is a content address, so a registered schema is immutable and a published form cannot be silently re-pointed (TOCTOU-mutation eliminated). But the registry is intentionally **tenant-global in v1** (`Schema` carries no `TenantId`), so a `FormDefinition` in tenant A *can* reference a `SchemaId` registered by tenant B. This is acceptable **ONLY while schemas are operator-authored (OQ-6)**. Phase-2 tenant self-authoring turns it into a confused-schema / information-disclosure vector and **requires a tenant-scoping or visibility model on schema references** — flagged here so it is not silently inherited. (A dangling `SchemaId` → `SchemaNotFoundException` on validate, fail-closed; benign.)
+- **JSONB index sequencing (net-arch dimension 3).** Do **NOT** ship speculative GIN indexes. At the v1 geometry (6 LLCs × ~500 entities ≈ 3k rows) the existing scalar B-tree indexes (`schema`+`tenant`) are sufficient for whole-instance retrieval; GIN/expression indexes become load-bearing only if the bundles query *into* the body by field value. The v1 strategy: add (a) a **partial GIN** `… USING gin (body_json jsonb_path_ops) WHERE deleted_at IS NULL` for containment queries, and/or (b) **expression B-tree** indexes on the specific hot scalar fields the bundles filter (`(body_json->>'status')` etc.) — each added as a NEW EF migration, migration-safe via `CREATE INDEX CONCURRENTLY` in a standalone migration, sequenced to the actual `EntityQuery` body predicates (which couples to the optional `QueryAsync` body-predicate extension). At 3k rows the risk is premature-unused indexes, not bloat.
 
-**4. Form rendering via schema overlay.** UI controls map by primitive type (date picker for Period.start, address card for Address, map pin for GeoPoint, etc.). Composition is automatic (a value object renders as a sub-form; a list of value objects renders as add/remove table). Variant fields show discriminator dropdown switching the visible sub-form. i18n labels resolve via Foundation.I18n.
+### Key architectural commitments (Rev 2)
 
-**5. Section-based permissions (Approach F per UPF).** Each schema has FormSection list; each section declares ReadRoles + WriteRoles. Form engine intersects section list with actor's macaroon scope (per ADR 0032). Field-level annotations as escape hatch (rare). Vendor magic-link works naturally — token grants section access.
+1. **Consume, don't rebuild.** The form engine composes `Sunfish.Kernel.SchemaRegistry` (validation core) + `Sunfish.Foundation.Assets.IEntityStore` (JSONB instance store) + `foundation-taxonomy` (ADR 0056) + ADR 0032 macaroons. It does not re-author schema/storage/sync.
+2. **Reference, don't inline.** `FormDefinition` stores a `SchemaId` reference (ADR 0005 Layer-3 RFC-7396 merge-patch overlay semantics over a registry-referenced schema). The schema blob is the registry's responsibility.
+3. **Form-layer lifecycle.** `FormDefinitionStatus { Draft, Published, Archived }` lives on `FormDefinition` (the registry record is immutable/content-addressed and has no status field). Preserve the `blocks-ships-office` `DynamicTemplate → DocumentStatus` mapping across the relocation.
+4. **Section-based permissions (Approach F).** Each section declares ReadRoles + WriteRoles; the form engine intersects sections with the actor's macaroon scope (ADR 0032). Field-level annotations as escape hatch (Phase 2). Vendor/tenant magic-link section scoping works naturally — the token grants section access. **This is the security-load-bearing half.**
+5. **Tier-1 rules free; Tier-2/3 phased.** Tier 1 (JSON-Schema if/then/else for visibility/required/readonly) comes via the registry's 2020-12 validation. Tier 2 (JsonLogic cross-field validation) is Phase 2 net-new on the `foundation-rule-engine-event-bridge` seam. Tier 3 (Power Fx computed) was already v2 in Rev 1.
+6. **Postgres-backed `IEntityStore` at the keystone DoD — already-shipped adapter CONSUMED, not authored (Rev 4 — net-arch Finding A, verified on disk; CIC ruling 2026-05-30T1322Z, OQ-5).** The keystone ships durable on Postgres. **Rev 4 correction:** the Postgres/JSONB persistence adapter is **already shipped** as `packages/foundation-assets-postgres/` (`PostgresEntityStore`/`PostgresVersionStore`/`PostgresAuditLog`/`PostgresHierarchyService` + `AssetStoreDbContext` with `body_json`/`diff_json`/`payload_json`/`metadata_json` as `jsonb` + applied EF migration `20260418144952_InitialSchema` + `AddSunfishAssetsPostgres(connStr)` DI + tests). The keystone **CONSUMES** it via `AddSunfishAssetsPostgres` — it does NOT author a new adapter (Rev 3's "ships durable as net-new" framing was wrong on disk). The genuine net-new is far smaller: **(a)** a JSONB *content*-index strategy added as a NEW EF migration over the existing `entities.body_json` (the shipped migration has only scalar B-tree indexes), and **(b)** IF the bundles must query instances by field value, a body-predicate extension to `EntityQuery` + `PostgresEntityStore.QueryAsync`. The dual-council reviews the index strategy (see risk 4). **Finding C:** DbContext lifetime is already solved — `AddSunfishAssetsPostgres` registers via `IDbContextFactory<AssetStoreDbContext>` with a singleton-store pattern, so there is no scoped-DbContext-into-singleton trap to design around. An in-memory `IEntityStore` remains a test/dev double, but Postgres is the v1 production target.
+7. **Per-tenant isolation is two-layer — and the read path must fail closed (Rev 4 — net-arch Finding B + sec-eng S1).** The store is already tenant-aware end-to-end: `CreateOptions.Tenant` is **required** on write and `EntityQuery.Tenant` filters at SQL via `ix_entities_tenant` on query. That is defense-in-depth (a tenant-checked engine assertion PLUS a store-level SQL filter), NOT over-specification — the `EntityQuery.Tenant` filter is the backstop, not redundant scaffolding. The real gap (sec-eng S1, HIGH) is the **point-read path**: `IEntityStore.GetAsync(EntityId)` is NOT tenant-scoped, and `EntityQuery.Tenant == null` is documented "system-scope (sentinels visible)" = fail-OPEN. The form engine MUST therefore assert `Entity.Tenant == active Authorization-facade ITenantContext.TenantId` and **fail closed (NotFound, never the body) on mismatch**, and reject `null`/`AllAccessible`/`TenantSelection.All` on any form-engine call path (see INV-S1). Tenant scoping resolves via the **Authorization-facade `ITenantContext`** (ADR 0091 R2 — NOT the MultiTenancy narrowed variant; the signal-bridge#34 CS0104 trap is the specific miss to avoid). Cross-tenant schema/instance bleed is the catastrophic failure mode.
+8. **PII tagging is mandatory at the storage boundary — default-secure (Rev 4 — sec-eng S3).** PII-tagged fields (`FieldOverlay.Pii`) persist tenant-key-encrypted via Foundation.Recovery (ADR 0046 / PR #223); audit emission on PII-field access. A field whose overlay carries no `PiiSensitivity` is treated as **most-restrictive (default-secure)**, never as cleartext-safe — absence of a tag is not a license to store in the clear. An arch test asserts **no `IEntityStore` write carries a PII-tagged field value in cleartext** (see INV-S3). The keystone must NOT ship a form-storage path that bypasses PII tagging.
+9. **Provider-neutrality preserved.** Form engine + overlay + rule evaluator are vendor-SDK-free per ADR 0013.
+10. **Forms→workflow is wiring.** A form `SaveAsync` can raise an event the `blocks-workflow` `IWorkflowRuntime` consumes (via the `foundation-rule-engine-event-bridge` seam). No new substrate.
 
-**6. Three-tier rules (per cross-field UPF).** Tier 1 (JSON Schema if/then/else) for visibility/required/readonly. Tier 2 (JsonLogic + custom operators) for cross-field validation. Tier 3 (Power Fx) for computed fields **deferred to v2** per aggressive scope cut.
+---
 
-**7. Cross-device sync via CRDT (ADR 0028).** Schema definitions sync as CRDT documents; entity instances sync as CRDT documents; conflict resolution per paper §6.3 + §7. Schema epoch handling for breaking changes deferred to v2 (additive-only changes in v1).
+## Scope + phasing (Rev 2 — minimal-v1 keystone vs. full DocType parity)
 
-**8. Admin authoring UX in v1.** Schema editor in Anchor (or Bridge) where admin defines: type name; field list with primitive type picker; sections + role mappings; rules (Tier 1 + 2). Power Fx formula authoring is v2.
+### MINIMAL-V1 KEYSTONE (the deliverable that unblocks bundle authoring surfaces)
 
-**9. Provider-neutrality preserved.** Form engine + schema registry + rule engine are vendor-SDK-free per ADR 0013. JSONB column writes via EF Core Npgsql (already in use per `foundation-assets-postgres`); no provider-specific dependencies.
+1. **`Sunfish.Foundation.Forms` package** — relocate the `foundation-ships-office` stub here as canonical `FormDefinition` + `IFormDefinitionStore` + `FormDefinitionId`; sweep the 5 `TODO-RELOCATE` markers; preserve the `blocks-ships-office` `DynamicTemplate → DocumentStatus` mapping.
+2. **`FormOverlay` model** — `Sections` (with `SectionAccess` ReadRoles/WriteRoles) + per-field `FieldOverlay` (control hint, i18n label, PII tag) + `RuleDefinition[]` (Tier-1 only). Keyed to a registered `SchemaId` (ADR 0005 Layer-3 RFC-7396 merge-patch over the registry-referenced schema; store the **reference**, not the blob).
+3. **`IFormEngine` thin slice** — `RenderAsync` (schema + overlay + instance → section-filtered view via macaroon scope) + `ValidateAsync` (registry validation + Tier-1 rules — free via the registry's 2020-12 if/then/else) + `SaveAsync` (validate → write through `IEntityStore`). Writes through the **Postgres-backed `IEntityStore`** (item 4) — durable at the keystone, per CIC ruling 2026-05-30T1322Z (OQ-5).
+4. **Consume the shipped Postgres adapter + add a JSONB index strategy (Rev 4 — net-arch Finding A).** The Postgres/JSONB backend for `Sunfish.Foundation.Assets.IEntityStore` (entity-as-JSON-body, version chain, audit log, hierarchy) is **already shipped** as `packages/foundation-assets-postgres/` and the keystone CONSUMES it via `AddSunfishAssetsPostgres(connStr)` — it does not author a new adapter. The net-new keystone work is the **JSONB *content*-index strategy** (a NEW EF migration adding GIN/`jsonb_path_ops`/expression indexes over the existing `entities.body_json`; the shipped migration has only scalar B-tree indexes) plus, IF the bundles must query instances by field value, a **body-predicate extension to `EntityQuery` + `PostgresEntityStore.QueryAsync`** (today `EntityQuery` carries no body/JsonPath predicate). CIC ruled (OQ-5) the keystone ships durable, not on the in-memory shim. The dual-council reviews the index strategy (see risk 4). The in-memory store remains a test/dev double.
+5. **Minimal compounds subset** — only the field types the bundles need: string / number / date / select / bool / `Money` (ADR 0051) / `Reference` / `Attachment` / `InternationalizedText` / taxonomy `Coding` (ADR 0056). Reuse existing primitives; do not ship the full 20-primitive catalog.
+6. **`blocks-forms` dynamic render component** — a new component (or a `FormBlock` dynamic mode) consuming a `FormDefinition`; the presentation block stays the consumer it already is.
+7. **Section-based permissions** (ADR 0032 macaroons, Approach F) — the security-load-bearing half; enables vendor/tenant section-scoped magic-link forms.
 
-**10. Migration of shipped cluster work.** Existing typed records (Property, Equipment, Inspection) reframe as schemas:
+### EXPLICITLY DEFERRED to PHASE 2+ (full ERPNext DocType parity — NOT the keystone)
 
-```
-1. Schema definition for "Property" published from existing record shape
-2. Existing tests reframe as schema-validated tests
-3. Storage: ALTER TABLE adds jsonb column; data migration writes existing typed-record fields as JSONB; reads project back via the schema's read-projection
-4. Eventually: typed-record IRepository contract retires; consumers shift to IEntityInstanceStore + schema-aware projection helpers
-5. Phase 2.1 cluster modules (Vendors EXTEND, Work Orders EXTEND, Leases EXTEND) ship as schemas from the start, never as typed records
-```
+The v1/Phase-2 boundary is crisp: **v1 = "an admin can define a new type (via code/JSON schema) and the bundles can render/validate/save instances of it durably on Postgres, with section-scoped permissions." Phase 2+ = "ERPNext Form Builder."**
 
-This is a multi-PR migration; sequenced after this ADR Accepted.
+- **Admin authoring UX** — schema editor / field-list builder / section-role editor / visual rule builder. v1 accepts code/JSON-defined schemas; the no-code studio is the differentiator, not the unblock. (CIC affirmed this — OQ-6, ruling 2026-05-30T1322Z.)
+- **Customize-Form overlays** — tenant field-add on existing types (ADR 0005 Layer-3 RFC-7396 merge-patch) + 3-way-merge upgrade UX. (v1 = admin-defined NEW types only.)
+- **Web Forms / public-facing surfaces** — anonymous/external submission; security-heavy (anti-CSRF + rate-limit + Turnstile per ADR 0096). Explicitly OUT of the keystone.
+- **Naming series** (`AutoNumber` compound).
+- **Child-table grid authoring** — full grid editor; v1 represents child collections as JSON arrays in the entity body.
+- **Tier-2 JsonLogic cross-field validation** + **Tier-3 Power Fx computed fields** (Tier-3 was already v2 in Rev 1).
+- **Full 20-primitive compound catalog** (v1 = bundle-needed subset).
 
-### What this ADR does NOT do
+> **Moved INTO the keystone by CIC ruling 2026-05-30T1322Z (OQ-5), refined by Rev 4 (net-arch Finding A):** durable Postgres persistence is in the v1 keystone definition-of-done. **But the adapter itself is already shipped** (`packages/foundation-assets-postgres/`); the keystone CONSUMES it. The work that genuinely moves into the keystone is the **JSONB *content*-index strategy** (new EF migration) and any **`EntityQuery` body-predicate** the bundles need — not a from-scratch adapter. See "Minimal-V1 keystone" item 4 and risk 4.
+- **Migration of shipped-cluster typed-records to JSONB** (Property / Equipment / Inspection — Rev 1 Phase 7). **Decoupled** from the keystone: the keystone serves NEW admin-defined types; retiring typed-records is a separate follow-on ADR with its own large migration risk. Do NOT couple them.
 
-- **Does not define the Taxonomy Management Substrate** — separate intake (PR #234); referenced as future ADR
-- **Does not implement Power Fx (Tier 3 computed fields)** — deferred to v2 per cross-field-rules UPF aggressive scope cut
-- **Does not define schema epoch handling for breaking changes** — paper §7.4 reserved for v2; v1 supports additive changes only
-- **Does not define schema marketplace UX** — bundle-distributed via existing Foundation.Catalog; full marketplace UX is v2+
-- **Does not define schema lenses** (paper §7.3) — v3+ if epoch handling proves insufficient
-- **Does not redesign existing ADRs 0001 / 0005** — composes with them; references their substrates
+### Recommended phase cut (rebased onto shipped substrate)
+
+| Phase | Scope | Reuses (shipped) | Net-new | Council |
+|---|---|---|---|---|
+| **P1 — Canonical relocation + def/overlay** | `Sunfish.Foundation.Forms` package; `FormDefinition` + `FormOverlay` + `FormSection` + `SectionAccess`; relocate stub; sweep TODOs; preserve `DynamicTemplate → DocumentStatus` mapping | kernel-schema-registry (validation core), foundation-multitenancy / ADR 0091 R2 facade | the package + def + overlay types | **dual** |
+| **P2 — Form engine slice over the shipped Postgres store** | `IFormEngine` render/validate/save over registry + the **already-shipped Postgres `IEntityStore`** consumed via `AddSunfishAssetsPostgres` (Rev 4 — net-arch Finding A); NEW JSONB content-index migration + optional `EntityQuery` body-predicate; Tier-1 rules; section-permission filtering via macaroons; fail-closed read-path tenant assertion (INV-S1); PII-tag enforcement at the storage boundary (INV-S3) | kernel-schema-registry, `Sunfish.Foundation.Assets.IEntityStore` + `foundation-assets-postgres`, ADR 0032 macaroons, ADR 0046 Recovery, foundation-taxonomy | engine impl + Tier-1 wiring + JSONB index migration (+ optional query-predicate) | **dual** |
+| **P3 — Compounds subset + blocks-forms dynamic render** | bundle-needed field types; `blocks-forms` dynamic component | Money (0051), people-foundation primitives, taxonomy (0056), `blocks-forms` presentation | compounds subset + 1 Razor component | security-engineering (PII-tag handling) |
+| **P4+ — full DocType parity (roadmap)** | authoring UX, Web Forms, Customize-Form overlays, Tier-2/3 rules, naming-series, child-table grids, typed-record migration | (per-item) | (per-item; each its own unit) | per-item; Web-Forms + typed-record migration = **dual** |
+
+**Sizing (MEDIUM confidence; NOT Engineer-validated).** P1–P3 (the keystone) is materially smaller than Rev 1's 16-week estimate — plausibly a handful of substantive PRs — **because the schema registry, entity store contract, taxonomy, workflow, and macaroons are all already shipped.** The point is directional: the keystone is a facade + overlay + engine-slice over existing substrate, not a from-scratch storage/schema/sync build. **Rev 4 corrects the sizing (net-arch Finding A):** Rev 3 claimed the keystone adds "the Postgres/JSONB persistence adapter" as net-new work — but that adapter is **already shipped** (`foundation-assets-postgres`) and the keystone CONSUMES it. The genuine net-new durable-storage increment is therefore much smaller than Rev 3 implied: a JSONB *content*-index EF migration plus an optional `EntityQuery` body-predicate — not a from-scratch adapter, not a new contract (CRUD/version/audit/hierarchy is already defined). Final sizing is Engineer's to confirm at Stage 05.
 
 ---
 
@@ -329,35 +339,70 @@ This is a multi-PR migration; sequenced after this ADR Accepted.
 
 ### Positive
 
-- **Aligns with platform vision.** Sunfish's no-code-platform vision becomes load-bearing day 1
-- **Admin-defined types in v1.** BDFL can author new types (custom equipment classes, custom property attributes, etc.) without code changes
-- **Cluster module reframing simplifies.** 14 cluster intakes shift from "ship typed records + UI" to "ship schemas + seed data" — generally less code
-- **Cross-platform parity natural.** Schema + rules are data; same engine on Mac + Windows + (future) iOS
-- **Compatibility forward.** New verticals (highway management, healthcare, etc.) ship as schema bundles without forking the platform
-- **Storage flexibility.** JSONB allows additive schema evolution without migrations
-- **Cross-device sync inherits.** ADR 0028 CRDT substrate handles schema + instance sync uniformly
-- **Audit-trail uniform.** Every schema change + entity change emits to ADR 0049 substrate
-- **Permissions structurally aligned.** Section-based (Approach F) composes ADR 0032 macaroons natively
-- **Multi-platform rules.** JsonLogic interpreter exists for .NET, JS, Swift; rules travel + execute everywhere
-- **Provider-neutrality preserved.** No vendor SDK leakage in form/schema/rules; ADR 0013 enforcement gate satisfied
+- **Aligns with platform vision.** The no-code-platform vision becomes load-bearing, day 1.
+- **Admin-defined types in v1.** Bundle authors can define new types (custom equipment classes, custom property attributes) without code changes.
+- **Unblocks all five bundles.** Forms-the-dynamic-substrate is the one missing piece behind the universal `requiredModules` entry.
+- **Smaller than Rev 1.** Composing shipped substrate cuts the keystone from ~16 weeks to a handful of PRs.
+- **Cross-platform parity natural.** Schema + rules are data; same engine on Mac / Windows / future iOS.
+- **Audit-trail uniform.** Schema + entity changes emit to the ADR 0049 substrate (via `IAuditLog` hash chain).
+- **Permissions structurally aligned.** Section-based (Approach F) composes ADR 0032 macaroons natively.
+- **Provider-neutrality preserved.** No vendor SDK leakage; ADR 0013 satisfied.
 
 ### Negative
 
-- **12-16 week MVP timeline.** Substantial; longest ADR commitment to date
-- **Storage migration of shipped cluster work.** Property + Equipment + Inspection records persist via JSONB after migration; non-trivial multi-PR work
-- **JSONB query ergonomics weaker than typed.** Strongly-typed LINQ queries lose; consumers shift to JSONB indexes + JsonPath where needed
-- **Three substrates in flight simultaneously** — schema registry + form engine + rules engine; each has its own complexity
-- **Authoring UX is significant scope.** Schema editor + section/role editor + rule builder is itself a multi-week feature
-- **Aggressive scope cut on Tier 3 (Power Fx)** means computed fields wait for v2; rules with arithmetic on Money compounds limited in v1
+- **JSONB query ergonomics weaker than typed.** Strongly-typed LINQ queries lose; the keystone must add a JSONB content-index strategy (and, if needed, an `EntityQuery` body-predicate) as part of v1 (CIC OQ-5 put durable Postgres in the keystone DoD; the dual-council reviews the index strategy). Rev 4 (net-arch Finding A) narrows this from Rev 3's "build the adapter" to "index the already-shipped `foundation-assets-postgres` `body_json` column."
+- **Authoring UX is significant scope** — but explicitly Phase 2+, not v1; the risk is conflating the keystone with the studio (see risk 6).
+- **Tier-2/3 rules deferred** — cross-field validation (JsonLogic) and computed fields (Power Fx) wait for Phase 2; Tier-1 (if/then/else) covers visibility/required/readonly in v1.
+- **Typed-record migration deferred** — Property/Equipment/Inspection remain typed projections until a separate follow-on ADR; the keystone serves only NEW admin-defined types in v1.
 
 ### Trust impact / Security & privacy
 
-- **Schema definitions sync globally.** A malicious or buggy schema change could break form rendering across all devices. Mitigation: schema status (Draft/Published/Deprecated/Withdrawn) gates publication; only Published schemas affect production rendering; CRDT sync respects status field.
-- **JSONB payload validation must be schema-aware.** Invalid payloads cannot persist; schema validation is mandatory at write boundary.
+- **Arbitrary-field PII is the highest risk.** Mitigated by per-field PII tagging + tenant-key encryption (ADR 0046) + audit on PII-field access; the keystone must not ship a storage path bypassing tagging.
+- **Per-tenant schema isolation.** One tenant's schema must never validate/render against another's data; resolved at the form-engine boundary via the Authorization-facade `ITenantContext`. **Rev 3 (CIC OQ-5):** tenant isolation and acceptance-provenance now land on real Postgres/JSONB storage, not the in-memory shim — the tenant-filtering and PII-encryption guarantees must hold against the durable adapter the keystone ships, which the dual-council reviews directly rather than against an in-memory placeholder.
 - **Section-based permissions are macaroon-enforced** — cryptographically verifiable per ADR 0032; no policy-engine round-trip.
-- **Audit emission for every schema change + entity change** — comprehensive audit trail per ADR 0049 supports compliance.
-- **Tenant-key-encrypted PII fields** — fields tagged with PII sensitivity classification persist encrypted at rest using Foundation.Recovery primitives (PR #223).
-- **Schema editor authoring UX requires CTO-equivalent role by default.** Admin-tier (per-tenant) capability that's elevated above standard user — issue via macaroon caveat.
+- **The registry's content-addressing gives publication immutability** — a published form pins an immutable CID; a "schema change" is a new CID, so a buggy edit cannot retroactively mutate a published form's validation.
+
+---
+
+## Risks (Rev 2 — folded from ONR Finding 8; to be addressed by the dual-council)
+
+1. **Arbitrary-field PII (highest).** User-defined forms can store arbitrary tenant-authored fields (SSNs, bank info, health data). **Mitigation the ADR pins:** a per-field PII-sensitivity tag in `FieldOverlay`; PII-tagged fields persist tenant-key-encrypted via Foundation.Recovery (ADR 0046 / PR #223); audit emission on PII-field access. The keystone must NOT ship a form-storage path that bypasses PII tagging.
+2. **Tenant isolation (catastrophic failure mode).** Every `FormDefinition` + entity instance is `IMustHaveTenant`; the entity-store + registry queries MUST be tenant-filtered at the form-engine boundary; repos MUST reject `TenantId.System`/default. Use the **Authorization-facade `ITenantContext`** (ADR 0091 R2 — NOT the MultiTenancy narrowed variant; the signal-bridge#34 CS0104 trap). Cross-tenant schema/instance bleed is the catastrophic failure.
+3. **Schema migration / versioning.** The registry already ships lenses/upcasters/epochs (paper §7.2–7.4). The ADR DECIDES: v1 uses additive-only schema changes (Rev 1's v1 cut); breaking changes / epoch coordination are Phase 2. The risk is a published schema change breaking form rendering across synced devices — the registry's content-addressing (immutable published CIDs) + the form layer's `Published` gate mitigate, but the form layer MUST respect them (it cannot silently re-point a published form to a new CID without an explicit publish).
+4. **EAV-vs-JSON storage / query + index implications (IN-SCOPE v1 concern; CIC OQ-5; Rev 4 — net-arch Finding A narrows it).** Rev 1 chose JSONB-document storage (avoiding EAV); the entity store already does entity-as-JSON-body, and the durable Postgres backend (`foundation-assets-postgres`, `body_json` as `jsonb`) is **already shipped**. The residual risk is query ergonomics + indexing at scale. **In-scope, but narrowed:** CIC ruling 2026-05-30T1322Z (OQ-5) put durable Postgres in the keystone DoD — and because the adapter already exists, the v1 keystone concern the dual-council MUST review is specifically the **JSONB content-index strategy** (a new EF migration adding GIN/`jsonb_path_ops`/expression indexes over `entities.body_json`; the shipped migration has only scalar B-tree indexes) plus any **`EntityQuery` body-predicate** the bundles require — NOT a from-scratch adapter. The dotnet-architect council reviews the index plan and whether the v1 read path scales on real Postgres (target geometry: 6 LLCs × ~500 entities ≈ low-thousands of rows). There is no in-memory-only escape hatch for v1: the production target is Postgres from the keystone DoD. The net-arch verdict's measured guidance — no speculative GIN ahead of a real query shape, a partial GIN (`USING gin (body_json jsonb_path_ops) WHERE deleted_at IS NULL`) and/or expression B-tree indexes once the predicates are known, built with `CREATE INDEX CONCURRENTLY` in a standalone migration — is folded into the JSONB index-sequencing invariant.
+5. **Status-contradiction / acceptance-provenance risk.** Rev 1's `Accepted` frontmatter was untrustworthy (no council verdict ever ran). Rev 2 resets the disposition to **Proposed** and requires re-attestation, or the platform carries a phantom-Accepted substrate ADR. **Resolved in Rev 2** by this reconciliation; the dual-council attestation closes it.
+6. **Scope-creep into a no-code studio.** The single biggest delivery risk is conflating "the keystone that unblocks bundle authoring surfaces" with "ship ERPNext's Form Builder." The minimal-v1 cut (admin-defined types via code/JSON; render/validate/save; section-permissions) is the unblock. The authoring UX is the differentiator and belongs in Phase 2+. The crisp v1/Phase-2 boundary in this ADR is the mitigation.
+
+---
+
+## Council posture
+
+**Dual-council MANDATORY — security-engineering + dotnet-architect — on the ADR 0055 Rev 2 text BEFORE Accept**, matching the substrate-tier Halt cadence established by ADR 0095 / 0096 / 0097 / 0098 / 0099 / 0100 / 0101. ADR 0101 (asset-management substrate) went through exactly this on 2026-05-29 (Rev 1 → dual-council fold → Rev 2 → re-attest). The dynamic-forms re-scope is at least as substrate-defining and more PII-sensitive (arbitrary tenant-authored field shapes + section permissions + per-tenant isolation).
+
+- **security-engineering** — arbitrary-field PII (risk 1); section-based permission enforcement (macaroon scope intersection must be airtight — a section mis-scope leaks a vendor's data to a tenant or vice versa); per-tenant schema isolation (risk 2); confirm the eventual Web-Forms public surface is Phase-2 security-heavy and OUT of the keystone.
+- **dotnet-architect** — the consume-vs-rebuild decision (composing `Sunfish.Kernel.SchemaRegistry` + `Sunfish.Foundation.Assets` vs. Rev 1's from-scratch sketch); the `FormDefinition`-references-`SchemaId` boundary (don't duplicate versioning/storage); the **form-layer lifecycle decision** (the registry `Schema` record has NO status field — `FormDefinitionStatus` lives on the form, not delegated to a non-existent registry status); the **JSONB content-index strategy over the already-shipped `foundation-assets-postgres` adapter** (Rev 4 — net-arch Finding A: the durable adapter is shipped and CONSUMED via `AddSunfishAssetsPostgres`; the keystone net-new is a NEW index migration over `entities.body_json` + an optional `EntityQuery` body-predicate — review the index plan and scale geometry, NOT a from-scratch adapter); the `DynamicTemplate → DocumentStatus` mapping preservation across the relocation.
+  - **Council outcome (Rev 4):** net-arch returned **AMBER** with Findings A (adapter shipped — gating, folded above), B (store is tenant-aware end-to-end — two-layer, not over-specified), C (DbContext lifetime already solved via `IDbContextFactory`), plus the JSONB index-sequencing guidance (folded into INV / risk 4) and OQ-3 RATIFIED. security-engineering returned **AMBER** with S1–S5 (folded into the Security & durability invariants). Both councils pre-cleared a discretionary Admiral flip on this faithful Rev-4 fold with no third round.
+
+> **Orchestration note.** This ADR's dual-council is dispatched by the main Admiral session on the reconciliation status beacon (`admiral-subagent-status-…-adr-0055-rev2-reconcile`). Several open questions below need a CIC/Admiral decision before (or as input to) the council run.
+
+---
+
+## Open questions (for CIC/Admiral to resolve before/at the dual-council)
+
+Carried from ONR Finding "Open questions"; pruned to the ones that genuinely gate the council. The ones Rev 2 already decided are marked **[RESOLVED in Rev 2]**.
+
+| ID | Question | Rev 2 disposition |
+|---|---|---|
+| OQ-1 | Acceptance provenance — confirm the Rev 1 `Accepted` frontmatter was a scaffolding artifact. | **[RESOLVED in Rev 2]** No `council-verdict-0055-*` beacon exists anywhere in `coordination/`. Status reset to Proposed. |
+| OQ-2 | Re-scope vs. fresh ADR. | **[RESOLVED in Rev 2]** Rev 2 re-scope (ADR-0101 precedent) — preserves the GRAPH/INDEX edges (0055 composes 0001/0005/0007/0028/0032/0046/0049/0056; 0007/0028/0049/0001/0005/0046 consume-edges intact). |
+| OQ-3 | `FormDefinition` vs. registry `Schema` boundary — reference a `SchemaId` or embed a JSON-Schema blob? | **[RATIFIED by both councils — Rev 4]** REFERENCE a registry `SchemaId` (don't duplicate the registry). net-arch ratified the architecture; sec-eng confirmed it is the *more secure* choice (content-addressing makes a registered schema immutable, killing TOCTOU re-pointing — S5). **Caveat (both councils):** `IFormEngine.SaveAsync` MUST thread the resolved `TenantId` into `CreateOptions`/`UpdateOptions` (Tenant is `required` on `CreateOptions`); and because the registry is tenant-global in v1, cross-tenant `SchemaId` reference is acceptable only while schemas are operator-authored — Phase-2 self-authoring needs a tenant-scoping gate (INV-S5). |
+| OQ-4 | Lifecycle-enum alignment — `FormDefinitionStatus{Draft,Published,Archived}` on the form, or mirror a registry status? | **[RESOLVED in Rev 2]** The shipped registry `Schema` record has NO status field (it is content-addressed/immutable). `FormDefinitionStatus{Draft,Published,Archived}` lives on the form layer; preserve the `DynamicTemplate → DocumentStatus` mapping. (Corrects ONR's "align to registry SchemaStatus" — that enum does not exist on the record.) |
+| OQ-5 | In-memory-v1 vs. Postgres-in-keystone. | **[RESOLVED by CIC ruling 2026-05-30T1322Z]** CIC **OVERRODE the Rev 2 in-memory recommendation**: the keystone ships a **Postgres-backed `IEntityStore` at its definition-of-done** — durable at the keystone, not a fast-follow. The Postgres/JSONB adapter + JSONB index strategy are now IN the keystone (see item 4, risk 4). Source: `admiral-ruling-2026-05-30T1322Z-adr-0055-oq5-postgres-in-keystone-oq6-code-json.md`. |
+| OQ-6 | Does minimal-v1 need ANY authoring UX, or are code/JSON-defined schemas acceptable for the bundle authoring surfaces? | **[RESOLVED by CIC ruling 2026-05-30T1322Z]** CIC **AFFIRMED** the Rev 2 recommendation: **code/JSON-defined schemas for v1; no authoring UX in v1** (field-list editor / studio is Phase 2). Source: `admiral-ruling-2026-05-30T1322Z-adr-0055-oq5-postgres-in-keystone-oq6-code-json.md`. |
+| OQ-7 | Typed-record migration coupling. | **[RESOLVED in Rev 2]** DECOUPLED. The keystone serves NEW admin-defined types; Property/Equipment/Inspection typed-record retirement is a separate follow-on ADR with its own migration risk. |
+| OQ-8 | Compounds subset for v1 — which exact field types do the 5 bundles' authoring surfaces need? | **Open (low-gate).** Rev 2 names a working subset (string/number/date/select/bool/Money/Reference/Attachment/InternationalizedText/Coding); ONR can produce a precise field-type inventory from the bundles' featureDefaults if Admiral wants P3 compounds pinned before the council. Does NOT gate the dual-council on P1/P2. |
+
+**Gating summary (Rev 4 — all gates closed):** OQ-3 (reference-vs-embed) is **RATIFIED by both councils** (REFERENCE; sec-eng confirms it is the more-secure choice). OQ-5 (persistence-in-keystone) and OQ-6 (authoring-UX-in-v1) were RESOLVED by CIC ruling 2026-05-30T1322Z (OQ-5 = Postgres-in-keystone — refined by net-arch Finding A to "consume the already-shipped adapter + add a content-index strategy"; OQ-6 = code/JSON v1). OQ-8 is a P3 compounds-subset detail that resolves post-Accept. No open gate remains — both dual-council verdicts are AMBER-with-folded-amendments and both pre-cleared the discretionary Admiral flip on this Rev-4 fold.
 
 ---
 
@@ -365,232 +410,70 @@ This is a multi-PR migration; sequenced after this ADR Accepted.
 
 ### Existing callers / consumers
 
-The shipped cluster (Properties #17, Property-Equipment #24, Inspections-extension #25, Foundation.Recovery #15) was implemented as typed records. Migration plan:
+The only consumer coded against the future substrate is `blocks-ships-office` (the `DynamicTemplate` document kind), via the `foundation-ships-office` stub. The relocation:
 
-| Module | Migration strategy |
+| Surface | Migration strategy |
 |---|---|
-| `blocks-properties.Property` (PR #210) | Schema "Property" registers; instances migrate to JSONB; typed Property record retains as read-projection only |
-| `blocks-property-equipment.Equipment` (PR #213 + #216) | Same pattern; Equipment schema registers; JSONB instances; typed Equipment becomes read-projection |
-| `blocks-inspections` (existing + PR #222 extension) | Schema "Inspection" registers; existing rich domain types map to nested schema sections |
-| `blocks-leases.Lease` | Schema "Lease" registers; typed Lease retains as read-projection |
-| `blocks-rent-collection.Payment` (existing) | Schema "Payment" registers; defers to ADR 0051 Money compound migration |
-| `blocks-maintenance.Vendor + WorkOrder + ...` | Schema definitions register; defer typed-record retirement until cluster Vendor + WorkOrder EXTENDs ship |
+| `foundation-ships-office/Services/{FormSchema,IFormSchemaStore}.cs` | **RELOCATE** to `Sunfish.Foundation.Forms` as `FormDefinition` / `IFormDefinitionStore` / `FormDefinitionId` / `NoopFormDefinitionStore`. Sweep the 5 `TODO-RELOCATE` markers. |
+| `blocks-ships-office` (`ShipsOfficeServiceCollectionExtensions.cs`, `ShipsOfficeDataProvider.cs`, `ShipsOfficeDocumentKind.cs`) | Re-reference the canonical types; preserve the `FormSchemaStatus → DocumentStatus` mapping (now `FormDefinitionStatus → DocumentStatus`). **Guard for the sweep PR.** |
+| `blocks-forms` (presentation) | KEEP as consumer; add a dynamic render component (or `FormBlock` mode) taking a `FormDefinition`. |
+| Shipped typed-record clusters (Property / Equipment / Inspection) | **NOT migrated by the keystone.** Deferred to a separate follow-on ADR (OQ-7). |
 
-Migration is multi-PR over ~3-5 weeks of COB time, sequenced after ADR Accepted.
-
-### Validation from COB demo-readiness audit (2026-04-29)
-
-The COB session conducted a demo-readiness audit + Razor-block portability audit (memory notes `project_anchor_demo_readiness_assessment_2026_04_29` + `project_block_ui_component_audit_2026_04_29`; PR #232) that validates this ADR's plan:
-
-- **Mac build is green today.** `dotnet build accelerators/anchor/` succeeds; 3 documented landmines (Xcode 26.3 license, xcode_select_link, Settings.plist AppleSdkRoot) all clean; `.app` bundle materializes. The substrate ships into a working host.
-- **Anchor host wiring for the property cluster is at zero.** csproj has no `blocks-properties` / `blocks-property-equipment` / `blocks-inspections` ProjectReference; MauiProgram.cs calls no `AddInMemoryX()` for any cluster module; no nav pages; no kitchen-sink seed. G6 host integration is a **clean slate** when this ADR lands — no rework of existing wiring.
-- **Razor blocks are framework-agnostic.** All 7 audited Razor blocks (`InspectionListBlock`, `LeaseListBlock`, `WorkOrderListBlock`, `TaskBoardBlock`, `FormBlock`, `ScheduleViewBlock`, `AssetCatalogBlock`) reference only `Microsoft.NET.Sdk.Razor` + `foundation` + `ui-core` + `ui-adapters-blazor`. **Zero MAUI dependency in any block.** Photino+Blazor port = host-shell rewrite (MauiProgram.cs + Platforms/) only; not per-block.
-- **Razor coverage is asymmetric.** `blocks-inspections` ships UI (`InspectionListBlock`); `blocks-properties` + `blocks-property-equipment` ship entity + repo + DI + EF entity config only — no UI. **The dynamic-forms substrate's form engine is the right path** to fill the Properties + Equipment UI gap (vs authoring bespoke Razor blocks per type) since admin-defined types in v1 means many future types won't have bespoke UI either.
-
-These findings confirm the substrate plan: the migration risk is bounded (no incumbent UI to rewrite for cluster modules); the form engine pays off by serving both shipped cluster types and future admin-defined types from the same substrate.
-
-### Affected packages
+### Affected packages (Rev 2)
 
 | Package | Change |
 |---|---|
-| `Sunfish.Foundation.Schema` (new) | Primary deliverable: schema registry + type taxonomy + overlay |
-| `Sunfish.Foundation.Forms` (new) | Form rendering engine; section-based permissions enforcement; JSONB persistence orchestration |
-| `Sunfish.Foundation.RuleEngine` (new — extends existing rule-engine substrate) | Three-tier rules engine; JsonLogic + custom operators; JSON Schema if/then/else evaluation |
-| `Sunfish.Foundation.Compounds` (new) | 20 compound primitives implementing the OSS-research catalog |
-| `Sunfish.Foundation.Taxonomy` (new — separate intake; this ADR references) | Taxonomy substrate for `Coding` + `CodeableConcept` references |
-| `foundation-assets-postgres` (existing) | Modified — adds JSONB entity storage path; tree-hierarchy queries; tenant-key-encrypted PII fields |
-| `blocks-properties` (shipped) | Modified — Property record retires as primary persistence; becomes read-projection |
-| `blocks-property-equipment` (shipped) | Same pattern |
-| `blocks-inspections` (shipped + extended) | Same pattern; richer extension surface preserved as schema sections |
-| `accelerators/anchor` (existing) | Modified — Schema Editor UI for admin authoring |
-| `accelerators/bridge` (existing) | Same |
+| `Sunfish.Foundation.Forms` (**new — `packages/foundation-forms/`**) | Primary keystone deliverable: form engine + `FormDefinition` + `FormOverlay` + `IFormDefinitionStore`; relocates the stub |
+| `foundation-ships-office` (existing) | Modified — stub relocated out; re-references canonical |
+| `blocks-ships-office` (existing) | Modified — re-references canonical; preserve `DocumentStatus` mapping |
+| `blocks-forms` (existing) | Modified — adds dynamic render component |
+| `Sunfish.Kernel.SchemaRegistry` (shipped) | **Consumed** (validation core) — no change |
+| `Sunfish.Foundation.Assets` (shipped) | **Consumed** (JSONB entity store contract — CRUD/version/audit/hierarchy) — no change to the contract |
+| `foundation-assets-postgres` (**shipped** — Rev 4, net-arch Finding A) | **Consumed** (durable Postgres `IEntityStore` via `AddSunfishAssetsPostgres`) + the keystone adds a **NEW JSONB content-index EF migration** over the existing `entities.body_json` (and, if needed, an `EntityQuery` body-predicate). The adapter itself is NOT authored by the keystone — Rev 3 wrongly listed it as net-new |
+| `foundation-taxonomy` (ADR 0056, shipped) | **Referenced** (Coding/CodeableConcept field types) — no change |
+| `foundation-rule-engine-event-bridge` (shipped) | **Consumed/extended** at Phase 2 (Tier-2 evaluator) — no change in keystone |
+| Compounds (subset; partly new) | New subset package or additions for the bundle-needed field types (P3) |
 
-### ADR amendments triggered
+### ADR relationships (unchanged edges)
 
-- **ADR 0001 Schema Registry Governance** — confirm + extend; this ADR's `ISchemaRegistry` is the v1 implementation
-- **ADR 0005 Type Customization Model** — confirm + extend; `SchemaLineage` formalizes type customization
-- **ADR 0007 Bundle Manifest Schema** — addendum; bundles can declare type-pack contents (schemas + rules + sections + taxonomies)
-- **ADR 0028 CRDT engine** — confirm; schema + entity instances sync via existing CRDT substrate
-- **ADR 0049 Audit Trail Substrate** — addendum; new audit record types: SchemaRegistered, SchemaPublished, SchemaDeprecated, EntityCreated, EntityUpdated, EntityDeleted, FormSectionAccessGranted, FormSectionAccessDenied, RuleEvaluated, RuleEvaluationFailed
-- **ADR 0032 Multi-team Anchor + macaroon model** — confirm; section-scope caveat extension per Permissions UPF
-- **Cluster intake INDEX (`property-ops-INDEX-intake-2026-04-28.md`)** — substantial revision; per-intake disposition shifts to schema-driven
-
----
-
-## Implementation checklist
-
-### Phase 1 — Schema Registry foundation (~3 weeks)
-
-- [ ] `Sunfish.Foundation.Schema` package scaffolded
-- [ ] `SchemaDefinition` + `SchemaId` + `SemanticVersion` + `SchemaStatus` types
-- [ ] `ISchemaRegistry` interface + InMemorySchemaRegistry reference impl
-- [ ] JSON Schema 2020-12 validation library integrated (NJsonSchema or alternative; CTO selects)
-- [ ] CRDT-backed persistence for schema definitions (composes ADR 0028)
-- [ ] Schema versioning (SemVer) + status lifecycle (Draft → Published → Deprecated → Withdrawn)
-- [ ] Audit emission for schema lifecycle events
-- [ ] Tests: schema registration, version conflicts, status transitions, CRDT sync
-
-### Phase 2 — 20-primitive catalog (~2 weeks)
-
-- [ ] `Sunfish.Foundation.Compounds` package scaffolded
-- [ ] All 20 compound primitives implemented (per OSS research)
-- [ ] `Variant` + `Reference` meta-concepts
-- [ ] String formats (email, phone-e164, url, uuid, ISO codes)
-- [ ] JSON serialization round-trips for all types
-- [ ] Tests: per-primitive serialization + validation + edge cases
-
-### Phase 3 — Entity Store (JSONB) (~2 weeks)
-
-- [ ] `foundation-assets-postgres` extended with JSONB entity storage
-- [ ] `EntityInstance` + `IEntityInstanceStore` interface + Postgres impl
-- [ ] Tree-hierarchy support (parent-child references)
-- [ ] Schema-validated writes (reject invalid payloads)
-- [ ] Tenant-key-encrypted PII fields (composes Foundation.Recovery)
-- [ ] CRDT sync for entity instances (composes ADR 0028)
-- [ ] JSONB query helpers (JsonPath-based; bounded query API)
-- [ ] Tests: storage round-trips; schema-validation rejection; tenant isolation; tree queries
-
-### Phase 4 — Three-tier Rules Engine (~3 weeks; Tier 3 deferred to v2)
-
-- [ ] `Sunfish.Foundation.RuleEngine` package
-- [ ] Tier 1: JSON Schema if/then/else evaluator integrated
-- [ ] Tier 2: JsonLogic interpreter (.NET) + 5-10 custom operators (path, compound, today, audit_event_count_since, etc.)
-- [ ] Tier 2 cross-platform parity test suite (.NET + JS via Blazor WebAssembly OR JsonLogic JS interpreter)
-- [ ] Rule definition serialization
-- [ ] Audit emission for rule evaluations + failures
-- [ ] Tests: per-tier evaluation; cross-platform parity; performance (50ms p95 target)
-
-### Phase 5 — Form Engine (~3 weeks)
-
-- [ ] `Sunfish.Foundation.Forms` package
-- [ ] `IFormEngine` interface + reference implementation
-- [ ] Field-type → control mapping (date picker, address card, map pin, etc.)
-- [ ] Composition (sub-forms for value objects; add/remove tables for lists)
-- [ ] Variant rendering (discriminator dropdown + sub-form switching)
-- [ ] i18n integration (Foundation.I18n)
-- [ ] Read vs Edit modes
-- [ ] Section-based permissions (per Permissions UPF Approach F)
-- [ ] Macaroon-based section-scope verification (composes ADR 0032)
-- [ ] Tests: representative form renders; permission filtering; multi-platform parity (Photino + .NET)
-
-### Phase 6 — Admin Authoring UX (~3 weeks)
-
-- [ ] Schema editor UI in Anchor (and Bridge)
-- [ ] Field-list authoring with primitive type picker
-- [ ] Section + role mapping authoring
-- [ ] Rule builder (visual condition builder for Tier 1; rule-list editor for Tier 2)
-- [ ] Inline preview with sample data
-- [ ] Schema publish + deprecate workflow
-- [ ] Tests: authoring UX walkthrough (BDFL composes 3 representative schemas in <15 min)
-
-### Phase 7 — Migration of shipped cluster work (~3 weeks)
-
-- [ ] Property schema definition + JSONB storage migration
-- [ ] Equipment schema definition + JSONB storage migration
-- [ ] Inspection schema definition + JSONB storage migration (Inspection extension preserves)
-- [ ] Lease schema definition (existing typed retains as read-projection)
-- [ ] Test migration: existing data round-trips through schema
-- [ ] Cluster intakes (Vendors, WorkOrders, Receipts, etc.) reauthor as schema specs
-
-### Phase 8 — Audit + observability + documentation (~1 week)
-
-- [ ] All audit record types added to kernel-audit per ADR 0049 amendment
-- [ ] Performance monitoring: form-load latency, rule-evaluation latency
-- [ ] apps/docs entry covering substrate + authoring guide + admin patterns
-
-**Total: ~16 weeks** (Phases 1-3 + 4-5 in parallel + 6-7 in parallel + 8). Aggressive scope cut deferring Tier 3 saves 3-4 weeks → **~12-13 weeks effective MVP timeline.**
-
----
-
-## Open questions
-
-| ID | Question | Resolution path |
-|---|---|---|
-| OQ-DF1 | JSON Schema library — NJsonSchema vs JsonSchema.Net vs custom wrapper? | Stage 02 design; recommend NJsonSchema (mature .NET; broad operator support) |
-| OQ-DF2 | JsonLogic interpreter — community lib vs handroll? | Stage 02 design; recommend community lib with Sunfish-specific operator extensions |
-| OQ-DF3 | Schema versioning conflict resolution — what happens when device A and device B both publish v2.0.0? | CRDT substrate's standard resolution; version + tenant-id forms the unique key; conflicts surface to admin for review |
-| OQ-DF4 | Entity tree queries: how deep is recursion in v1? | Stage 02 design; recommend explicit-depth queries (no unbounded recursion) |
-| OQ-DF5 | Schema editor authoring UX in Anchor or Bridge first? | CEO decision; default Anchor first (admin uses desktop) |
-| OQ-DF6 | Bundled vs separate ADRs for Taxonomy Substrate? | Already separate intake; this ADR references; that ADR drafts after this lands |
-| OQ-DF7 | Power Fx (Tier 3) cross-platform feasibility for v2 — research before committing | Defer to Phase 2.2 separate research |
-| OQ-DF8 | Initial type-pack starter — which schemas ship in `Property Management v1.0`? | Property + Unit + Equipment + Address + Lease + Party + Inspection + Receipt + Vendor + WorkOrder. Confirm with CEO. |
+- **Composes:** ADR 0001 (Schema Registry Governance), 0005 (Type Customization — Layer-3 overlay), 0007 (Bundle Manifest), 0028 (CRDT), 0032 (Macaroons), 0046 (Recovery — PII encryption), 0049 (Audit), **0056 (Taxonomy — now Accepted; Rev 1 referenced as "future")**.
+- **Consumed by:** ADR 0057 (leasing pipeline) per the GRAPH.
 
 ---
 
 ## Revisit triggers
 
-This ADR should be re-evaluated when any of the following fire:
-
-- **Schema authoring UX rejected by BDFL on usability grounds** — consolidate or simplify
-- **JSONB query performance regressions** in production at typical Phase 2 scale (6 LLCs × ~500 entities) — pivot to typed projections + read-replica
-- **Tier 3 (Power Fx) demand exceeds tolerance** — admin authors push for computed fields before v2 timeline
-- **Schema epoch handling becomes urgent** — breaking schema changes accumulate; lenses (paper §7.3) need to ship
-- **Cross-tenant schema sharing** crosses customer-pull threshold — marketplace v2 work
-- **Performance regression on form rendering** (>200ms p95) — rule evaluator caching; schema pre-compilation
-- **Compliance regime requires audit-trail not currently captured** (e.g., FCRA full-record-of-edits) — extend audit emission
-- **iOS Swift port** of rule interpreter doesn't reach parity — cross-platform rule eval gap
+- Schema authoring UX (Phase 2) rejected by CIC on usability grounds — consolidate or simplify
+- JSONB query performance regressions at typical scale (6 LLCs × ~500 entities) — pivot to typed projections + read-replica (now a v1-keystone concern per CIC OQ-5, not a later phase)
+- Tier-2/3 rule demand exceeds tolerance before the Phase-2 timeline
+- Schema epoch handling becomes urgent (breaking schema changes accumulate; lenses/upcasters need to ship from the registry into the form layer)
+- Cross-tenant schema sharing crosses a customer-pull threshold — marketplace v2 work
+- Form rendering p95 > 200ms — rule-evaluator caching; schema pre-compilation
+- Compliance regime requires audit-trail not currently captured (e.g., FCRA full-record-of-edits)
+- iOS Swift rule-interpreter parity gap
 
 ---
 
-## References
+## Pre-acceptance audit (Rev 2 self-check)
 
-### Predecessor and sister ADRs
-
-- ADR 0001 — Schema Registry Governance (foundation; this ADR is the v1 implementation)
-- ADR 0005 — Type Customization Model (extends; `SchemaLineage` formalizes)
-- ADR 0007 — Bundle Manifest Schema (extends; bundles include type-pack contents)
-- ADR 0008 — Foundation.MultiTenancy (consumed)
-- ADR 0013 — Provider neutrality (consumed; no vendor SDK leakage)
-- ADR 0028 — CRDT engine (consumed; schema + instance sync)
-- ADR 0032 — Macaroon capability model (consumed; section-scope per Permissions UPF)
-- ADR 0046 — Key-loss recovery (consumed; tenant-key-encrypted PII fields)
-- ADR 0049 — Audit Trail Substrate (consumed + extended with new event types)
-- ADR 0051 — Payments (Proposed; consumes Money compound primitive)
-- ADR 0052 — Bidirectional Messaging (Proposed; references InternationalizedText + Attachment primitives)
-- ADR 0053 — Work Order Domain Model (Proposed; reframed as schema in cluster reconciliation)
-- ADR 0054 — Electronic Signature (Proposed; references AuditCorrelation)
-
-### Research artifacts (this ADR's load-bearing inputs)
-
-- [`oss-primitive-types-research-2026-04-29.md`](../../icm/01_discovery/output/oss-primitive-types-research-2026-04-29.md) — 11 sources; 20-primitive catalog
-- [`dynamic-forms-authorization-permissions-upf-2026-04-29.md`](../../icm/00_intake/output/dynamic-forms-authorization-permissions-upf-2026-04-29.md) — Approach F (section-based + macaroon)
-- [`contact-use-enum-upf-2026-04-29.md`](../../icm/00_intake/output/contact-use-enum-upf-2026-04-29.md) — Pattern G (Role/Type + UseContext map)
-- [`taxonomy-management-substrate-intake-2026-04-29.md`](../../icm/00_intake/output/taxonomy-management-substrate-intake-2026-04-29.md) — separate substrate; this ADR references
-- [`cross-field-rules-engine-upf-2026-04-29.md`](../../icm/00_intake/output/cross-field-rules-engine-upf-2026-04-29.md) — three-tier rules engine
-
-### Roadmap and specifications
-
-- Local-Node Architecture paper §6 (sync) + §7 (schema epochs)
-- [`property-ops-INDEX-intake-2026-04-28.md`](../../icm/00_intake/output/property-ops-INDEX-intake-2026-04-28.md) — cluster INDEX; reframes per this ADR
-
-### External
-
-- JSON Schema Draft 2020-12 specification
-- JsonLogic specification
-- Microsoft Power Fx (open-sourced; reference impl)
-- FHIR HumanName, Address, ContactPoint, Quantity, Period, Identifier, Coding (composite type designs)
-- Schema.org Person, PostalAddress, MonetaryAmount, QuantitativeValue
-- iCalendar RFC 5545 (RecurrenceRule)
-- W3C Personal Names Around the World + ICU CLDR
-- GeoJSON RFC 7946
-
----
-
-## Pre-acceptance audit (5-minute self-check)
-
-- [x] **AHA pass.** Four options considered: schema-registry-driven (A); fixed-schemas-defer-dynamic (B); hybrid typed+JSONB (C); full event-sourced (D). A chosen with explicit rejection rationale for B (CEO directive precludes), C (defers cost; same total work), D (premature; v3+).
-- [x] **FAILED conditions / kill triggers.** 8 revisit triggers explicit; tied to externally-observable signals.
-- [x] **Rollback strategy.** No production data depends on substrate yet (cluster Phase 2 not in production). Rollback = revert this ADR + revert substrate packages + restore typed-records as primary persistence. Migration is one-way once data accumulates; pre-migration the rollback is clean.
-- [x] **Confidence level.** **HIGH.** Composes existing substrates (ADR 0001, 0005, 0028, 0032, 0049 all accepted); 5 prior research artifacts ground the design; industry alignment validated. Risk surface is in long-tail authoring UX + JSONB query performance, not in core architecture.
-- [x] **Anti-pattern scan.** None of AP-1 (4 named assumptions with validation), AP-3 (8 phases with binary gates), AP-9 (Stage 0 explicitly via prior research), AP-12 (12-16 week estimate with parallelization caveat), AP-21 (every claim cites a source) apply. Critical APs clean.
-- [x] **Revisit triggers.** 8 explicit conditions named.
-- [x] **Cold Start Test.** Implementation checklist 8 phases × ~5 sub-tasks each = ~40 specific tasks. Fresh contributor reading this ADR + 5 prior research artifacts + ADRs 0001/0028/0032/0049 should be able to scaffold Phase 1 (schema registry foundation) without further clarification.
-- [x] **Sources cited.** 13 ADRs referenced; 5 research artifacts cited; 7 external standards referenced.
+- [x] **AHA pass.** Four options considered (Rev 1); Rev 2 adds the build-vs-consume axis and chooses consume — the AHA insight is that ~60% of the substrate already shipped.
+- [x] **Status reconciled.** Frontmatter, body header, and sign-off were all consistently **Proposed** through Rev 3 (revision history explains the Rev 1 contradiction); Rev 4 flips all three consistently to **Accepted** on the folded dual-council verdicts.
+- [x] **Reuse inventory verified on disk** (origin/main 87b7266) — every "shipped" claim read; ONR's one over-claim (registry `SchemaStatus` field) corrected.
+- [x] **Scope cut explicit.** Minimal-v1 keystone vs. Phase-2+ DocType parity boundary is crisp and enumerated.
+- [x] **Council posture set.** Dual-council MANDATORY (security-engineering + dotnet-architect); rationale tied to the ADR 0095–0101 cadence + PII sensitivity.
+- [x] **Risks folded.** ONR's six risks are the risk section; mitigations pinned.
+- [x] **Open questions all closed (Rev 4).** OQ-3 RATIFIED by both councils (REFERENCE); OQ-5/6 RESOLVED by CIC ruling 2026-05-30T1322Z; OQ-1/2/4/7 resolved in Rev 2; OQ-8 is a post-Accept P3 detail. No open gate remains.
+- [x] **Dual-council attested (Rev 4).** Both verdicts AMBER with amendments folded (net-arch Findings A/B/C + JSONB index sequencing + OQ-3; sec-eng S1–S5); both pre-cleared the discretionary Admiral flip on a faithful Rev-4 fold with no third round. Status flipped Proposed→Accepted.
+- [x] **Finding A verified on disk (Rev 4).** `packages/foundation-assets-postgres/` confirmed shipped (`PostgresEntityStore`/`AssetStoreDbContext`/applied migration/DI/tests); the keystone CONSUMES it; net-new corrected to "JSONB content-index strategy + optional `EntityQuery` body-predicate."
+- [x] **Sources cited.** ONR scoping study (shipyard#208) + the on-disk packages + the two Rev-3 dual-council verdicts (`council-verdict-net-arch-…` + `council-verdict-sec-eng-…`, both 2026-05-30T1333Z).
 
 ---
 
 ## Sign-off
 
-CTO (research session) — 2026-04-29
+CTO (research session) — 2026-04-29 (Rev 1)
+Admiral (reconciliation subagent) — 2026-05-30 (Rev 2)
+Admiral (Rev 3 fold subagent) — 2026-05-30 (Rev 3 — CIC ruling 2026-05-30T1322Z folded: OQ-5 Postgres-in-keystone, OQ-6 code/JSON v1)
+Admiral (Rev 4 dual-council fold) — 2026-05-30 (Rev 4 — net-arch + sec-eng AMBER verdicts folded; both councils pre-cleared the discretionary flip; Finding A corrects the "Postgres adapter is net-new" framing; S1–S5 pinned as invariants; status flipped Proposed→Accepted)
 
-**Status: Proposed.** Awaiting CEO sign-off after council-review subagent dispatch (CTO will dispatch as next step before flipping Status: Accepted, given this ADR's substantial scope + cross-cutting impact).
+**Status: Accepted (Rev 4).** Re-scoped onto shipped substrate (Rev 2), scope settled by CIC ruling 2026-05-30T1322Z (Rev 3), and **dual-council attested (Rev 4)**: both verdicts (net-arch + security-engineering) returned AMBER, every amendment is folded (net-arch Findings A/B/C + JSONB index sequencing + OQ-3 ratification; sec-eng S1–S5), and both councils explicitly pre-cleared a discretionary Admiral flip on this faithful Rev-4 fold with no third council round. The Rev 1 phantom-acceptance (frontmatter `Accepted` with no council on the record) is NOT this: Rev 4's acceptance has both verdicts on disk in `coordination/inbox/` and a faithful fold of their amendments. This ADR is Accepted — the Engineer may author the keystone (`Sunfish.Foundation.Forms` + consume `foundation-assets-postgres` + the JSONB content-index migration) under the folded invariants.
