@@ -467,6 +467,10 @@
     <Project Path="packages/foundation-wayfinder-analyzers/Sunfish.Wayfinder.Analyzers.csproj" />
     <Project Path="packages/foundation-wayfinder-analyzers/tests/Sunfish.Wayfinder.Analyzers.Tests.csproj" />
   </Folder>
+  <Folder Name="/analyzers/foundation-bootstrap/">
+    <Project Path="packages/foundation-bootstrap-analyzers/Sunfish.Foundation.Bootstrap.Analyzers.csproj" />
+    <Project Path="packages/foundation-bootstrap-analyzers/tests/Sunfish.Foundation.Bootstrap.Analyzers.Tests.csproj" />
+  </Folder>
   <Folder Name="/kernel/signatures/">
     <Project Path="packages/kernel-signatures/Sunfish.Kernel.Signatures.csproj" />
     <Project Path="packages/kernel-signatures/tests/Sunfish.Kernel.Signatures.Tests.csproj" />

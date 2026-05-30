@@ -100,6 +100,51 @@
   </ItemGroup>
 
   <!--
+    ADR 0095 Step 3 enforcement gate — auto-wire the
+    Sunfish.Foundation.Bootstrap.Analyzers analyzer onto every project under
+    packages/blocks-* and packages/foundation-* so that:
+      * SUNFISH_BOOTSTRAP001 — a constructor injecting BOTH IBootstrapContext and
+        a post-tenant context interface (ITenantContext facade or narrowed
+        variant, IBrowserTenantContext, ICurrentUser, IAuthorizationContext) —
+        fails the build there (PRIMARY gate; closes the confused-deputy seam at
+        compile time), and
+      * SUNFISH_BOOTSTRAP002 — a MapBootstrapEndpoints-registered endpoint whose
+        fluent chain lacks .AllowAnonymous() — fails the build there (sec-eng
+        Gap D; prevents pre-auth-by-omission).
+    Mirrors the ProviderNeutrality auto-wiring pattern above (same
+    OutputItemType="Analyzer", same ReferenceOutputAssembly="false").
+
+    Both diagnostics are Error severity (per ADR 0095 §Step 3 checklist /
+    BridgeAuditEmissionAnalyzer precedent on shipyard#71), so they fail the build
+    unconditionally — independent of repo-wide TreatWarningsAsErrors.
+
+    Note: SUNFISH_BOOTSTRAP002 fires only inside a MapBootstrapEndpoints method
+    body. That method lives in signal-bridge (ADR 0095 Step 2), not shipyard, so
+    within THIS repo the gate primarily enforces SUNFISH_BOOTSTRAP001.
+    signal-bridge consumes this analyzer cross-repo (NuGet once published, or a
+    sibling ProjectReference) — tracked as a documented follow-on.
+
+    Predicate computed up front into _SunfishBootstrapTarget. Targets:
+      - packages/blocks-*/   (project name "Sunfish.Blocks.*")
+      - packages/foundation-*/ + packages/foundation/   (project name starting "Sunfish.Foundation")
+    Excluded (last-wins override order):
+      - The analyzer project itself + any `.Analyzers`-suffixed project (no self-attach).
+      - Any test project (project name ends in ".Tests").
+  -->
+  <PropertyGroup>
+    <_SunfishBootstrapTarget Condition="'$(_SunfishBootstrapTarget)' == ''">false</_SunfishBootstrapTarget>
+    <_SunfishBootstrapTarget Condition="$(MSBuildProjectName.StartsWith('Sunfish.Blocks.'))">true</_SunfishBootstrapTarget>
+    <_SunfishBootstrapTarget Condition="$(MSBuildProjectName.StartsWith('Sunfish.Foundation'))">true</_SunfishBootstrapTarget>
+    <_SunfishBootstrapTarget Condition="$(MSBuildProjectName.EndsWith('.Analyzers'))">false</_SunfishBootstrapTarget>
+    <_SunfishBootstrapTarget Condition="$(MSBuildProjectName.EndsWith('.Tests'))">false</_SunfishBootstrapTarget>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(_SunfishBootstrapTarget)' == 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)packages\foundation-bootstrap-analyzers\Sunfish.Foundation.Bootstrap.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!--
     ADR 0013 enforcement gate (Phase 3 / BannedSymbols layer) — auto-wire the
     Microsoft.CodeAnalysis.BannedApiAnalyzers package + the solution-root
     BannedSymbols.txt onto every packageable, non-test, non-analyzer project.
